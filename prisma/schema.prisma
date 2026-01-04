@@ -1,0 +1,189 @@
+// Lucid MVP - Prisma Schema
+// Privacy-first personal data bank with encrypted storage, consent management, and audit logging
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - synced with Supabase Auth
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Encryption key management (for future user-controlled encryption)
+  encryptionKeyHash String? // Hashed user key for verification
+
+  // Relations
+  vaultData VaultData[]
+  consents  Consent[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// Encrypted vault data storage
+model VaultData {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Data classification
+  category  String   // e.g., "personal", "health", "financial", "credentials"
+  dataType  String   // e.g., "json", "credential", "document"
+
+  // Encrypted content (envelope encryption: DEK encrypted with master KEK)
+  encryptedData String   @db.Text // AES-256 encrypted JSON
+  encryptedKey  String   // Encrypted data encryption key
+  iv            String   // Initialization vector + auth tag (format: "iv:authTag")
+
+  // Metadata (unencrypted for querying)
+  label        String
+  description  String?
+  tags         String[]
+
+  // Schema information for portability
+  schemaType    String?  // e.g., "JSON-LD", "VerifiableCredential", "FHIR"
+  schemaVersion String?  @default("1.0")
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime? // Optional data expiration
+
+  // Relations
+  consents  Consent[]
+  auditLogs AuditLog[]
+
+  @@index([userId])
+  @@index([category])
+  @@index([createdAt])
+  @@map("vault_data")
+}
+
+// Consent management - granular permissions
+model Consent {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // What data is consented
+  vaultDataId String?
+  vaultData   VaultData? @relation(fields: [vaultDataId], references: [id], onDelete: Cascade)
+
+  // Who can access
+  grantedTo      String   // Organization/buyer identifier
+  grantedToName  String   // Human-readable name
+  grantedToEmail String?  // Contact email
+
+  // What they can do
+  accessLevel   String   // "read", "export", "verify"
+  purpose       String   // e.g., "research", "verification", "analytics"
+
+  // When it's valid
+  startDate     DateTime @default(now())
+  endDate       DateTime? // Null = indefinite
+  revoked       Boolean  @default(false)
+  revokedAt     DateTime?
+  revokedReason String?
+
+  // Consent metadata
+  consentType String   @default("explicit") // "explicit", "implied"
+  ipAddress   String?  // IP where consent was granted
+  userAgent   String?  // Browser/device info
+
+  // Legal/compliance
+  termsVersion String  @default("1.0")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  auditLogs AuditLog[]
+
+  @@index([userId])
+  @@index([vaultDataId])
+  @@index([grantedTo])
+  @@index([endDate])
+  @@map("consents")
+}
+
+// Immutable audit trail - hash-chained for integrity
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // What was accessed
+  vaultDataId String?
+  vaultData   VaultData? @relation(fields: [vaultDataId], references: [id], onDelete: SetNull)
+
+  // Under what consent
+  consentId String?
+  consent   Consent? @relation(fields: [consentId], references: [id], onDelete: SetNull)
+
+  // Event details
+  eventType String   // "access", "export", "consent_granted", "consent_revoked", "data_created", "data_updated", "data_deleted"
+  action    String   // Human-readable action description
+
+  // Who performed it
+  actorId    String   // User or system identifier
+  actorType  String   // "user", "system", "buyer"
+  actorName  String?
+
+  // How they performed it
+  ipAddress String?
+  userAgent String?
+  method    String?  // API method or UI action
+
+  // Result
+  success      Boolean  @default(true)
+  errorMessage String?
+
+  // Hash chain for immutability (prevents tampering)
+  previousHash String?  @db.Text // Hash of previous log entry
+  currentHash  String   @db.Text // Hash of this entry (SHA-256)
+
+  // Metadata
+  metadata Json?     // Additional structured data
+
+  timestamp DateTime @default(now())
+
+  @@index([userId])
+  @@index([vaultDataId])
+  @@index([consentId])
+  @@index([eventType])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+// Data export requests for portability
+model ExportRequest {
+  id        String   @id @default(uuid())
+  userId    String
+
+  format    String   // "JSON-LD", "VerifiableCredential", "CSV"
+  status    String   // "pending", "processing", "completed", "failed"
+
+  // Export configuration
+  includeCategories String[] // Which categories to include
+  includeAuditLog   Boolean  @default(true)
+
+  // Result
+  exportUrl   String?   // Signed URL to download
+  expiresAt   DateTime?
+  errorMessage String?
+
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@map("export_requests")
+}
