@@ -32,19 +32,19 @@ export default async function DashboardLayout({
                 Dashboard
               </Link>
               <Link
-                href="/dashboard/vault"
+                href="/vault"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 Vault
               </Link>
               <Link
-                href="/dashboard/consent"
+                href="/consent"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 Consents
               </Link>
               <Link
-                href="/dashboard/audit"
+                href="/audit"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 Audit Log

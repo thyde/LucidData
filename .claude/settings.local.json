@@ -1,4 +1,10 @@
 {
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=ebcilokuvbdkhkqfjaup&features=database%2Cdocs%2Caccount%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+    }
+  },
   "permissions": {
     "allow": [
       "Bash(npx create-next-app:*)",
@@ -16,7 +22,10 @@
       "Bash(npx dotenv:*)",
       "Bash(curl:*)",
       "Bash(git remote add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Lucid MVP - Privacy-first Personal Data Bank\n\nComplete application scaffolding with:\n- Next.js 15 with TypeScript and Tailwind CSS\n- Supabase authentication integration \\(local dev\\)\n- Prisma ORM with PostgreSQL database\n- Complete database schema \\(User, VaultData, Consent, AuditLog, ExportRequest\\)\n- AES-256-GCM encryption utilities with envelope encryption\n- SHA-256 hash chain implementation for audit logs\n- shadcn/ui component library \\(12 components\\)\n- Security middleware with HSTS, CSP, and X-Frame-Options\n\nFeatures implemented:\n- Landing page with authentication flow\n- Dashboard with navigation\n- Vault page \\(placeholder with mock data\\)\n- Consent management page \\(placeholder\\)\n- Audit log viewer \\(placeholder\\)\n- API routes with mock data responses\n\nDevelopment setup:\n- Local Supabase instance configured\n- Database migrations and seed data\n- Environment configuration for local and production\n- Comprehensive documentation \\(SETUP.md, QUICKSTART.md\\)\n- Prisma 6.19.1 for stability\n\nReady for:\n- Real vault encryption/decryption implementation\n- Consent management with database integration\n- Audit log with hash chain verification\n- Data export functionality\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git config:*)",
+      "Bash(git commit --amend --reset-author --no-edit)"
     ]
   }
 }

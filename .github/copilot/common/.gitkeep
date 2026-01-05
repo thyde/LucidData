@@ -1,0 +1,8 @@
+# Common Patterns (Frequently Referenced)
+
+This directory contains documentation for patterns used regularly during development:
+- Component patterns (Server/Client components, shadcn/ui)
+- Validation patterns (Zod schemas)
+- Code examples (complete CRUD flows)
+
+These files provide templates and examples for common development tasks.

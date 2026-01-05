@@ -13,7 +13,7 @@ async function getConsent(userId: string, id: string) {
   return consent;
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -23,7 +23,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const consent = await getConsent(user.id, params.id);
+  const { id } = await params;
+  const consent = await getConsent(user.id, id);
   if (!consent) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
@@ -42,7 +43,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   return NextResponse.json(consent);
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
     const {
@@ -53,7 +54,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const existing = await getConsent(user.id, params.id);
+    const { id } = await params;
+    const existing = await getConsent(user.id, id);
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }

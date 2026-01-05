@@ -1,0 +1,8 @@
+# Reference Documentation (Occasionally Referenced)
+
+This directory contains reference material that doesn't change frequently:
+- Coding conventions (naming, imports, file organization)
+- Tech stack reference (libraries, versions, configuration)
+- Development workflow (commands, URLs - with links to QUICKSTART.md)
+
+These files are useful for onboarding and looking up specific details.

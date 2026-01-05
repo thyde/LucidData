@@ -1,0 +1,11 @@
+# Critical Patterns (Always Referenced)
+
+This directory contains documentation for patterns that are essential for every feature implementation:
+- Security patterns (encryption, authentication, audit logging)
+- API route patterns (standard structure, error handling)
+- Database schema reference (Prisma models, relationships)
+
+These files should be consulted before implementing any feature that involves:
+- User data access or storage
+- Authentication/authorization
+- Sensitive operations requiring audit trails

@@ -14,7 +14,7 @@ async function getVaultEntry(userId: string, id: string) {
   return entry;
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -24,7 +24,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const entry = await getVaultEntry(user.id, params.id);
+  const { id } = await params;
+  const entry = await getVaultEntry(user.id, id);
   if (!entry) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
@@ -50,7 +51,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   });
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
     const {
@@ -61,7 +62,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const existing = await getVaultEntry(user.id, params.id);
+    const { id } = await params;
+    const existing = await getVaultEntry(user.id, id);
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
@@ -132,7 +134,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -142,7 +144,8 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const existing = await getVaultEntry(user.id, params.id);
+  const { id } = await params;
+  const existing = await getVaultEntry(user.id, id);
   if (!existing) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }

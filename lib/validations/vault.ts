@@ -5,7 +5,7 @@ export const vaultDataSchema = z.object({
   description: z.string().max(500, 'Description must be 500 characters or less').optional(),
   category: z.enum(['personal', 'health', 'financial', 'credentials', 'other']),
   dataType: z.enum(['json', 'credential', 'document']).default('json'),
-  data: z.record(z.any()), // The actual data to be encrypted
+  data: z.record(z.string(), z.any()), // The actual data to be encrypted
   tags: z.array(z.string()).optional().default([]),
   schemaType: z.string().optional(),
   schemaVersion: z.string().optional().default('1.0'),

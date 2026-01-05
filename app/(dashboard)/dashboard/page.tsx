@@ -1,8 +1,36 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/db/prisma';
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Fetch real statistics
+  let vaultCount = 0;
+  let consentCount = 0;
+  let auditCount = 0;
+
+  if (user) {
+    try {
+      vaultCount = await prisma.vaultData.count({
+        where: { userId: user.id },
+      });
+
+      consentCount = await prisma.consent.count({
+        where: { userId: user.id, revoked: false },
+      });
+
+      auditCount = await prisma.auditLog.count({
+        where: { userId: user.id },
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -19,8 +47,8 @@ export default function DashboardPage() {
             <CardDescription>Manage your encrypted data</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold mb-4">3 entries</p>
-            <Link href="/dashboard/vault">
+            <p className="text-2xl font-bold mb-4">{vaultCount} {vaultCount === 1 ? 'entry' : 'entries'}</p>
+            <Link href="/vault">
               <Button variant="outline" className="w-full">
                 View Vault
               </Button>
@@ -34,8 +62,8 @@ export default function DashboardPage() {
             <CardDescription>Control data access permissions</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold mb-4">2 active</p>
-            <Link href="/dashboard/consent">
+            <p className="text-2xl font-bold mb-4">{consentCount} {consentCount === 1 ? 'active' : 'active'}</p>
+            <Link href="/consent">
               <Button variant="outline" className="w-full">
                 Manage Consents
               </Button>
@@ -49,8 +77,8 @@ export default function DashboardPage() {
             <CardDescription>Track all data access events</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold mb-4">4 events</p>
-            <Link href="/dashboard/audit">
+            <p className="text-2xl font-bold mb-4">{auditCount} {auditCount === 1 ? 'event' : 'events'}</p>
+            <Link href="/audit">
               <Button variant="outline" className="w-full">
                 View Log
               </Button>
