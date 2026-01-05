@@ -1,43 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/db/prisma';
+import { verifyHashChain } from '@/lib/crypto/hashing';
+import { createAuditLogEntry } from '@/lib/db/queries/audit';
 
-// Mock audit log data
-const mockAuditLogs = [
-  {
-    id: '1',
-    eventType: 'data_created',
-    action: 'Created vault entry: Personal Information',
-    actorType: 'user',
-    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    success: true,
-  },
-  {
-    id: '2',
-    eventType: 'consent_granted',
-    action: 'Granted read access to Medical Research Institute',
-    actorType: 'user',
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    success: true,
-  },
-  {
-    id: '3',
-    eventType: 'access',
-    action: 'Data accessed by Medical Research Institute',
-    actorType: 'buyer',
-    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    success: true,
-  },
-  {
-    id: '4',
-    eventType: 'consent_revoked',
-    action: 'Revoked consent for General Hospital',
-    actorType: 'user',
-    timestamp: new Date().toISOString(),
-    success: true,
-  },
-];
-
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -47,5 +14,38 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  return NextResponse.json(mockAuditLogs);
+  const logs = await prisma.auditLog.findMany({
+    where: { userId: user.id },
+    orderBy: { timestamp: 'asc' },
+  });
+
+  const chainValid = verifyHashChain(
+    logs.map((entry) => ({
+      currentHash: entry.currentHash,
+      previousHash: entry.previousHash,
+      eventType: entry.eventType,
+      userId: entry.userId,
+      timestamp: entry.timestamp,
+      action: entry.action,
+    }))
+  );
+
+  if (!chainValid) {
+    return NextResponse.json({ error: 'Audit log integrity check failed' }, { status: 500 });
+  }
+
+  const accessLog = await createAuditLogEntry({
+    userId: user.id,
+    eventType: 'audit_accessed',
+    action: 'Viewed audit log',
+    actorId: user.id,
+    actorType: 'user',
+    request,
+  });
+
+  const responseLogs = [...logs, accessLog].sort(
+    (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+  );
+
+  return NextResponse.json(responseLogs);
 }
