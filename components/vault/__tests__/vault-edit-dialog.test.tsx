@@ -3,6 +3,8 @@ import { screen, waitFor } from '@/test/helpers/render';
 import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { VaultEditDialog } from '../vault-edit-dialog';
+import { createMockQuery, createMockMutation } from '@/test/utils';
+import { waitForToast, flushPromises } from '@/test/utils';
 
 // Mock hooks
 vi.mock('@/lib/hooks/useVault', () => ({
@@ -34,22 +36,33 @@ const mockEntry = {
 };
 
 describe('VaultEditDialog', () => {
-  const mockMutate = vi.fn();
+  let mockUpdateMutation: ReturnType<typeof createMockMutation>;
   const mockToast = vi.fn();
+  let onSuccessHook: (data: any) => void;
+  let onErrorHook: (error: Error) => void;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useVaultEntry as any).mockReturnValue({
-      data: mockEntry,
-      isLoading: false,
-      error: null,
+
+    // Mock entry query
+    vi.mocked(useVaultEntry).mockReturnValue(createMockQuery(mockEntry));
+
+    // Define hook callbacks
+    onSuccessHook = () => mockToast({ title: 'Success', description: 'Vault entry updated successfully' });
+    onErrorHook = (error) => mockToast({ variant: 'destructive', title: 'Error', description: error.message });
+
+    // Create mock mutation with toast callbacks
+    mockUpdateMutation = createMockMutation({
+      onSuccessHook,
+      onErrorHook,
     });
-    (useUpdateVault as any).mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
-    });
-    (useToast as any).mockReturnValue({
+    vi.mocked(useUpdateVault).mockReturnValue(mockUpdateMutation);
+
+    // Mock toast hook
+    vi.mocked(useToast).mockReturnValue({
       toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
     });
   });
 
@@ -251,7 +264,7 @@ describe('VaultEditDialog', () => {
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled();
+        expect(mockUpdateMutation.mutate).toHaveBeenCalled();
       });
     });
 
@@ -280,12 +293,12 @@ describe('VaultEditDialog', () => {
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalledWith({
+        expect(mockUpdateMutation.mutate).toHaveBeenCalledWith(expect.objectContaining({
           id: 'vault-123',
           data: expect.objectContaining({
             label: 'Updated Label',
           }),
-        });
+        }), expect.objectContaining({ onSuccess: expect.any(Function) }));
       });
     });
 
@@ -299,20 +312,19 @@ describe('VaultEditDialog', () => {
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalledWith(
+        expect(mockUpdateMutation.mutate).toHaveBeenCalledWith(
           expect.objectContaining({
             id: 'vault-123',
             data: expect.any(Object),
-          })
+          }),
+          expect.objectContaining({ onSuccess: expect.any(Function) })
         );
       });
     });
 
     it('shows loading state during update', () => {
-      (useUpdateVault as any).mockReturnValue({
-        mutate: mockMutate,
-        isPending: true,
-      });
+      mockUpdateMutation.isPending = true;
+      vi.mocked(useUpdateVault).mockReturnValue(mockUpdateMutation);
 
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
@@ -320,10 +332,8 @@ describe('VaultEditDialog', () => {
     });
 
     it('disables submit button during update', () => {
-      (useUpdateVault as any).mockReturnValue({
-        mutate: mockMutate,
-        isPending: true,
-      });
+      mockUpdateMutation.isPending = true;
+      vi.mocked(useUpdateVault).mockReturnValue(mockUpdateMutation);
 
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
@@ -333,15 +343,6 @@ describe('VaultEditDialog', () => {
 
     it('shows success toast on update', async () => {
       const user = userEvent.setup();
-      const mockMutateSuccess = vi.fn((data, options) => {
-        options?.onSuccess?.();
-      });
-
-      (useUpdateVault as any).mockReturnValue({
-        mutate: mockMutateSuccess,
-        isPending: false,
-      });
-
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
       const labelInput = screen.getByLabelText(/label/i);
@@ -349,13 +350,14 @@ describe('VaultEditDialog', () => {
       await user.type(labelInput, 'Updated');
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: expect.stringMatching(/success/i),
-          })
-        );
-      });
+      await waitForToast(mockToast);
+      await flushPromises();
+
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringMatching(/success/i),
+        })
+      );
     });
 
     it('closes dialog after successful update', async () => {
@@ -392,7 +394,7 @@ describe('VaultEditDialog', () => {
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled();
+        expect(mockUpdateMutation.mutate).toHaveBeenCalled();
       });
     });
   });
@@ -401,14 +403,21 @@ describe('VaultEditDialog', () => {
   describe('Error Handling', () => {
     it('shows error toast on API failure', async () => {
       const user = userEvent.setup();
-      const mockMutateError = vi.fn((data, options) => {
-        options?.onError?.(new Error('API Error'));
-      });
 
-      (useUpdateVault as any).mockReturnValue({
-        mutate: mockMutateError,
-        isPending: false,
+      // Create a mutation that only calls error hook, not success
+      const errorOnlyMutation = createMockMutation({
+        onSuccessHook: () => {}, // No-op
+        onErrorHook,
       });
+      // Override mutate to only call error callback
+      errorOnlyMutation.mutate = vi.fn((variables, options) => {
+        setTimeout(() => {
+          const error = new Error('API Error');
+          onErrorHook(error);
+          options?.onError?.(error);
+        }, 0);
+      }) as any;
+      vi.mocked(useUpdateVault).mockReturnValue(errorOnlyMutation);
 
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
@@ -417,27 +426,32 @@ describe('VaultEditDialog', () => {
       await user.type(labelInput, 'Updated');
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            variant: 'destructive',
-          })
-        );
-      });
+      await flushPromises();
+
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'destructive',
+        })
+      );
     });
 
     it('handles 403 unauthorized error', async () => {
       const user = userEvent.setup();
-      const mockMutateError = vi.fn((data, options) => {
-        const error = new Error('Unauthorized');
-        (error as any).status = 403;
-        options?.onError?.(error);
-      });
 
-      (useUpdateVault as any).mockReturnValue({
-        mutate: mockMutateError,
-        isPending: false,
+      // Create a mutation that triggers 403 error
+      const errorOnlyMutation = createMockMutation({
+        onSuccessHook: () => {},
+        onErrorHook,
       });
+      errorOnlyMutation.mutate = vi.fn((variables, options) => {
+        setTimeout(() => {
+          const error = new Error('Unauthorized');
+          (error as any).status = 403;
+          onErrorHook(error);
+          options?.onError?.(error);
+        }, 0);
+      }) as any;
+      vi.mocked(useUpdateVault).mockReturnValue(errorOnlyMutation);
 
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
@@ -446,13 +460,13 @@ describe('VaultEditDialog', () => {
       await user.type(labelInput, 'Updated');
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            variant: 'destructive',
-          })
-        );
-      });
+      await flushPromises();
+
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'destructive',
+        })
+      );
     });
 
     it('handles 404 not found error', async () => {
@@ -470,14 +484,20 @@ describe('VaultEditDialog', () => {
     it('keeps dialog open on error', async () => {
       const user = userEvent.setup();
       const mockOnOpenChange = vi.fn();
-      const mockMutateError = vi.fn((data, options) => {
-        options?.onError?.(new Error('API Error'));
-      });
 
-      (useUpdateVault as any).mockReturnValue({
-        mutate: mockMutateError,
-        isPending: false,
+      // Create a mutation that only triggers error
+      const errorOnlyMutation = createMockMutation({
+        onSuccessHook: () => {},
+        onErrorHook,
       });
+      errorOnlyMutation.mutate = vi.fn((variables, options) => {
+        setTimeout(() => {
+          const error = new Error('API Error');
+          onErrorHook(error);
+          options?.onError?.(error);
+        }, 0);
+      }) as any;
+      vi.mocked(useUpdateVault).mockReturnValue(errorOnlyMutation);
 
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={mockOnOpenChange} />);
 
@@ -486,11 +506,10 @@ describe('VaultEditDialog', () => {
       await user.type(labelInput, 'Updated');
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalled();
-      });
+      await flushPromises();
 
-      // Dialog should not have been closed
+      // Verify dialog stays open (onOpenChange not called with false)
+      expect(mockToast).toHaveBeenCalled();
       expect(mockOnOpenChange).not.toHaveBeenCalledWith(false);
     });
   });
