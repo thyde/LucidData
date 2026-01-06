@@ -59,7 +59,7 @@ function getCategoryVariant(category: string): 'default' | 'secondary' | 'destru
 
 export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: VaultViewDialogProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const { data: entry, isLoading, error } = useVaultEntry(entryId);
+  const { data: entry, isLoading, isError, error } = useVaultEntry(entryId);
   const { mutate: deleteVault, isPending: isDeleting } = useDeleteVault();
 
   const handleDelete = () => {
@@ -76,8 +76,8 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           {isLoading && <div>Loading...</div>}
-          {error && <div>Not found</div>}
-          {entry && (
+          {isError && <div>Error: {error instanceof Error ? error.message : 'Failed to load entry'}</div>}
+          {entry && !isLoading && !isError && (
             <>
               <DialogHeader>
                 <DialogTitle>{entry.label}</DialogTitle>
@@ -197,6 +197,7 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   type="button"
                   variant="destructive"
                   onClick={() => setShowDeleteDialog(true)}
+                  disabled={isDeleting}
                 >
                   Delete
                 </Button>
