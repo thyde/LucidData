@@ -1,49 +1,37 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/middleware/withAuth';
 import { prisma } from '@/lib/db/prisma';
 import { consentSchema } from '@/lib/validations/consent';
 import { createAuditLogEntry } from '@/lib/db/queries/audit';
+import { logDatabaseError } from '@/lib/services/error-logger';
 
-export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const consents = await prisma.consent.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  await createAuditLogEntry({
-    userId: user.id,
-    eventType: 'consent_accessed',
-    action: 'Listed consents',
-    actorId: user.id,
-    actorType: 'user',
-    request,
-    metadata: { count: consents.length },
-  });
-
-  return NextResponse.json(consents);
-}
-
-export async function POST(request: Request) {
+export const GET = withAuth(async (request, { userId }) => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const consents = await prisma.consent.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await createAuditLogEntry({
+      userId,
+      eventType: 'consent_accessed',
+      action: 'Listed consents',
+      actorId: userId,
+      actorType: 'user',
+      request,
+      metadata: { count: consents.length },
+    });
 
+    return NextResponse.json(consents);
+  } catch (error) {
+    logDatabaseError(error, { userId, action: 'LIST_CONSENTS' });
+    return NextResponse.json({ error: 'Failed to retrieve consents' }, { status: 500 });
+  }
+});
+
+export const POST = withAuth(async (request, { userId }) => {
+  try {
     const body = await request.json();
     const validated = consentSchema.parse({
       ...body,
@@ -52,14 +40,14 @@ export async function POST(request: Request) {
 
     if (validated.vaultDataId) {
       const vaultEntry = await prisma.vaultData.findUnique({ where: { id: validated.vaultDataId } });
-      if (!vaultEntry || vaultEntry.userId !== user.id) {
+      if (!vaultEntry || vaultEntry.userId !== userId) {
         return NextResponse.json({ error: 'Invalid vault data reference' }, { status: 400 });
       }
     }
 
     const consent = await prisma.consent.create({
       data: {
-        userId: user.id,
+        userId,
         vaultDataId: validated.vaultDataId,
         grantedTo: validated.grantedTo,
         grantedToName: validated.grantedToName,
@@ -72,12 +60,12 @@ export async function POST(request: Request) {
     });
 
     await createAuditLogEntry({
-      userId: user.id,
+      userId,
       consentId: consent.id,
       vaultDataId: consent.vaultDataId,
       eventType: 'consent_granted',
       action: `Granted ${consent.accessLevel} access to ${consent.grantedToName}`,
-      actorId: user.id,
+      actorId: userId,
       actorType: 'user',
       request,
     });
@@ -91,6 +79,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logDatabaseError(error, { userId, action: 'CREATE_CONSENT' });
+    return NextResponse.json({ error: 'Failed to create consent' }, { status: 500 });
   }
-}
+});

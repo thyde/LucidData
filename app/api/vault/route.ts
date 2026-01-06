@@ -1,91 +1,86 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/middleware/withAuth';
 import { prisma } from '@/lib/db/prisma';
 import { encrypt, decrypt, getMasterKey } from '@/lib/crypto/encryption';
 import { vaultDataSchema } from '@/lib/validations/vault';
 import { createAuditLogEntry } from '@/lib/db/queries/audit';
+import { logCryptoError, logDatabaseError } from '@/lib/services/error-logger';
 
-export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const GET = withAuth(async (request, { userId }) => {
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const entries = await prisma.vaultData.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  const masterKey = getMasterKey();
-
-  const decryptedEntries = entries.map((entry) => {
-    try {
-      const [ivHex, authTagHex] = entry.iv.split(':');
-      const decrypted = decrypt(entry.encryptedData, masterKey, ivHex, authTagHex);
-      const data = JSON.parse(decrypted);
-
-      return {
-        id: entry.id,
-        label: entry.label,
-        category: entry.category,
-        description: entry.description ?? '',
-        dataType: entry.dataType,
-        tags: entry.tags,
-        schemaType: entry.schemaType,
-        schemaVersion: entry.schemaVersion,
-        expiresAt: entry.expiresAt,
-        createdAt: entry.createdAt,
-        updatedAt: entry.updatedAt,
-        data,
-      };
-    } catch (error) {
-      return {
-        id: entry.id,
-        label: entry.label,
-        category: entry.category,
-        description: entry.description ?? '',
-        dataType: entry.dataType,
-        tags: entry.tags,
-        schemaType: entry.schemaType,
-        schemaVersion: entry.schemaVersion,
-        expiresAt: entry.expiresAt,
-        createdAt: entry.createdAt,
-        updatedAt: entry.updatedAt,
-        data: null,
-        error: 'Decryption failed',
-      };
-    }
-  });
-
-  await createAuditLogEntry({
-    userId: user.id,
-    eventType: 'data_accessed',
-    action: 'Listed vault entries',
-    actorId: user.id,
-    actorType: 'user',
-    request,
-    metadata: { count: entries.length },
-  });
-
-  return NextResponse.json(decryptedEntries);
-}
-
-export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const entries = await prisma.vaultData.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const masterKey = getMasterKey();
 
+    const decryptedEntries = entries.map((entry) => {
+      try {
+        const [ivHex, authTagHex] = entry.iv.split(':');
+        const decrypted = decrypt(entry.encryptedData, masterKey, ivHex, authTagHex);
+        const data = JSON.parse(decrypted);
+
+        return {
+          id: entry.id,
+          label: entry.label,
+          category: entry.category,
+          description: entry.description ?? '',
+          dataType: entry.dataType,
+          tags: entry.tags,
+          schemaType: entry.schemaType,
+          schemaVersion: entry.schemaVersion,
+          expiresAt: entry.expiresAt,
+          createdAt: entry.createdAt,
+          updatedAt: entry.updatedAt,
+          data,
+        };
+      } catch (error) {
+        logCryptoError(error, {
+          userId,
+          action: 'DECRYPT_VAULT_ENTRY',
+          resource: entry.id,
+        });
+
+        return {
+          id: entry.id,
+          label: entry.label,
+          category: entry.category,
+          description: entry.description ?? '',
+          dataType: entry.dataType,
+          tags: entry.tags,
+          schemaType: entry.schemaType,
+          schemaVersion: entry.schemaVersion,
+          expiresAt: entry.expiresAt,
+          createdAt: entry.createdAt,
+          updatedAt: entry.updatedAt,
+          data: null,
+          error: 'Decryption failed',
+        };
+      }
+    });
+
+    await createAuditLogEntry({
+      userId,
+      eventType: 'data_accessed',
+      action: 'Listed vault entries',
+      actorId: userId,
+      actorType: 'user',
+      request,
+      metadata: { count: entries.length },
+    });
+
+    return NextResponse.json(decryptedEntries);
+  } catch (error) {
+    logDatabaseError(error, { userId, action: 'LIST_VAULT_ENTRIES' });
+    return NextResponse.json({ error: 'Failed to retrieve vault entries' }, { status: 500 });
+  }
+});
+
+export const POST = withAuth(async (request, { userId }) => {
+  try {
     const body = await request.json();
     const validated = vaultDataSchema.parse({
       ...body,
@@ -97,7 +92,7 @@ export async function POST(request: Request) {
 
     const vaultEntry = await prisma.vaultData.create({
       data: {
-        userId: user.id,
+        userId,
         category: validated.category,
         dataType: validated.dataType,
         label: validated.label,
@@ -113,11 +108,11 @@ export async function POST(request: Request) {
     });
 
     await createAuditLogEntry({
-      userId: user.id,
+      userId,
       vaultDataId: vaultEntry.id,
       eventType: 'data_created',
       action: `Created vault entry: ${validated.label}`,
-      actorId: user.id,
+      actorId: userId,
       actorType: 'user',
       request,
       metadata: { category: validated.category },
@@ -138,6 +133,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logDatabaseError(error, { userId, action: 'CREATE_VAULT_ENTRY' });
+    return NextResponse.json({ error: 'Failed to create vault entry' }, { status: 500 });
   }
-}
+});
