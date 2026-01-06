@@ -104,6 +104,7 @@ export function VaultList({ onEntryClick }: VaultListProps) {
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
+          aria-label="Category filter"
           className="flex h-9 w-[180px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="">All</option>
@@ -117,6 +118,7 @@ export function VaultList({ onEntryClick }: VaultListProps) {
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as 'date' | 'label' | 'category')}
+          aria-label="Sort by"
           className="flex h-9 w-[180px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="date">Date</option>
@@ -129,7 +131,7 @@ export function VaultList({ onEntryClick }: VaultListProps) {
       {isLoading && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
+            <Card key={i} className="animate-pulse" data-testid="skeleton">
               <CardHeader>
                 <div className="h-6 bg-muted rounded w-3/4"></div>
               </CardHeader>
@@ -150,8 +152,11 @@ export function VaultList({ onEntryClick }: VaultListProps) {
       )}
 
       {!isLoading && !error && filteredEntries.length === 0 && !searchTerm && !categoryFilter && (
-        <div className="text-center py-12 text-muted-foreground">
+        <div className="text-center py-12 text-muted-foreground" data-testid="empty-state">
           <p>No vault entries yet. Create your first entry!</p>
+          <Button onClick={() => setIsCreateOpen(true)} className="mt-4">
+            Create Your First Entry
+          </Button>
         </div>
       )}
 
@@ -168,6 +173,8 @@ export function VaultList({ onEntryClick }: VaultListProps) {
               key={entry.id}
               onClick={() => setSelectedEntry(entry.id)}
               className="cursor-pointer hover:shadow-md transition-shadow"
+              role="article"
+              data-testid="vault-entry"
             >
               <CardHeader>
                 <div className="flex justify-between items-start">

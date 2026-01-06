@@ -3,6 +3,8 @@ import { screen, waitFor, within } from '@/test/helpers/render';
 import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { VaultList } from '../vault-list';
+import { createMockQuery, createLoadingQuery, createErrorQuery, createMockMutation } from '@/test/utils';
+import { waitForToast, flushPromises } from '@/test/utils';
 
 // Mock hooks
 vi.mock('@/lib/hooks/useVault', () => ({
@@ -69,48 +71,53 @@ const mockEntries = [
 ];
 
 describe('VaultList', () => {
-  const mockMutate = vi.fn();
+  let mockListQuery: ReturnType<typeof createMockQuery>;
+  let mockCreateMutation: ReturnType<typeof createMockMutation>;
+  let mockUpdateMutation: ReturnType<typeof createMockMutation>;
+  let mockDeleteMutation: ReturnType<typeof createMockMutation>;
   const mockToast = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useVaultList as any).mockReturnValue({
-      data: mockEntries,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
+
+    // Create mock query with data
+    mockListQuery = createMockQuery(mockEntries);
+    vi.mocked(useVaultList).mockReturnValue(mockListQuery);
+
+    // Mock vault entry query (used for view dialog)
+    vi.mocked(useVaultEntry).mockReturnValue(createMockQuery(null));
+
+    // Create mock mutations with toast callbacks
+    mockCreateMutation = createMockMutation({
+      onSuccessHook: () => mockToast({ title: 'Success', description: 'Vault entry created successfully' }),
+      onErrorHook: (error) => mockToast({ variant: 'destructive', title: 'Error', description: error.message }),
     });
-    (useVaultEntry as any).mockReturnValue({
-      data: null,
-      isLoading: false,
-      error: null,
+    vi.mocked(useCreateVault).mockReturnValue(mockCreateMutation);
+
+    mockUpdateMutation = createMockMutation({
+      onSuccessHook: () => mockToast({ title: 'Success', description: 'Vault entry updated successfully' }),
+      onErrorHook: (error) => mockToast({ variant: 'destructive', title: 'Error', description: error.message }),
     });
-    (useCreateVault as any).mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
+    vi.mocked(useUpdateVault).mockReturnValue(mockUpdateMutation);
+
+    mockDeleteMutation = createMockMutation({
+      onSuccessHook: () => mockToast({ title: 'Success', description: 'Vault entry deleted successfully' }),
+      onErrorHook: (error) => mockToast({ variant: 'destructive', title: 'Error', description: error.message }),
     });
-    (useUpdateVault as any).mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
-    });
-    (useDeleteVault as any).mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
-    });
-    (useToast as any).mockReturnValue({
+    vi.mocked(useDeleteVault).mockReturnValue(mockDeleteMutation);
+
+    // Mock toast hook
+    vi.mocked(useToast).mockReturnValue({
       toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
     });
   });
 
   // Rendering Tests (8 tests)
   describe('Rendering', () => {
     it('renders empty state when no entries', () => {
-      (useVaultList as any).mockReturnValue({
-        data: [],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      });
+      vi.mocked(useVaultList).mockReturnValue(createMockQuery([]));
 
       render(<VaultList />);
 
@@ -118,16 +125,12 @@ describe('VaultList', () => {
     });
 
     it('renders loading skeleton while fetching', () => {
-      (useVaultList as any).mockReturnValue({
-        data: null,
-        isLoading: true,
-        error: null,
-        refetch: vi.fn(),
-      });
+      vi.mocked(useVaultList).mockReturnValue(createLoadingQuery());
 
       render(<VaultList />);
 
-      expect(screen.getByTestId('skeleton') || screen.getByText(/loading/i)).toBeInTheDocument();
+      const skeletons = screen.getAllByTestId('skeleton');
+      expect(skeletons.length).toBeGreaterThan(0);
     });
 
     it('renders list of vault entries', () => {
@@ -142,9 +145,9 @@ describe('VaultList', () => {
       render(<VaultList />);
 
       expect(screen.getByText('Medical Records')).toBeInTheDocument();
-      expect(screen.getByText(/health/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/health/i).length).toBeGreaterThan(0);
       expect(screen.getByText('Financial Data')).toBeInTheDocument();
-      expect(screen.getByText(/financial/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/financial/i).length).toBeGreaterThan(0);
     });
 
     it('displays entry preview', () => {
@@ -170,19 +173,15 @@ describe('VaultList', () => {
       render(<VaultList />);
 
       expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/category/i) || screen.getByText(/filter/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/sort/i)).toBeInTheDocument();
     });
   });
 
   // Empty State Tests (3 tests)
   describe('Empty State', () => {
     beforeEach(() => {
-      (useVaultList as any).mockReturnValue({
-        data: [],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      });
+      vi.mocked(useVaultList).mockReturnValue(createMockQuery([]));
     });
 
     it('shows empty state illustration', () => {
@@ -219,16 +218,17 @@ describe('VaultList', () => {
     it('each entry shows category badge', () => {
       render(<VaultList />);
 
-      expect(screen.getByText(/health/i)).toBeInTheDocument();
-      expect(screen.getByText(/financial/i)).toBeInTheDocument();
-      expect(screen.getByText(/personal/i)).toBeInTheDocument();
+      // Category badges appear both in filter dropdown and on cards, so check for multiple
+      expect(screen.getAllByText(/health/i).length).toBeGreaterThan(1);
+      expect(screen.getAllByText(/financial/i).length).toBeGreaterThan(1);
+      expect(screen.getAllByText(/personal/i).length).toBeGreaterThan(1);
     });
 
     it('each entry shows creation date', () => {
       render(<VaultList />);
 
-      // Should show relative time like "2 days ago" or formatted dates
-      expect(screen.getByText(/created/i) || screen.getByText(/jan|january/i)).toBeInTheDocument();
+      // Should show "Created:" label multiple times (one per entry)
+      expect(screen.getAllByText(/created/i).length).toBeGreaterThan(0);
     });
 
     it('each entry shows tag count or tags', () => {
@@ -255,8 +255,8 @@ describe('VaultList', () => {
     it('entry cards have hover state', () => {
       render(<VaultList />);
 
-      const firstEntry = screen.getByText('Medical Records').closest('article, div');
-      expect(firstEntry).toHaveClass(/hover|cursor-pointer/);
+      const firstEntry = screen.getAllByRole('article')[0];
+      expect(firstEntry?.className).toMatch(/cursor-pointer/);
     });
 
     it('expired entries show expiration badge', () => {
@@ -302,8 +302,8 @@ describe('VaultList', () => {
       const categoryFilter = screen.getByLabelText(/category/i);
       await user.selectOptions(categoryFilter, 'health');
 
-      // Switch back to all
-      await user.selectOptions(categoryFilter, '' || 'all');
+      // Switch back to all (value is empty string)
+      await user.selectOptions(categoryFilter, '');
 
       await waitFor(() => {
         expect(screen.getByText('Medical Records')).toBeInTheDocument();
@@ -346,7 +346,7 @@ describe('VaultList', () => {
       await user.type(searchInput, 'NonExistentEntry');
 
       await waitFor(() => {
-        expect(screen.getByText(/no results|no entries found/i)).toBeInTheDocument();
+        expect(screen.getByText(/no entries match your filters/i)).toBeInTheDocument();
       });
     });
 
@@ -357,7 +357,8 @@ describe('VaultList', () => {
       const searchInput = screen.getByPlaceholderText(/search/i);
       await user.type(searchInput, 'Medical');
 
-      const clearButton = screen.getByRole('button', { name: /clear/i }) || screen.getByTestId('clear-search');
+      // Wait for clear button to appear
+      const clearButton = await screen.findByText('×');
       await user.click(clearButton);
 
       await waitFor(() => {
@@ -449,25 +450,16 @@ describe('VaultList', () => {
   // Loading State Tests (2 tests)
   describe('Loading State', () => {
     it('shows skeleton cards while loading', () => {
-      (useVaultList as any).mockReturnValue({
-        data: null,
-        isLoading: true,
-        error: null,
-        refetch: vi.fn(),
-      });
+      vi.mocked(useVaultList).mockReturnValue(createLoadingQuery());
 
       render(<VaultList />);
 
-      expect(screen.getByTestId('skeleton') || screen.getByText(/loading/i)).toBeInTheDocument();
+      const skeletons = screen.getAllByTestId('skeleton');
+      expect(skeletons.length).toBeGreaterThan(0);
     });
 
     it('shows correct number of skeleton items', () => {
-      (useVaultList as any).mockReturnValue({
-        data: null,
-        isLoading: true,
-        error: null,
-        refetch: vi.fn(),
-      });
+      vi.mocked(useVaultList).mockReturnValue(createLoadingQuery());
 
       render(<VaultList />);
 
@@ -479,12 +471,7 @@ describe('VaultList', () => {
   // Error State Tests (3 tests)
   describe('Error State', () => {
     it('shows error message when fetch fails', () => {
-      (useVaultList as any).mockReturnValue({
-        data: null,
-        isLoading: false,
-        error: { message: 'Failed to fetch entries' },
-        refetch: vi.fn(),
-      });
+      vi.mocked(useVaultList).mockReturnValue(createErrorQuery('Failed to fetch entries'));
 
       render(<VaultList />);
 
@@ -492,12 +479,7 @@ describe('VaultList', () => {
     });
 
     it('shows retry button on error', () => {
-      (useVaultList as any).mockReturnValue({
-        data: null,
-        isLoading: false,
-        error: { message: 'Failed to fetch entries' },
-        refetch: vi.fn(),
-      });
+      vi.mocked(useVaultList).mockReturnValue(createErrorQuery('Failed to fetch entries'));
 
       render(<VaultList />);
 
@@ -508,12 +490,9 @@ describe('VaultList', () => {
       const user = userEvent.setup();
       const mockRefetch = vi.fn();
 
-      (useVaultList as any).mockReturnValue({
-        data: null,
-        isLoading: false,
-        error: { message: 'Failed to fetch entries' },
-        refetch: mockRefetch,
-      });
+      const errorQuery = createErrorQuery('Failed to fetch entries');
+      errorQuery.refetch = mockRefetch;
+      vi.mocked(useVaultList).mockReturnValue(errorQuery);
 
       render(<VaultList />);
 
@@ -540,7 +519,10 @@ describe('VaultList', () => {
       await user.selectOptions(categoryFilter, 'health');
 
       await waitFor(() => {
-        expect(screen.getByText(/1.*entry|entries/i)).toBeInTheDocument();
+        // Use getAllByText since "entries" appears in both title and count
+        const entryTexts = screen.getAllByText(/entry|entries/i);
+        // Count paragraph should say "1 entries" or "1 entry"
+        expect(entryTexts.some(el => el.textContent?.match(/^1\s+(entry|entries)$/i))).toBe(true);
       });
     });
   });
