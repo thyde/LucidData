@@ -3,6 +3,8 @@ import { screen, waitFor } from '@/test/helpers/render';
 import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { VaultCreateDialog } from '../vault-create-dialog';
+import { createMockMutation } from '@/test/utils/mockFactories';
+import { waitForToast, flushPromises } from '@/test/utils/async-helpers';
 
 // Mock hooks
 vi.mock('@/lib/hooks/useVault', () => ({
@@ -17,16 +19,29 @@ import { useCreateVault } from '@/lib/hooks/useVault';
 import { useToast } from '@/lib/hooks/use-toast';
 
 describe('VaultCreateDialog', () => {
-  const mockMutate = vi.fn();
   const mockToast = vi.fn();
+  let mockMutation: ReturnType<typeof createMockMutation>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useCreateVault as any).mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
+    // Create mutation with hook-level onSuccess that calls toast
+    mockMutation = createMockMutation({
+      onSuccessHook: () => {
+        mockToast({
+          title: 'Success',
+          description: 'Vault entry created successfully',
+        });
+      },
+      onErrorHook: (error: Error) => {
+        mockToast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error.message,
+        });
+      },
     });
-    (useToast as any).mockReturnValue({
+    vi.mocked(useCreateVault).mockReturnValue(mockMutation);
+    vi.mocked(useToast).mockReturnValue({
       toast: mockToast,
     });
   });
@@ -263,7 +278,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled();
+        expect(mockMutation.mutate).toHaveBeenCalled();
       });
     });
 
@@ -305,10 +320,13 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalledWith(
+        expect(mockMutation.mutate).toHaveBeenCalledWith(
           expect.objectContaining({
             label: 'Test Entry',
             category: 'personal',
+          }),
+          expect.objectContaining({
+            onSuccess: expect.any(Function),
           })
         );
       });
@@ -330,7 +348,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalledWith({
+        expect(mockMutation.mutate).toHaveBeenCalledWith({
           label: 'Medical Records',
           category: 'health',
           data: { bloodType: 'A+' },
@@ -340,15 +358,16 @@ describe('VaultCreateDialog', () => {
           schemaType: undefined,
           schemaVersion: '1.0',
           expiresAt: undefined,
-        });
+        }, expect.objectContaining({
+          onSuccess: expect.any(Function),
+        }));
       });
     });
 
     it('shows loading state during submission', async () => {
-      (useCreateVault as any).mockReturnValue({
-        mutate: mockMutate,
-        isPending: true,
-      });
+      const pendingMutation = createMockMutation();
+      pendingMutation.isPending = true;
+      vi.mocked(useCreateVault).mockReturnValue(pendingMutation);
 
       const user = userEvent.setup();
       render(<VaultCreateDialog />);
@@ -360,10 +379,9 @@ describe('VaultCreateDialog', () => {
     });
 
     it('disables submit button during submission', async () => {
-      (useCreateVault as any).mockReturnValue({
-        mutate: mockMutate,
-        isPending: true,
-      });
+      const pendingMutation = createMockMutation();
+      pendingMutation.isPending = true;
+      vi.mocked(useCreateVault).mockReturnValue(pendingMutation);
 
       const user = userEvent.setup();
       render(<VaultCreateDialog />);
@@ -387,20 +405,12 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled();
+        expect(mockMutation.mutate).toHaveBeenCalled();
       });
     });
 
     it('shows success toast on successful creation', async () => {
       const user = userEvent.setup();
-      const mockMutateSuccess = vi.fn((data, options) => {
-        options?.onSuccess?.();
-      });
-
-      (useCreateVault as any).mockReturnValue({
-        mutate: mockMutateSuccess,
-        isPending: false,
-      });
 
       render(<VaultCreateDialog />);
 
@@ -412,25 +422,19 @@ describe('VaultCreateDialog', () => {
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: expect.stringMatching(/success/i),
-          })
-        );
-      });
+      // Wait for async mutation callback and toast
+      await waitForToast(mockToast);
+      await flushPromises();
+
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringMatching(/success/i),
+        })
+      );
     });
 
     it('closes dialog after successful submission', async () => {
       const user = userEvent.setup();
-      const mockMutateSuccess = vi.fn((data, options) => {
-        options?.onSuccess?.();
-      });
-
-      (useCreateVault as any).mockReturnValue({
-        mutate: mockMutateSuccess,
-        isPending: false,
-      });
 
       render(<VaultCreateDialog />);
 
@@ -442,6 +446,8 @@ describe('VaultCreateDialog', () => {
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
+      // Wait for async mutation and dialog close
+      await flushPromises();
       await waitFor(() => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
@@ -449,14 +455,6 @@ describe('VaultCreateDialog', () => {
 
     it('resets form after successful submission', async () => {
       const user = userEvent.setup();
-      const mockMutateSuccess = vi.fn((data, options) => {
-        options?.onSuccess?.();
-      });
-
-      (useCreateVault as any).mockReturnValue({
-        mutate: mockMutateSuccess,
-        isPending: false,
-      });
 
       render(<VaultCreateDialog />);
 
@@ -468,8 +466,11 @@ describe('VaultCreateDialog', () => {
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
-      // Reopen dialog
+      // Wait for mutation and dialog close
+      await flushPromises();
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+      // Reopen dialog
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
 
       // Form should be reset
@@ -491,7 +492,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled();
+        expect(mockMutation.mutate).toHaveBeenCalled();
       });
     });
   });
@@ -500,14 +501,22 @@ describe('VaultCreateDialog', () => {
   describe('Error Handling', () => {
     it('shows error toast on API failure', async () => {
       const user = userEvent.setup();
-      const mockMutateError = vi.fn((data, options) => {
-        options?.onError?.(new Error('API Error'));
+      const errorMutation = createMockMutation();
+      // Override mutate to simulate error
+      errorMutation.mutate = vi.fn((data, options) => {
+        setTimeout(() => {
+          const error = new Error('API Error');
+          // Call hook-level onError (triggers toast)
+          mockToast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message,
+          });
+          // Call component-level onError
+          options?.onError?.(error);
+        }, 0);
       });
-
-      (useCreateVault as any).mockReturnValue({
-        mutate: mockMutateError,
-        isPending: false,
-      });
+      vi.mocked(useCreateVault).mockReturnValue(errorMutation);
 
       render(<VaultCreateDialog />);
 
@@ -519,13 +528,14 @@ describe('VaultCreateDialog', () => {
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            variant: 'destructive',
-          })
-        );
-      });
+      await waitForToast(mockToast);
+      await flushPromises();
+
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'destructive',
+        })
+      );
     });
 
     it('displays validation errors from backend', async () => {
@@ -542,14 +552,22 @@ describe('VaultCreateDialog', () => {
 
     it('keeps dialog open on submission error', async () => {
       const user = userEvent.setup();
-      const mockMutateError = vi.fn((data, options) => {
-        options?.onError?.(new Error('API Error'));
+      const errorMutation = createMockMutation();
+      // Override mutate to simulate error
+      errorMutation.mutate = vi.fn((data, options) => {
+        setTimeout(() => {
+          const error = new Error('API Error');
+          // Call hook-level onError (triggers toast)
+          mockToast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message,
+          });
+          // Call component-level onError
+          options?.onError?.(error);
+        }, 0);
       });
-
-      (useCreateVault as any).mockReturnValue({
-        mutate: mockMutateError,
-        isPending: false,
-      });
+      vi.mocked(useCreateVault).mockReturnValue(errorMutation);
 
       render(<VaultCreateDialog />);
 
@@ -561,9 +579,8 @@ describe('VaultCreateDialog', () => {
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalled();
-      });
+      await waitForToast(mockToast);
+      await flushPromises();
 
       // Dialog should still be open
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -571,14 +588,22 @@ describe('VaultCreateDialog', () => {
 
     it('handles network errors gracefully', async () => {
       const user = userEvent.setup();
-      const mockMutateError = vi.fn((data, options) => {
-        options?.onError?.(new Error('Network Error'));
+      const errorMutation = createMockMutation();
+      // Override mutate to simulate error
+      errorMutation.mutate = vi.fn((data, options) => {
+        setTimeout(() => {
+          const error = new Error('Network Error');
+          // Call hook-level onError (triggers toast)
+          mockToast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message,
+          });
+          // Call component-level onError
+          options?.onError?.(error);
+        }, 0);
       });
-
-      (useCreateVault as any).mockReturnValue({
-        mutate: mockMutateError,
-        isPending: false,
-      });
+      vi.mocked(useCreateVault).mockReturnValue(errorMutation);
 
       render(<VaultCreateDialog />);
 
@@ -590,13 +615,14 @@ describe('VaultCreateDialog', () => {
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            variant: 'destructive',
-          })
-        );
-      });
+      await waitForToast(mockToast);
+      await flushPromises();
+
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'destructive',
+        })
+      );
     });
 
     it('shows error message for invalid JSON-LD data', async () => {
