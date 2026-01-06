@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useVaultList } from '@/lib/hooks/useVault';
 import { VaultViewDialog } from './vault-view-dialog';
+import { VaultEditDialog } from './vault-edit-dialog';
 import { VaultCreateDialog } from './vault-create-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,7 @@ export function VaultList({ onEntryClick }: VaultListProps) {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'label' | 'category'>('date');
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<string | null>(null);
 
   const filteredEntries = useMemo(() => {
     let result = data || [];
@@ -154,9 +156,6 @@ export function VaultList({ onEntryClick }: VaultListProps) {
       {!isLoading && !error && filteredEntries.length === 0 && !searchTerm && !categoryFilter && (
         <div className="text-center py-12 text-muted-foreground" data-testid="empty-state">
           <p>No vault entries yet. Create your first entry!</p>
-          <Button onClick={() => setIsCreateOpen(true)} className="mt-4">
-            Create Your First Entry
-          </Button>
         </div>
       )}
 
@@ -218,8 +217,19 @@ export function VaultList({ onEntryClick }: VaultListProps) {
           open={!!selectedEntry}
           onOpenChange={(open) => !open && setSelectedEntry(null)}
           onEditClick={(id) => {
+            setSelectedEntry(null); // Close view dialog
+            setEditingEntry(id); // Open edit dialog
             onEntryClick?.(id);
           }}
+        />
+      )}
+
+      {/* Edit Dialog */}
+      {editingEntry && (
+        <VaultEditDialog
+          entryId={editingEntry}
+          open={!!editingEntry}
+          onOpenChange={(open) => !open && setEditingEntry(null)}
         />
       )}
     </div>

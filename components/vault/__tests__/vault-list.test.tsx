@@ -196,10 +196,15 @@ describe('VaultList', () => {
       expect(screen.getByText(/no vault entries/i)).toBeInTheDocument();
     });
 
-    it('shows "Create your first entry" CTA button', () => {
+    it('shows helpful message without duplicate button', () => {
       render(<VaultList />);
 
-      expect(screen.getByRole('button', { name: /create.*first.*entry/i })).toBeInTheDocument();
+      // Should show the message
+      expect(screen.getByText(/create your first entry/i)).toBeInTheDocument();
+
+      // Should NOT have a button in the empty state (create button is in header)
+      const emptyState = screen.getByTestId('empty-state');
+      expect(within(emptyState).queryByRole('button')).not.toBeInTheDocument();
     });
   });
 
@@ -524,6 +529,168 @@ describe('VaultList', () => {
         // Count paragraph should say "1 entries" or "1 entry"
         expect(entryTexts.some(el => el.textContent?.match(/^1\s+(entry|entries)$/i))).toBe(true);
       });
+    });
+  });
+
+  // Edit Dialog Integration (5 tests)
+  describe('Edit Dialog Integration', () => {
+    beforeEach(() => {
+      // Mock vault entry query to return data when viewing an entry
+      vi.mocked(useVaultEntry).mockImplementation((id) => {
+        const entry = mockEntries.find(e => e.id === id);
+        return createMockQuery(entry || null);
+      });
+    });
+
+    it('should open edit dialog when edit is clicked in view dialog', async () => {
+      const user = userEvent.setup();
+      render(<VaultList />);
+
+      // Click on an entry to open view dialog
+      const firstEntry = screen.getByText('Medical Records').closest('[role="article"]');
+      if (firstEntry) {
+        await user.click(firstEntry);
+      }
+
+      // Wait for view dialog to open
+      const viewDialog = await screen.findByRole('dialog', {}, { timeout: 3000 });
+      expect(viewDialog).toBeInTheDocument();
+
+      // Click edit button in view dialog
+      const editButton = within(viewDialog).getByRole('button', { name: /edit/i });
+      await user.click(editButton);
+
+      // Edit dialog should open (with pointerEventsCheck: 0 for animation)
+      await waitFor(() => {
+        const dialogs = screen.getAllByRole('dialog', {}, { timeout: 3000 });
+        // Should have edit dialog (view dialog may close)
+        expect(dialogs.some(d => d.textContent?.includes('Edit Vault Entry'))).toBe(true);
+      }, { timeout: 3000 });
+    });
+
+    it('should close view dialog when edit dialog opens', async () => {
+      const user = userEvent.setup();
+      render(<VaultList />);
+
+      // Open view dialog
+      const firstEntry = screen.getByText('Medical Records').closest('[role="article"]');
+      if (firstEntry) {
+        await user.click(firstEntry);
+      }
+
+      await screen.findByRole('dialog', {}, { timeout: 3000 });
+
+      // Click edit button
+      const editButton = screen.getByRole('button', { name: /edit/i });
+      await user.click(editButton);
+
+      // Wait for transition - view dialog should close
+      await waitFor(() => {
+        const dialogs = screen.queryAllByRole('dialog');
+        // Should only have edit dialog, not view dialog
+        const hasViewDialog = dialogs.some(d => d.textContent?.includes('View Vault Entry'));
+        expect(hasViewDialog).toBe(false);
+      }, { timeout: 3000 });
+    });
+
+    it('should update entry when edit is saved', async () => {
+      const user = userEvent.setup();
+      render(<VaultList />);
+
+      // Open view dialog
+      const firstEntry = screen.getByText('Medical Records').closest('[role="article"]');
+      if (firstEntry) {
+        await user.click(firstEntry);
+      }
+
+      await screen.findByRole('dialog', {}, { timeout: 3000 });
+
+      // Click edit
+      const editButton = screen.getByRole('button', { name: /edit/i });
+      await user.click(editButton);
+
+      // Find edit dialog
+      const editDialog = await screen.findByRole('dialog', {}, { timeout: 3000 });
+
+      // Update label field
+      const labelInput = within(editDialog).getByLabelText(/label/i);
+      await user.clear(labelInput);
+      await user.type(labelInput, 'Updated Medical Records');
+
+      // Save
+      const saveButton = within(editDialog).getByRole('button', { name: /save|update/i });
+      await user.click(saveButton);
+
+      // Mutation should be called
+      await waitFor(() => {
+        expect(mockUpdateMutation.mutate).toHaveBeenCalled();
+      });
+    });
+
+    it('should close edit dialog after successful save', async () => {
+      const user = userEvent.setup();
+      render(<VaultList />);
+
+      // Open and edit
+      const firstEntry = screen.getByText('Medical Records').closest('[role="article"]');
+      if (firstEntry) {
+        await user.click(firstEntry);
+      }
+
+      await screen.findByRole('dialog', {}, { timeout: 3000 });
+      const editButton = screen.getByRole('button', { name: /edit/i });
+      await user.click(editButton);
+
+      const editDialog = await screen.findByRole('dialog', {}, { timeout: 3000 });
+      const saveButton = within(editDialog).getByRole('button', { name: /save|update/i });
+
+      // Trigger save
+      await user.click(saveButton);
+
+      // Call the onSuccess callback
+      await flushPromises();
+      if (mockUpdateMutation.mutate.mock.calls.length > 0) {
+        const call = mockUpdateMutation.mutate.mock.calls[0];
+        const options = call[1];
+        if (options?.onSuccess) {
+          options.onSuccess({} as any, {} as any, {} as any);
+        }
+      }
+
+      // Edit dialog should close
+      await waitFor(() => {
+        const dialogs = screen.queryAllByRole('dialog');
+        expect(dialogs.length).toBe(0);
+      }, { timeout: 3000 });
+    });
+
+    it('should handle edit cancellation', async () => {
+      const user = userEvent.setup();
+      render(<VaultList />);
+
+      // Open view and edit
+      const firstEntry = screen.getByText('Medical Records').closest('[role="article"]');
+      if (firstEntry) {
+        await user.click(firstEntry);
+      }
+
+      await screen.findByRole('dialog', {}, { timeout: 3000 });
+      const editButton = screen.getByRole('button', { name: /edit/i });
+      await user.click(editButton);
+
+      const editDialog = await screen.findByRole('dialog', {}, { timeout: 3000 });
+
+      // Click cancel
+      const cancelButton = within(editDialog).getByRole('button', { name: /cancel/i });
+      await user.click(cancelButton);
+
+      // Edit dialog should close, no mutation called
+      await waitFor(() => {
+        const dialogs = screen.queryAllByRole('dialog');
+        expect(dialogs.length).toBe(0);
+      }, { timeout: 3000 });
+
+      expect(mockUpdateMutation.mutate).not.toHaveBeenCalled();
     });
   });
 });
