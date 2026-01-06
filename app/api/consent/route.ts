@@ -1,32 +1,32 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth } from '@/lib/middleware/withAuth';
-import { prisma } from '@/lib/db/prisma';
+import { consentService } from '@/lib/services/consent.service';
+import { auditService } from '@/lib/services/audit.service';
 import { consentSchema } from '@/lib/validations/consent';
-import { createAuditLogEntry } from '@/lib/db/queries/audit';
 import { logDatabaseError } from '@/lib/services/error-logger';
+import { HTTP_STATUS, ERROR_MESSAGES } from '@/lib/constants';
 
 export const GET = withAuth(async (request, { userId }) => {
   try {
-    const consents = await prisma.consent.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const consents = await consentService.getUserConsents(userId);
 
-    await createAuditLogEntry({
+    await auditService.createAuditLogEntry({
       userId,
       eventType: 'consent_accessed',
       action: 'Listed consents',
       actorId: userId,
       actorType: 'user',
-      request,
       metadata: { count: consents.length },
     });
 
     return NextResponse.json(consents);
   } catch (error) {
     logDatabaseError(error, { userId, action: 'LIST_CONSENTS' });
-    return NextResponse.json({ error: 'Failed to retrieve consents' }, { status: 500 });
+    return NextResponse.json(
+      { error: ERROR_MESSAGES.INTERNAL_ERROR },
+      { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
+    );
   }
 });
 
@@ -38,28 +38,9 @@ export const POST = withAuth(async (request, { userId }) => {
       endDate: body.endDate ? new Date(body.endDate) : undefined,
     });
 
-    if (validated.vaultDataId) {
-      const vaultEntry = await prisma.vaultData.findUnique({ where: { id: validated.vaultDataId } });
-      if (!vaultEntry || vaultEntry.userId !== userId) {
-        return NextResponse.json({ error: 'Invalid vault data reference' }, { status: 400 });
-      }
-    }
+    const consent = await consentService.createConsent(userId, validated);
 
-    const consent = await prisma.consent.create({
-      data: {
-        userId,
-        vaultDataId: validated.vaultDataId,
-        grantedTo: validated.grantedTo,
-        grantedToName: validated.grantedToName,
-        grantedToEmail: validated.grantedToEmail,
-        accessLevel: validated.accessLevel,
-        purpose: validated.purpose,
-        endDate: validated.endDate,
-        termsVersion: validated.termsVersion,
-      },
-    });
-
-    await createAuditLogEntry({
+    await auditService.createAuditLogEntry({
       userId,
       consentId: consent.id,
       vaultDataId: consent.vaultDataId,
@@ -67,19 +48,28 @@ export const POST = withAuth(async (request, { userId }) => {
       action: `Granted ${consent.accessLevel} access to ${consent.grantedToName}`,
       actorId: userId,
       actorType: 'user',
-      request,
     });
 
-    return NextResponse.json(consent, { status: 201 });
+    return NextResponse.json(consent, { status: HTTP_STATUS.CREATED });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation failed', details: error.issues },
-        { status: 400 }
+        { status: HTTP_STATUS.BAD_REQUEST }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Invalid vault data reference') {
+      return NextResponse.json(
+        { error: ERROR_MESSAGES.INVALID_VAULT_DATA },
+        { status: HTTP_STATUS.BAD_REQUEST }
       );
     }
 
     logDatabaseError(error, { userId, action: 'CREATE_CONSENT' });
-    return NextResponse.json({ error: 'Failed to create consent' }, { status: 500 });
+    return NextResponse.json(
+      { error: ERROR_MESSAGES.INTERNAL_ERROR },
+      { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
+    );
   }
 });
