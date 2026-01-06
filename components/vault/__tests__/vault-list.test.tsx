@@ -7,9 +7,18 @@ import { VaultList } from '../vault-list';
 // Mock hooks
 vi.mock('@/lib/hooks/useVault', () => ({
   useVaultList: vi.fn(),
+  useVaultEntry: vi.fn(),
+  useCreateVault: vi.fn(),
+  useUpdateVault: vi.fn(),
+  useDeleteVault: vi.fn(),
 }));
 
-import { useVaultList } from '@/lib/hooks/useVault';
+vi.mock('@/lib/hooks/use-toast', () => ({
+  useToast: vi.fn(() => ({ toast: vi.fn() })),
+}));
+
+import { useVaultList, useVaultEntry, useCreateVault, useUpdateVault, useDeleteVault } from '@/lib/hooks/useVault';
+import { useToast } from '@/lib/hooks/use-toast';
 
 const mockEntries = [
   {
@@ -60,6 +69,9 @@ const mockEntries = [
 ];
 
 describe('VaultList', () => {
+  const mockMutate = vi.fn();
+  const mockToast = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
     (useVaultList as any).mockReturnValue({
@@ -67,6 +79,26 @@ describe('VaultList', () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
+    });
+    (useVaultEntry as any).mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: null,
+    });
+    (useCreateVault as any).mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+    });
+    (useUpdateVault as any).mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+    });
+    (useDeleteVault as any).mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+    });
+    (useToast as any).mockReturnValue({
+      toast: mockToast,
     });
   });
 

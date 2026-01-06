@@ -1,0 +1,231 @@
+'use client';
+
+import { useState } from 'react';
+import { useVaultEntry, useDeleteVault } from '@/lib/hooks/useVault';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+
+interface VaultViewDialogProps {
+  entryId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onEditClick?: (entryId: string) => void;
+}
+
+function formatDate(date: Date | string): string {
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function isExpired(expiresAt: Date | string | null): boolean {
+  if (!expiresAt) return false;
+  return new Date() > new Date(expiresAt);
+}
+
+function getCategoryVariant(category: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  switch (category) {
+    case 'health':
+      return 'default';
+    case 'financial':
+      return 'secondary';
+    case 'personal':
+      return 'outline';
+    case 'credentials':
+      return 'destructive';
+    default:
+      return 'secondary';
+  }
+}
+
+export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: VaultViewDialogProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { data: entry, isLoading, error } = useVaultEntry(entryId);
+  const { mutate: deleteVault, isPending: isDeleting } = useDeleteVault();
+
+  const handleDelete = () => {
+    deleteVault(entryId, {
+      onSuccess: () => {
+        setShowDeleteDialog(false);
+        onOpenChange(false);
+      },
+    });
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {isLoading && <div>Loading...</div>}
+          {error && <div>Not found</div>}
+          {entry && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{entry.label}</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Label Section */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Label</h3>
+                  <p className="text-base">{entry.label}</p>
+                </div>
+
+                {/* Category Badge */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Category</h3>
+                  <Badge variant={getCategoryVariant(entry.category)}>
+                    {entry.category}
+                  </Badge>
+                </div>
+
+                {/* Description */}
+                {entry.description && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Description</h3>
+                    <p className="text-sm">{entry.description}</p>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {entry.tags && entry.tags.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Tags</h3>
+                    <div className="flex flex-wrap gap-1">
+                      {entry.tags.map((tag) => (
+                        <Badge key={tag} variant="outline">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Data Type */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Data Type</h3>
+                  <p className="text-sm">{entry.dataType}</p>
+                </div>
+
+                {/* JSON Data */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Data</h3>
+                  <pre className="bg-muted p-2 rounded overflow-x-auto">
+                    {JSON.stringify(entry.data, null, 2)}
+                  </pre>
+                </div>
+
+                {/* Schema Type */}
+                {entry.schemaType && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Schema Type</h3>
+                    <p className="text-sm">{entry.schemaType}</p>
+                  </div>
+                )}
+
+                {/* Schema Version */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Schema Version</h3>
+                  <p className="text-sm">{entry.schemaVersion}</p>
+                </div>
+
+                {/* Expiration */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Expires At</h3>
+                  {entry.expiresAt ? (
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm">{formatDate(entry.expiresAt)}</p>
+                      {isExpired(entry.expiresAt) && (
+                        <Badge variant="destructive">Expired</Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm">No expiration</p>
+                  )}
+                </div>
+
+                {/* Timestamps */}
+                <div className="pt-4 border-t">
+                  <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                    <div>
+                      <span className="font-medium">Created:</span>{' '}
+                      {formatDate(entry.createdAt)}
+                    </div>
+                    <div>
+                      <span className="font-medium">Updated:</span>{' '}
+                      {formatDate(entry.updatedAt)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => onEditClick?.(entryId)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  Delete
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{entry?.label}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}

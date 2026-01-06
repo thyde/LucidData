@@ -85,7 +85,7 @@ describe('VaultEditDialog', () => {
     it('pre-fills data field with formatted JSON', () => {
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      const dataInput = screen.getByLabelText(/data/i) as HTMLTextAreaElement;
+      const dataInput = screen.getByRole('textbox', { name: /data/i }) as HTMLTextAreaElement;
       const parsedData = JSON.parse(dataInput.value);
       expect(parsedData).toEqual(mockEntry.data);
     });
@@ -125,9 +125,10 @@ describe('VaultEditDialog', () => {
       const user = userEvent.setup();
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      const dataInput = screen.getByLabelText(/data/i);
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
       await user.clear(dataInput);
-      await user.type(dataInput, '{"updated": true}');
+      await user.click(dataInput);
+      await user.paste('{"updated": true}');
 
       expect(dataInput).toHaveValue('{"updated": true}');
     });
@@ -189,7 +190,7 @@ describe('VaultEditDialog', () => {
       const user = userEvent.setup();
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      const dataInput = screen.getByLabelText(/data/i);
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
       await user.clear(dataInput);
       await user.type(dataInput, 'invalid json');
       await user.click(screen.getByRole('button', { name: /^save/i }));
@@ -216,9 +217,10 @@ describe('VaultEditDialog', () => {
       const user = userEvent.setup();
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      const dataInput = screen.getByLabelText(/data/i);
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
       await user.clear(dataInput);
-      await user.type(dataInput, '{broken');
+      await user.click(dataInput);
+      await user.paste('{broken');
       await user.click(screen.getByRole('button', { name: /^save/i }));
 
       await waitFor(() => {
@@ -230,7 +232,7 @@ describe('VaultEditDialog', () => {
       const user = userEvent.setup();
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      const dataInput = screen.getByLabelText(/data/i);
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
       await user.clear(dataInput);
       await user.click(screen.getByRole('button', { name: /^save/i }));
 

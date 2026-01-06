@@ -69,7 +69,7 @@ describe('VaultCreateDialog', () => {
 
       expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/data/i)).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /data/i })).toBeInTheDocument();
     });
   });
 
@@ -125,7 +125,7 @@ describe('VaultCreateDialog', () => {
 
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
 
-      const dataInput = screen.getByLabelText(/data/i);
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
       expect(dataInput).toBeInTheDocument();
       expect(dataInput.tagName).toBe('TEXTAREA');
     });
@@ -139,7 +139,7 @@ describe('VaultCreateDialog', () => {
       const dataTypeSelect = screen.getByLabelText(/data type/i);
       expect(dataTypeSelect).toBeInTheDocument();
       expect(screen.getByRole('option', { name: /json/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /credential/i })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /^credential$/i })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: /document/i })).toBeInTheDocument();
     });
 
@@ -227,7 +227,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test Label');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), 'invalid json');
+      await user.type(screen.getByRole('textbox', { name: /data/i }), 'invalid json');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -257,7 +257,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Medical Records');
       await user.selectOptions(screen.getByLabelText(/category/i), 'health');
-      await user.type(screen.getByLabelText(/data/i), '{"bloodType": "A+"}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"bloodType": "A+"}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -297,7 +299,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test Entry');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"key": "value"}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"key": "value"}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -320,7 +324,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Medical Records');
       await user.selectOptions(screen.getByLabelText(/category/i), 'health');
-      await user.type(screen.getByLabelText(/data/i), '{"bloodType": "A+"}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"bloodType": "A+"}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -375,7 +381,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"test": true}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -399,7 +407,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"test": true}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -427,7 +437,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"test": true}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -451,7 +463,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"test": true}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       // Reopen dialog
@@ -471,7 +485,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"test": true}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -498,7 +514,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"test": true}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -538,7 +556,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"test": true}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -565,7 +585,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{"test": true}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
@@ -584,7 +606,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByLabelText(/data/i), '{invalid}');
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.click(dataInput);
+      await user.paste('{invalid}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
