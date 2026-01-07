@@ -10,12 +10,20 @@ import { waitForToast, flushPromises } from '@/test/utils';
 vi.mock('@/lib/hooks/useVault', () => ({
   useVaultEntry: vi.fn(),
   useDeleteVault: vi.fn(),
+  useVaultList: vi.fn(() => ({
+    data: [],
+    isLoading: false,
+  })),
 }));
 
 vi.mock('@/lib/hooks/useConsent', () => ({
   useConsentList: vi.fn(() => ({
     data: [],
     isLoading: false,
+  })),
+  useCreateConsent: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
   })),
 }));
 

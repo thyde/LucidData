@@ -32,15 +32,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 // Extend schema for form handling
 const formSchema = consentSchema.extend({
-  grantedToEmail: z.string().optional().refine(
-    (val) => !val || val === '' || z.string().email().safeParse(val).success,
-    { message: 'Invalid email address' }
-  ),
+  grantedToEmail: z.string().email('Invalid email address').or(z.literal('')).optional(),
   endDate: z.string().optional().refine(
     (val) => !val || new Date(val) > new Date(),
     { message: 'End date must be in the future' }
   ),
-  purpose: z.string().min(10, 'Purpose must be at least 10 characters').max(500),
+  purpose: z.string().min(10, 'Purpose must be at least 10 characters').max(500, 'Purpose must be 500 characters or less'),
 });
 
 type FormValues = z.infer<typeof formSchema>;

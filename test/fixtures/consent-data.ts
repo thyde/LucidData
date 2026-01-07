@@ -12,16 +12,16 @@ export const mockConsent: Consent = {
   grantedToEmail: 'contact@acme.com',
   accessLevel: 'read',
   purpose: 'For medical records verification and compliance purposes',
-  startDate: new Date('2024-01-01T00:00:00.000Z'),
-  endDate: new Date('2024-12-31T23:59:59.000Z'),
+  startDate: new Date('2026-01-01T00:00:00.000Z'),
+  endDate: new Date('2026-12-31T23:59:59.000Z'),
   revoked: false,
   revokedAt: null,
   revokedReason: null,
   ipAddress: '192.168.1.1',
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   termsVersion: '1.0',
-  createdAt: new Date('2024-01-01T00:00:00.000Z'),
-  updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
 };
 
 /**
@@ -46,10 +46,10 @@ export const mockRevokedConsent: Consent = {
   grantedToName: 'Revoked Inc',
   grantedTo: 'org-revoked',
   revoked: true,
-  revokedAt: new Date('2024-06-15T10:30:00.000Z'),
+  revokedAt: new Date('2026-06-15T10:30:00.000Z'),
   revokedReason: 'Service no longer needed',
-  createdAt: new Date('2024-01-01T00:00:00.000Z'),
-  updatedAt: new Date('2024-06-15T10:30:00.000Z'),
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-06-15T10:30:00.000Z'),
 };
 
 /**
@@ -61,8 +61,8 @@ export const mockIndefiniteConsent: Consent = {
   grantedToName: 'Indefinite Systems',
   grantedTo: 'org-indefinite',
   endDate: null,
-  createdAt: new Date('2024-02-01T00:00:00.000Z'),
-  updatedAt: new Date('2024-02-01T00:00:00.000Z'),
+  createdAt: new Date('2026-02-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-02-01T00:00:00.000Z'),
 };
 
 /**
@@ -75,8 +75,8 @@ export const mockGeneralConsent: Consent = {
   grantedToName: 'General Access Co',
   grantedTo: 'org-general',
   purpose: 'General data access for analytics and reporting purposes',
-  createdAt: new Date('2024-03-01T00:00:00.000Z'),
-  updatedAt: new Date('2024-03-01T00:00:00.000Z'),
+  createdAt: new Date('2026-03-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-03-01T00:00:00.000Z'),
 };
 
 /**
@@ -148,7 +148,7 @@ export function createMockConsentList(
     grantedToName: `Organization ${i + 1}`,
     grantedTo: `org-${i + 1}`,
     purpose: `Purpose for organization ${i + 1} access`,
-    createdAt: new Date(`2024-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`),
-    updatedAt: new Date(`2024-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`),
+    createdAt: new Date(`2026-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`),
+    updatedAt: new Date(`2026-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`),
   }));
 }

@@ -104,7 +104,7 @@ describe('ConsentCreateDialog', () => {
 
       expect(screen.getByLabelText(/organization name/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/organization identifier/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/access level/i)).toBeInTheDocument();
+      expect(screen.getByText(/access level/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/purpose/i)).toBeInTheDocument();
     });
   });
@@ -244,7 +244,8 @@ describe('ConsentCreateDialog', () => {
 
       await user.click(screen.getByRole('button', { name: /grant consent/i }));
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -258,7 +259,8 @@ describe('ConsentCreateDialog', () => {
 
       await user.click(screen.getByRole('button', { name: /grant consent/i }));
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -272,7 +274,8 @@ describe('ConsentCreateDialog', () => {
 
       await user.click(screen.getByRole('button', { name: /grant consent/i }));
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -289,7 +292,8 @@ describe('ConsentCreateDialog', () => {
       const purposeTextarea = screen.getByLabelText(/purpose/i);
       await user.type(purposeTextarea, 'Too short');
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -307,7 +311,8 @@ describe('ConsentCreateDialog', () => {
       const longText = 'a'.repeat(501);
       await user.type(purposeTextarea, longText);
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -324,11 +329,12 @@ describe('ConsentCreateDialog', () => {
       const emailInput = screen.getByLabelText(/contact email.*optional/i);
       await user.type(emailInput, 'notanemail');
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/invalid email/i)).toBeInTheDocument();
+        expect(screen.getByText(/invalid email address/i)).toBeInTheDocument();
       });
     });
 
@@ -344,7 +350,8 @@ describe('ConsentCreateDialog', () => {
       await user.type(screen.getByLabelText(/purpose/i), 'Valid purpose for testing');
 
       // Leave email empty - should be valid
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await flushPromises();
@@ -363,7 +370,8 @@ describe('ConsentCreateDialog', () => {
       const pastDate = '2020-01-01T00:00';
       await user.type(dateInput, pastDate);
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -391,7 +399,8 @@ describe('ConsentCreateDialog', () => {
       const futureDateString = futureDate.toISOString().slice(0, 16);
       await user.type(dateInput, futureDateString);
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1]; // Get the last one (submit button inside form)
       await user.click(submitButton);
 
       await flushPromises();
@@ -414,7 +423,8 @@ describe('ConsentCreateDialog', () => {
       );
 
       // Leave endDate empty
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await flushPromises();
@@ -468,7 +478,8 @@ describe('ConsentCreateDialog', () => {
       futureDate.setFullYear(futureDate.getFullYear() + 1);
       await user.type(dateInput, futureDate.toISOString().slice(0, 16));
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await flushPromises();
@@ -492,7 +503,8 @@ describe('ConsentCreateDialog', () => {
         'Valid purpose for testing consent grant'
       );
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await flushPromises();
@@ -543,7 +555,8 @@ describe('ConsentCreateDialog', () => {
       await user.type(screen.getByLabelText(/organization identifier/i), 'org-test');
       await user.type(screen.getByLabelText(/purpose/i), 'Testing purpose field');
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await flushPromises();
@@ -571,7 +584,8 @@ describe('ConsentCreateDialog', () => {
       await user.type(screen.getByLabelText(/organization identifier/i), 'org-123');
       await user.type(screen.getByLabelText(/purpose/i), 'Valid purpose text here');
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await waitForToast(mockToast);
@@ -591,7 +605,8 @@ describe('ConsentCreateDialog', () => {
       await user.type(screen.getByLabelText(/organization identifier/i), 'org-123');
       await user.type(screen.getByLabelText(/purpose/i), 'Valid purpose text here');
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await flushPromises();
@@ -616,7 +631,8 @@ describe('ConsentCreateDialog', () => {
       await user.type(screen.getByLabelText(/organization identifier/i), 'org-123');
       await user.type(screen.getByLabelText(/purpose/i), 'Valid purpose text');
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await flushPromises();
@@ -647,7 +663,8 @@ describe('ConsentCreateDialog', () => {
 
       // Leave optional fields empty: vaultDataId, email, endDate
 
-      const submitButton = screen.getByRole('button', { name: /^grant consent$/i });
+      const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
+      const submitButton = submitButtons[submitButtons.length - 1];
       await user.click(submitButton);
 
       await flushPromises();
