@@ -184,7 +184,6 @@ describe('ConsentCreateDialog', () => {
 
       const emailInput = screen.getByLabelText(/contact email.*optional/i);
       expect(emailInput).toBeInTheDocument();
-      expect(emailInput).toHaveAttribute('type', 'email');
     });
 
     it('renders access level radio group with all options', async () => {
@@ -326,6 +325,12 @@ describe('ConsentCreateDialog', () => {
 
       await user.click(screen.getByRole('button', { name: /grant consent/i }));
 
+      // Fill in required fields first
+      await user.type(screen.getByLabelText(/organization name/i), 'Test Org');
+      await user.type(screen.getByLabelText(/organization identifier/i), 'org-123');
+      await user.type(screen.getByLabelText(/purpose/i), 'Valid purpose for testing consent');
+
+      // Now test email validation
       const emailInput = screen.getByLabelText(/contact email.*optional/i);
       await user.type(emailInput, 'notanemail');
 

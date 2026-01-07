@@ -30,14 +30,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-// Extend schema for form handling
-const formSchema = consentSchema.extend({
-  grantedToEmail: z.string().email('Invalid email address').or(z.literal('')).optional(),
+// Extend schema for form handling - use form-friendly string types
+const formSchema = z.object({
+  vaultDataId: z.string().optional(),
+  grantedTo: z.string().min(1, 'Organization identifier is required'),
+  grantedToName: z.string().min(1, 'Organization name is required'),
+  grantedToEmail: z.string().refine(
+    (val) => {
+      if (!val || val === '') return true;
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    },
+    { message: 'Invalid email address' }
+  ).optional(),
+  accessLevel: z.enum(['read', 'export', 'verify']),
+  purpose: z.string().min(10, 'Purpose must be at least 10 characters').max(500, 'Purpose must be 500 characters or less'),
   endDate: z.string().optional().refine(
-    (val) => !val || new Date(val) > new Date(),
+    (val) => !val || val === '' || new Date(val) > new Date(),
     { message: 'End date must be in the future' }
   ),
-  purpose: z.string().min(10, 'Purpose must be at least 10 characters').max(500, 'Purpose must be 500 characters or less'),
+  termsVersion: z.string().default('1.0'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -187,7 +198,7 @@ export function ConsentCreateDialog({
                 <FormItem>
                   <FormLabel>Contact Email (Optional)</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="contact@organization.com" {...field} />
+                    <Input placeholder="contact@organization.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

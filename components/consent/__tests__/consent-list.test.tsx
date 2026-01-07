@@ -100,7 +100,6 @@ describe('ConsentList', () => {
     it('displays cards in grid layout', () => {
       render(<ConsentList />);
 
-      const grid = screen.getByRole('generic', { hidden: true });
       // Check for grid class - implementation may vary
       const gridElements = screen.getAllByRole('generic');
       const hasGridLayout = gridElements.some((el) => el.className.includes('grid'));
@@ -304,7 +303,7 @@ describe('ConsentList', () => {
 
       const card = screen.getByText(mockConsent.grantedToName).closest('div[class*="card"]');
       expect(within(card!).getByText(/expires:/i)).toBeInTheDocument();
-      expect(within(card!).getByText(/dec 31, 2024/i)).toBeInTheDocument();
+      expect(within(card!).getByText(/dec 31, 2026/i)).toBeInTheDocument();
     });
 
     it('highlights expiring soon dates', () => {

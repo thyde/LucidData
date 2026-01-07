@@ -61,8 +61,8 @@ describe('ConsentRevokeDialog', () => {
       const dialog = screen.getByRole('dialog');
       expect(dialog).toBeInTheDocument();
 
-      // AlertTriangle icon should be present
-      const title = screen.getByText(/revoke consent/i);
+      // AlertTriangle icon should be present in the title
+      const title = screen.getByRole('heading', { name: /revoke consent/i });
       expect(title).toBeInTheDocument();
     });
 

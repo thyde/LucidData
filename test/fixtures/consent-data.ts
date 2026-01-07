@@ -30,7 +30,7 @@ export const mockConsent: Consent = {
 export const mockExpiredConsent: Consent = {
   ...mockConsent,
   id: 'consent-expired',
-  grantedToName: 'Expired Corp',
+  grantedToName: 'Old Data Corp',
   grantedTo: 'org-expired',
   endDate: new Date('2023-12-31T23:59:59.000Z'), // Already expired
   createdAt: new Date('2023-01-01T00:00:00.000Z'),
@@ -43,7 +43,7 @@ export const mockExpiredConsent: Consent = {
 export const mockRevokedConsent: Consent = {
   ...mockConsent,
   id: 'consent-revoked',
-  grantedToName: 'Revoked Inc',
+  grantedToName: 'Cancelled Services Inc',
   grantedTo: 'org-revoked',
   revoked: true,
   revokedAt: new Date('2026-06-15T10:30:00.000Z'),

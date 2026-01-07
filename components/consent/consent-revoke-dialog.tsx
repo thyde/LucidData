@@ -27,7 +27,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertTriangle } from 'lucide-react';
 
 const formSchema = z.object({
-  revokedReason: z.string().min(10, 'Reason must be at least 10 characters').max(500),
+  revokedReason: z.string().min(10, 'Reason must be at least 10 characters').max(500, 'Reason must be 500 characters or less'),
   confirm: z.boolean().refine((val) => val === true, {
     message: 'You must confirm to proceed',
   }),

@@ -25,7 +25,7 @@ describe('ConsentExtendDialog', () => {
 
   const defaultProps = {
     consentId: 'consent-123',
-    currentEndDate: new Date('2024-02-01T00:00:00.000Z'),
+    currentEndDate: new Date('2026-02-01T00:00:00.000Z'),
     open: true,
     onOpenChange: mockOnOpenChange,
   };
@@ -71,7 +71,10 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       expect(screen.getByText(/current expiration:/i)).toBeInTheDocument();
-      expect(screen.getByText(/feb 1, 2024/i)).toBeInTheDocument();
+      // Date is formatted as "Feb 1, 2026 12:00 AM"
+      expect(screen.getByText((content, element) => {
+        return element?.textContent?.includes('Feb 1, 2026') ?? false;
+      })).toBeInTheDocument();
     });
 
     it('renders new expiration date input', () => {
@@ -118,7 +121,7 @@ describe('ConsentExtendDialog', () => {
 
       const input = screen.getByLabelText(/new expiration date/i);
       // Set to exactly the current end date
-      const currentDateString = '2024-02-01T00:00';
+      const currentDateString = '2026-02-01T00:00';
       await user.type(input, currentDateString);
 
       const submitButton = screen.getByRole('button', { name: /extend consent/i });
@@ -137,7 +140,7 @@ describe('ConsentExtendDialog', () => {
 
       const input = screen.getByLabelText(/new expiration date/i);
       // Set to before current end date
-      const earlierDateString = '2024-01-15T00:00';
+      const earlierDateString = '2026-01-15T00:00';
       await user.type(input, earlierDateString);
 
       const submitButton = screen.getByRole('button', { name: /extend consent/i });
@@ -233,8 +236,8 @@ describe('ConsentExtendDialog', () => {
 
       const input = screen.getByLabelText(/new expiration date/i) as HTMLInputElement;
 
-      // Calculate expected date: 2024-02-01 + 30 days = 2024-03-02
-      const expectedDate = new Date('2024-02-01T00:00:00.000Z');
+      // Calculate expected date: 2026-02-01 + 30 days = 2026-03-02
+      const expectedDate = new Date('2026-02-01T00:00:00.000Z');
       expectedDate.setDate(expectedDate.getDate() + 30);
       const expectedString = expectedDate.toISOString().slice(0, 16);
 
@@ -250,8 +253,8 @@ describe('ConsentExtendDialog', () => {
 
       const input = screen.getByLabelText(/new expiration date/i) as HTMLInputElement;
 
-      // Calculate expected date: 2024-02-01 + 90 days
-      const expectedDate = new Date('2024-02-01T00:00:00.000Z');
+      // Calculate expected date: 2026-02-01 + 90 days
+      const expectedDate = new Date('2026-02-01T00:00:00.000Z');
       expectedDate.setDate(expectedDate.getDate() + 90);
       const expectedString = expectedDate.toISOString().slice(0, 16);
 
@@ -267,8 +270,8 @@ describe('ConsentExtendDialog', () => {
 
       const input = screen.getByLabelText(/new expiration date/i) as HTMLInputElement;
 
-      // Calculate expected date: 2024-02-01 + 365 days
-      const expectedDate = new Date('2024-02-01T00:00:00.000Z');
+      // Calculate expected date: 2026-02-01 + 365 days
+      const expectedDate = new Date('2026-02-01T00:00:00.000Z');
       expectedDate.setDate(expectedDate.getDate() + 365);
       const expectedString = expectedDate.toISOString().slice(0, 16);
 
@@ -280,7 +283,7 @@ describe('ConsentExtendDialog', () => {
   describe('Preset Buttons with Null CurrentEndDate', () => {
     it('preset buttons use now() when currentEndDate is null - +30 days', async () => {
       const user = userEvent.setup();
-      const now = new Date('2024-06-01T12:00:00.000Z');
+      const now = new Date('2026-06-01T12:00:00.000Z');
       vi.setSystemTime(now);
 
       render(<ConsentExtendDialog {...defaultProps} currentEndDate={null} />);
@@ -302,7 +305,7 @@ describe('ConsentExtendDialog', () => {
 
     it('+90 days from now when indefinite', async () => {
       const user = userEvent.setup();
-      const now = new Date('2024-06-01T12:00:00.000Z');
+      const now = new Date('2026-06-01T12:00:00.000Z');
       vi.setSystemTime(now);
 
       render(<ConsentExtendDialog {...defaultProps} currentEndDate={null} />);
@@ -323,7 +326,7 @@ describe('ConsentExtendDialog', () => {
 
     it('+1 year from now when indefinite', async () => {
       const user = userEvent.setup();
-      const now = new Date('2024-06-01T12:00:00.000Z');
+      const now = new Date('2026-06-01T12:00:00.000Z');
       vi.setSystemTime(now);
 
       render(<ConsentExtendDialog {...defaultProps} currentEndDate={null} />);

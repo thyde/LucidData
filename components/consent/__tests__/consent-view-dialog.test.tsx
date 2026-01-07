@@ -139,7 +139,7 @@ describe('ConsentViewDialog', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
       expect(screen.getByText(/granted on:/i)).toBeInTheDocument();
-      expect(screen.getByText(/jan 1, 2024/i)).toBeInTheDocument();
+      expect(screen.getByText(/jan 1, 2026/i)).toBeInTheDocument();
     });
 
     it('displays start date', () => {
@@ -152,7 +152,7 @@ describe('ConsentViewDialog', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
       expect(screen.getByText(/expires:/i)).toBeInTheDocument();
-      expect(screen.getByText(/dec 31, 2024/i)).toBeInTheDocument();
+      expect(screen.getByText(/dec 31, 2026/i)).toBeInTheDocument();
     });
 
     it('displays "No expiration" when endDate is null', () => {
@@ -273,7 +273,7 @@ describe('ConsentViewDialog', () => {
 
       render(<ConsentViewDialog {...defaultProps} />);
 
-      const badge = screen.getByText(/EXPIRED/i);
+      const badge = screen.getByText(/^EXPIRED$/i);
       expect(badge).toBeInTheDocument();
     });
 
@@ -282,7 +282,7 @@ describe('ConsentViewDialog', () => {
 
       render(<ConsentViewDialog {...defaultProps} />);
 
-      const badge = screen.getByText(/REVOKED/i);
+      const badge = screen.getByText(/^REVOKED$/i);
       expect(badge).toBeInTheDocument();
     });
   });
