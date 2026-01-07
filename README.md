@@ -77,6 +77,54 @@ Banking metaphor: "Your data. Your bank. Your rules."
 
 ---
 
+## ✨ Features
+
+### Consent Management System
+
+The Lucid MVP includes a comprehensive consent management system that allows users to grant organizations granular access to their vault data with full transparency and control.
+
+#### Core Capabilities
+
+- **Granular Permission Control**: Grant consent for specific vault entries or general access to all data
+- **Three Access Levels**:
+  - **Read**: View-only access to data
+  - **Export**: Download and export data capabilities
+  - **Verify**: Authenticate and verify data authenticity
+- **Time-Based Expiration**: Flexible expiration with presets (30/90/365 days) or indefinite duration
+- **Full Revocation**: Revoke consent at any time with mandatory reason tracking
+- **Status Tracking**: Real-time consent status (Active, Expired, or Revoked)
+- **Audit Trail Integration**: All consent actions logged to immutable audit ledger
+
+#### Components
+
+- **ConsentList** - Dashboard with search, filtering by status/organization, and real-time status indicators
+- **ConsentCreateDialog** - Interactive form to grant new consent with organization details, access level selection, purpose declaration, and expiration presets
+- **ConsentViewDialog** - Detailed consent view showing access details, timeline, legal/compliance information, and action buttons
+- **ConsentExtendDialog** - Update consent expiration dates with quick preset options
+- **ConsentRevokeDialog** - Revoke consent with mandatory reason and confirmation
+
+#### API Endpoints
+
+- `GET /api/consent` - List user consents with optional filters (vaultDataId, active status)
+- `POST /api/consent` - Create new consent with validation and audit logging
+- `GET /api/consent/[id]` - Get specific consent details
+- `PATCH /api/consent/[id]` - Extend consent expiration date
+- `DELETE /api/consent/[id]` - Revoke consent with reason
+
+#### Data Model
+
+The consent system uses a robust data model with the following key fields:
+- User and organization identifiers (userId, grantedTo, grantedToName)
+- Optional vault data linkage (vaultDataId) for specific data sharing
+- Access control (accessLevel, purpose)
+- Temporal tracking (startDate, endDate, createdAt, updatedAt)
+- Revocation management (revoked, revokedAt, revokedReason)
+- Compliance metadata (ipAddress, userAgent, termsVersion)
+
+All consent actions are automatically logged to the immutable audit trail for full transparency and compliance.
+
+---
+
 ## 🧩 Technology Stack
 
 After careful evaluation of TypeScript vs Go, **TypeScript** was chosen for optimal learning path, UX iteration speed, and ecosystem alignment.
@@ -95,6 +143,12 @@ After careful evaluation of TypeScript vs Go, **TypeScript** was chosen for opti
 - **Language**: TypeScript
 - **Validation**: Zod
 - **Logging**: Winston
+
+### Testing
+- **Test Framework**: Vitest
+- **Component Testing**: React Testing Library
+- **API Mocking**: MSW (Mock Service Worker)
+- **Coverage**: 466 tests across vault and consent components
 
 ### Database & Auth
 - **Database**: PostgreSQL 15+ with pgcrypto
@@ -237,11 +291,19 @@ lucid-mvp/
 │   └── layout.tsx         # Root layout
 ├── components/            # React components
 │   ├── ui/               # shadcn/ui components
-│   ├── vault/            # Vault-specific components
-│   └── consent/          # Consent management components
+│   ├── vault/            # Vault-specific components (CRUD dialogs, list view)
+│   └── consent/          # Consent management (5 dialogs with comprehensive tests)
 ├── lib/                   # Utilities & configurations
 │   ├── db/               # Database utilities
 │   ├── crypto/           # Encryption utilities
+│   ├── hooks/            # Custom React hooks (useVault, useConsent, useAudit)
+│   ├── repositories/     # Data access layer
+│   ├── services/         # Business logic layer
+│   └── validations/      # Zod schemas
+├── test/                  # Test utilities and fixtures
+│   ├── fixtures/         # Mock data factories
+│   ├── helpers/          # Test helpers
+│   └── utils/            # Test utilities
 │   ├── auth/             # Authentication helpers
 │   └── supabase/         # Supabase client
 ├── prisma/               # Database schema & migrations

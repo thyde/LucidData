@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useVaultEntry, useDeleteVault } from '@/lib/hooks/useVault';
+import { useConsentList } from '@/lib/hooks/useConsent';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConsentCreateDialog } from '@/components/consent/consent-create-dialog';
+import { Share2 } from 'lucide-react';
 
 interface VaultViewDialogProps {
   entryId: string;
@@ -59,8 +62,10 @@ function getCategoryVariant(category: string): 'default' | 'secondary' | 'destru
 
 export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: VaultViewDialogProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showConsentCreate, setShowConsentCreate] = useState(false);
   const { data: entry, isLoading, isError, error } = useVaultEntry(entryId);
   const { mutate: deleteVault, isPending: isDeleting } = useDeleteVault();
+  const { data: consents } = useConsentList({ vaultDataId: entryId, active: true });
 
   const handleDelete = () => {
     deleteVault(entryId, {
@@ -163,6 +168,38 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   )}
                 </div>
 
+                {/* Sharing & Consent Section */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold">Sharing & Consent</h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        onOpenChange(false);
+                        setShowConsentCreate(true);
+                      }}
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Share this data
+                    </Button>
+                  </div>
+                  {consents && consents.length > 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      <p>
+                        Active consents: <span className="font-medium text-foreground">{consents.length}</span>
+                      </p>
+                      <p className="mt-1">
+                        Shared with: {consents.map(c => c.grantedToName).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Not currently shared with any organization
+                    </p>
+                  )}
+                </div>
+
                 {/* Timestamps */}
                 <div className="pt-4 border-t">
                   <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
@@ -227,6 +264,12 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConsentCreateDialog
+        open={showConsentCreate}
+        onOpenChange={setShowConsentCreate}
+        preselectedVaultDataId={entryId}
+      />
     </>
   );
 }

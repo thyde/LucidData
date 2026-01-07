@@ -73,6 +73,21 @@ export class ConsentRepository {
   }
 
   /**
+   * Update a consent
+   */
+  async update(
+    id: string,
+    data: {
+      endDate?: Date;
+    }
+  ): Promise<Consent> {
+    return prisma.consent.update({
+      where: { id },
+      data,
+    });
+  }
+
+  /**
    * Revoke a consent
    */
   async revoke(

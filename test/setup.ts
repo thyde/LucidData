@@ -62,6 +62,14 @@ global.IntersectionObserver = class IntersectionObserver {
   unobserve() {}
 } as any;
 
+// Mock ResizeObserver
+global.ResizeObserver = class ResizeObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+} as any;
+
 // Suppress console errors in tests (optional)
 if (process.env.VITEST_SILENT === 'true') {
   global.console = {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/db/prisma';
-import { revokeConsentSchema } from '@/lib/validations/consent';
+import { updateConsentSchema, revokeConsentSchema } from '@/lib/validations/consent';
 import { createAuditLogEntry } from '@/lib/db/queries/audit';
 
 async function getConsent(userId: string, id: string) {
@@ -61,9 +61,63 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const body = await request.json();
-    const validated = revokeConsentSchema.parse(body);
+    const validated = updateConsentSchema.parse({
+      ...body,
+      endDate: body.endDate ? new Date(body.endDate) : undefined,
+    });
 
     const updated = await prisma.consent.update({
+      where: { id: existing.id },
+      data: {
+        endDate: validated.endDate,
+      },
+    });
+
+    await createAuditLogEntry({
+      userId: user.id,
+      consentId: updated.id,
+      vaultDataId: updated.vaultDataId,
+      eventType: 'consent_updated',
+      action: `Extended consent for ${updated.grantedToName}`,
+      actorId: user.id,
+      actorType: 'user',
+      request,
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: error.issues },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const existing = await getConsent(user.id, id);
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const validated = revokeConsentSchema.parse(body);
+
+    const revoked = await prisma.consent.update({
       where: { id: existing.id },
       data: {
         revoked: true,
@@ -74,16 +128,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     await createAuditLogEntry({
       userId: user.id,
-      consentId: updated.id,
-      vaultDataId: updated.vaultDataId,
+      consentId: revoked.id,
+      vaultDataId: revoked.vaultDataId,
       eventType: 'consent_revoked',
-      action: `Revoked consent for ${updated.grantedToName}`,
+      action: `Revoked consent for ${revoked.grantedToName}`,
       actorId: user.id,
       actorType: 'user',
       request,
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(revoked);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -18,3 +18,9 @@ export const revokeConsentSchema = z.object({
 });
 
 export type RevokeConsentInput = z.infer<typeof revokeConsentSchema>;
+
+export const updateConsentSchema = z.object({
+  endDate: z.date().optional(),
+});
+
+export type UpdateConsentInput = z.infer<typeof updateConsentSchema>;
