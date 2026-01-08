@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
+import { formatDateTime } from '@/lib/utils/date-formatter';
 
 interface ConsentExtendDialogProps {
   consentId: string;
@@ -101,7 +101,7 @@ export function ConsentExtendDialog({
               <div className="rounded-md bg-muted p-3 text-sm">
                 <span className="text-muted-foreground">Current expiration: </span>
                 <span className="font-medium">
-                  {format(new Date(currentEndDate), 'MMM d, yyyy h:mm a')}
+                  {formatDateTime(currentEndDate)}
                 </span>
               </div>
             )}

@@ -71,10 +71,9 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       expect(screen.getByText(/current expiration:/i)).toBeInTheDocument();
-      // Date is formatted as "Feb 1, 2026 12:00 AM"
-      expect(screen.getByText((content, element) => {
-        return element?.textContent?.includes('Feb 1, 2026') ?? false;
-      })).toBeInTheDocument();
+      // Date is formatted in local timezone (may show as Jan 31 or Feb 1 depending on timezone)
+      const dateElement = screen.getByText(/current expiration:/i).parentElement;
+      expect(dateElement).toHaveTextContent(/(Jan 31, 2026|Feb 1, 2026)/i);
     });
 
     it('renders new expiration date input', () => {
@@ -120,8 +119,13 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      // Set to exactly the current end date
-      const currentDateString = '2026-02-01T00:00';
+      // Set to a time just before/at the current end date (UTC: 2026-02-01T00:00:00.000Z)
+      // In local timezone (PST), this would be 2026-01-31 16:00, which is before the UTC date
+      // Use the exact UTC time in local format to ensure it's less than or equal
+      const currentDate = new Date(defaultProps.currentEndDate!);
+      const currentDateString = new Date(currentDate.getTime() - currentDate.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
       await user.type(input, currentDateString);
 
       const submitButton = screen.getByRole('button', { name: /extend consent/i });
@@ -158,8 +162,8 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      // Set to future date after current expiration
-      const futureDate = new Date('2025-03-01T00:00:00.000Z');
+      // Set to future date after current expiration (current is 2026-02-01, so use 2026-03-01)
+      const futureDate = new Date('2026-03-01T00:00:00.000Z');
       const futureDateString = futureDate.toISOString().slice(0, 16);
       await user.clear(input);
       await user.type(input, futureDateString);
@@ -353,7 +357,7 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      const futureDate = new Date('2025-03-01T00:00:00.000Z');
+      const futureDate = new Date('2026-03-01T00:00:00.000Z');
       const futureDateString = futureDate.toISOString().slice(0, 16);
       await user.clear(input);
       await user.type(input, futureDateString);
@@ -375,7 +379,7 @@ describe('ConsentExtendDialog', () => {
 
       // Verify the date object is correct
       const callArgs = vi.mocked(mockMutation.mutate).mock.calls[0][0];
-      expect(callArgs.data.endDate.toISOString()).toContain('2025-03-01');
+      expect(callArgs.data.endDate.toISOString()).toContain('2026-03-01');
     });
 
     it('closes dialog after successful extension', async () => {
@@ -383,7 +387,7 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      const futureDate = new Date('2025-03-01T00:00:00.000Z');
+      const futureDate = new Date('2026-03-01T00:00:00.000Z');
       const futureDateString = futureDate.toISOString().slice(0, 16);
       await user.clear(input);
       await user.type(input, futureDateString);

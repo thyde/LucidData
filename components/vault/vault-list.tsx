@@ -9,17 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { VAULT_CATEGORIES } from '@/lib/constants/categories';
+import { formatDate } from '@/lib/utils/date-formatter';
 
 interface VaultListProps {
   onEntryClick?: (entryId: string) => void;
-}
-
-function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 function isExpired(expiresAt: Date | string | null): boolean {
@@ -110,11 +104,11 @@ export function VaultList({ onEntryClick }: VaultListProps) {
           className="flex h-9 w-[180px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="">All</option>
-          <option value="personal">Personal</option>
-          <option value="health">Health</option>
-          <option value="financial">Financial</option>
-          <option value="credentials">Credentials</option>
-          <option value="other">Other</option>
+          {VAULT_CATEGORIES.map((category) => (
+            <option key={category.value} value={category.value}>
+              {category.label}
+            </option>
+          ))}
         </select>
 
         <select

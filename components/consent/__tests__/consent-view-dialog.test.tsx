@@ -139,7 +139,9 @@ describe('ConsentViewDialog', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
       expect(screen.getByText(/granted on:/i)).toBeInTheDocument();
-      expect(screen.getByText(/jan 1, 2026/i)).toBeInTheDocument();
+      // Date is formatted in local timezone with time (may show as Dec 31, 2025 or Jan 1, 2026 depending on timezone)
+      const grantedRow = screen.getByText(/granted on:/i).closest('div');
+      expect(grantedRow).toHaveTextContent(/(dec 31, 2025|jan 1, 2026).*([0-9]{1,2}:[0-9]{2}\s*(am|pm))/i);
     });
 
     it('displays start date', () => {

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConsentRevokeDialog } from './consent-revoke-dialog';
 import { ConsentExtendDialog } from './consent-extend-dialog';
-import { format } from 'date-fns';
+import { formatDate, formatDateTime } from '@/lib/utils/date-formatter';
 import { Shield, Calendar, User, AlertTriangle } from 'lucide-react';
 
 interface ConsentViewDialogProps {
@@ -106,11 +106,11 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Granted on:</span>
-                  <span>{format(new Date(consent.createdAt), 'MMM d, yyyy h:mm a')}</span>
+                  <span>{formatDateTime(consent.createdAt)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Starts:</span>
-                  <span>{format(new Date(consent.startDate), 'MMM d, yyyy')}</span>
+                  <span>{formatDate(consent.startDate)}</span>
                 </div>
                 {consent.endDate ? (
                   <div className="flex justify-between items-center">
@@ -120,7 +120,7 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
                         <AlertTriangle className="h-4 w-4 text-warning" />
                       )}
                       <span className={isExpiringSoon ? 'text-warning font-medium' : ''}>
-                        {format(new Date(consent.endDate), 'MMM d, yyyy')}
+                        {formatDate(consent.endDate)}
                         {isExpiringSoon && ' (Soon)'}
                       </span>
                     </div>
@@ -135,7 +135,7 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
                   <>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Revoked on:</span>
-                      <span>{format(new Date(consent.revokedAt), 'MMM d, yyyy h:mm a')}</span>
+                      <span>{formatDateTime(consent.revokedAt)}</span>
                     </div>
                     {consent.revokedReason && (
                       <div>
