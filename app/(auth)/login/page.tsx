@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,15 +11,36 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    general?: string;
+  }>({});
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validationErrors: typeof errors = {};
+
+    if (!email.trim()) {
+      validationErrors.email = 'Email is required';
+    }
+
+    if (!password.trim()) {
+      validationErrors.password = 'Password is required';
+    }
+
+    if (Object.keys(validationErrors).length) {
+      setErrors(validationErrors);
+      return;
+    }
+
     setLoading(true);
-    setError('');
+    setErrors({});
 
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
@@ -28,12 +49,15 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setError(error.message);
+      setErrors({ general: 'Invalid credentials. Please check your email and password.' });
       setLoading(false);
-    } else {
-      router.push('/dashboard');
-      router.refresh();
+      return;
     }
+
+    const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
+    router.push(redirectTo);
+    router.refresh();
+    setLoading(false);
   };
 
   return (
@@ -44,33 +68,55 @@ export default function LoginPage() {
           Enter your credentials to access your vault
         </CardDescription>
       </CardHeader>
-      <form onSubmit={handleLogin}>
+      <form onSubmit={handleLogin} noValidate>
         <CardContent className="space-y-4">
-          {error && (
-            <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
-              {error}
+          {errors.general && (
+            <div role="alert" className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+              {errors.general}
             </div>
           )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
             />
+            {errors.email && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.email}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="Toggle password visibility"
+                onClick={() => setShowPassword((prev) => !prev)}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </Button>
+            </div>
+            {errors.password && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.password}
+              </p>
+            )}
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
@@ -79,7 +125,7 @@ export default function LoginPage() {
           </Button>
           <p className="text-sm text-center text-muted-foreground">
             Don&apos;t have an account?{' '}
-            <Link href="/register" className="text-primary hover:underline">
+            <Link href="/signup" className="text-primary hover:underline">
               Sign up
             </Link>
           </p>

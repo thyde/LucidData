@@ -22,6 +22,9 @@ export const GET = withAuth(async (request, { userId }) => {
 
     return NextResponse.json(decryptedEntries);
   } catch (error) {
+    // Temporary debug logging for E2E tests
+    console.error('❌ GET /api/vault error:', error);
+    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
     logDatabaseError(error, { userId, action: 'LIST_VAULT_ENTRIES' });
     return NextResponse.json(
       { error: ERROR_MESSAGES.INTERNAL_ERROR },
@@ -59,6 +62,9 @@ export const POST = withAuth(async (request, { userId }) => {
       );
     }
 
+    // Temporary debug logging for E2E tests
+    console.error('❌ POST /api/vault error:', error);
+    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
     logDatabaseError(error, { userId, action: 'CREATE_VAULT_ENTRY' });
     return NextResponse.json(
       { error: ERROR_MESSAGES.INTERNAL_ERROR },

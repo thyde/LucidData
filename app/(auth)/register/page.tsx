@@ -15,39 +15,74 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+    general?: string;
+  }>({});
+
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validationErrors: typeof errors = {};
+
+    if (!email.trim()) {
+      validationErrors.email = 'Email is required';
+    } else if (!isValidEmail(email)) {
+      validationErrors.email = 'Enter a valid email';
+    }
+
+    if (!password.trim()) {
+      validationErrors.password = 'Password is required';
+    } else if (password.length < 8) {
+      validationErrors.password = 'Password must be at least 8 characters';
+    }
+
+    if (!confirmPassword.trim()) {
+      validationErrors.confirmPassword = 'Please confirm your password';
+    } else if (password !== confirmPassword) {
+      validationErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (Object.keys(validationErrors).length) {
+      setErrors(validationErrors);
+      return;
+    }
+
     setLoading(true);
-    setError('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
-      setLoading(false);
-      return;
-    }
+    setErrors({});
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    });
 
-    if (error) {
-      setError(error.message);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        setErrors({ general: error.message });
+        return;
+      }
+
+      if (!data.session) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          setErrors({ general: signInError.message });
+          return;
+        }
+      }
+
+      router.push('/dashboard');
+      router.refresh();
+    } finally {
       setLoading(false);
-    } else {
-      router.push('/login?message=Check your email to confirm your account');
     }
   };
 
@@ -59,43 +94,58 @@ export default function RegisterPage() {
           Start securing your personal data today
         </CardDescription>
       </CardHeader>
-      <form onSubmit={handleRegister}>
+      <form onSubmit={handleRegister} noValidate>
         <CardContent className="space-y-4">
-          {error && (
-            <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
-              {error}
+          {errors.general && (
+            <div role="alert" className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+              {errors.general}
             </div>
           )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
             />
+            {errors.email && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.email}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
             />
+            {errors.password && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.password}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm Password</Label>
             <Input
               id="confirmPassword"
+              name="confirmPassword"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              required
             />
+            {errors.confirmPassword && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.confirmPassword}
+              </p>
+            )}
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">

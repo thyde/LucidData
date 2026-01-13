@@ -4,8 +4,10 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { Consent } from '@prisma/client';
+import { BaseRepository } from './base.repository';
 
-export class ConsentRepository {
+export class ConsentRepository extends BaseRepository<Consent> {
+  protected model = prisma.consent;
   /**
    * Find all consents for a user
    */
@@ -16,14 +18,6 @@ export class ConsentRepository {
     });
   }
 
-  /**
-   * Find a single consent by ID
-   */
-  async findById(id: string): Promise<Consent | null> {
-    return prisma.consent.findUnique({
-      where: { id },
-    });
-  }
 
   /**
    * Find active consents for a user
@@ -50,42 +44,7 @@ export class ConsentRepository {
     });
   }
 
-  /**
-   * Create a new consent
-   */
-  async create(data: {
-    userId: string;
-    vaultDataId?: string | null;
-    grantedTo: string;
-    grantedToName: string;
-    grantedToEmail?: string;
-    accessLevel: string;
-    purpose: string;
-    endDate?: Date;
-    consentType?: string;
-    termsVersion?: string;
-    ipAddress?: string;
-    userAgent?: string;
-  }): Promise<Consent> {
-    return prisma.consent.create({
-      data,
-    });
-  }
-
-  /**
-   * Update a consent
-   */
-  async update(
-    id: string,
-    data: {
-      endDate?: Date;
-    }
-  ): Promise<Consent> {
-    return prisma.consent.update({
-      where: { id },
-      data,
-    });
-  }
+  // Note: create() and update() are inherited from BaseRepository
 
   /**
    * Revoke a consent
@@ -104,16 +63,7 @@ export class ConsentRepository {
     });
   }
 
-  /**
-   * Check if a consent belongs to a user
-   */
-  async belongsToUser(id: string, userId: string): Promise<boolean> {
-    const consent = await prisma.consent.findUnique({
-      where: { id },
-      select: { userId: true },
-    });
-    return consent?.userId === userId;
-  }
+  // Note: belongsToUser() is inherited from BaseRepository
 
   /**
    * Count active consents for a user

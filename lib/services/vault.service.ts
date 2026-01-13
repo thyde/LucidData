@@ -4,7 +4,8 @@
  */
 
 import { vaultRepository } from '@/lib/repositories/vault.repository';
-import { encrypt, decrypt, getMasterKey } from '@/lib/crypto/encryption';
+import { getMasterKey } from '@/lib/crypto/encryption';
+import { keyManagement } from '@/lib/crypto/key-management';
 import { logCryptoError } from '@/lib/services/error-logger';
 import { DecryptedVaultData, CreateVaultDataPayload, UpdateVaultDataPayload } from '@/types';
 import { VaultData } from '@prisma/client';
@@ -40,17 +41,14 @@ export class VaultService {
   }
 
   /**
-   * Create a new vault entry (encrypted)
+   * Create a new vault entry (encrypted with v2 envelope encryption)
    */
   async createVaultData(
     userId: string,
     payload: CreateVaultDataPayload
   ): Promise<VaultData> {
-    const masterKey = getMasterKey();
-    const { encrypted, iv, authTag } = encrypt(
-      JSON.stringify(payload.data),
-      masterKey
-    );
+    // Use v2 envelope encryption for all new entries
+    const result = keyManagement.envelopeEncrypt(JSON.stringify(payload.data));
 
     return vaultRepository.create({
       userId,
@@ -59,9 +57,11 @@ export class VaultService {
       label: payload.label,
       description: payload.description,
       tags: payload.tags ?? [],
-      encryptedData: encrypted,
-      encryptedKey: 'master-key-1', // TODO: Implement proper key management
-      iv: `${iv}:${authTag}`,
+      encryptedData: result.encryptedData,
+      encryptedKey: result.encryptedDek,
+      iv: `${result.dataIv}:${result.dataAuthTag}`,
+      keyIv: `${result.dekIv}:${result.dekAuthTag}`,
+      encryptionVersion: result.encryptionVersion,
       schemaType: payload.schemaType,
       schemaVersion: payload.schemaVersion,
       expiresAt: payload.expiresAt,
@@ -90,15 +90,14 @@ export class VaultService {
       expiresAt: payload.expiresAt,
     };
 
-    // Re-encrypt data if provided
+    // Re-encrypt data if provided (always use v2 envelope encryption)
     if (payload.data) {
-      const masterKey = getMasterKey();
-      const { encrypted, iv, authTag } = encrypt(
-        JSON.stringify(payload.data),
-        masterKey
-      );
-      updateData.encryptedData = encrypted;
-      updateData.iv = `${iv}:${authTag}`;
+      const result = keyManagement.envelopeEncrypt(JSON.stringify(payload.data));
+      updateData.encryptedData = result.encryptedData;
+      updateData.encryptedKey = result.encryptedDek;
+      updateData.iv = `${result.dataIv}:${result.dataAuthTag}`;
+      updateData.keyIv = `${result.dekIv}:${result.dekAuthTag}`;
+      updateData.encryptionVersion = result.encryptionVersion;
     }
 
     return vaultRepository.update(id, updateData);
@@ -139,6 +138,7 @@ export class VaultService {
 
   /**
    * Private helper to decrypt a vault entry
+   * Supports both v1 (legacy) and v2 (envelope) encryption
    */
   private decryptVaultEntry(
     entry: VaultData,
@@ -146,8 +146,32 @@ export class VaultService {
     userId: string
   ): DecryptedVaultData {
     try {
-      const [ivHex, authTagHex] = entry.iv.split(':');
-      const decrypted = decrypt(entry.encryptedData, masterKey, ivHex, authTagHex);
+      let decrypted: string;
+
+      // Check encryption version and decrypt accordingly
+      if (entry.encryptionVersion === 'v2' && entry.keyIv) {
+        // v2: Envelope encryption (DEK/KEK pattern)
+        const [dataIv, dataAuthTag] = entry.iv.split(':');
+        const [dekIv, dekAuthTag] = entry.keyIv.split(':');
+
+        decrypted = keyManagement.envelopeDecrypt(
+          entry.encryptedData,
+          dataIv,
+          dataAuthTag,
+          entry.encryptedKey,
+          dekIv,
+          dekAuthTag
+        );
+      } else {
+        // v1: Legacy encryption (direct KEK encryption)
+        const [ivHex, authTagHex] = entry.iv.split(':');
+        decrypted = keyManagement.legacyDecrypt(
+          entry.encryptedData,
+          ivHex,
+          authTagHex
+        );
+      }
+
       const data = JSON.parse(decrypted);
 
       return {

@@ -37,7 +37,7 @@ export class AuditService {
     const currentHash = createAuditHash(previousHash, {
       eventType: payload.eventType,
       userId: payload.userId,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
       action: payload.action,
       actorId: payload.actorId,
     });

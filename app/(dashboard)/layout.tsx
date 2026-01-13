@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { SignOutButton } from '@/components/auth/sign-out-button';
 
 export default async function DashboardLayout({
   children,
@@ -53,14 +54,7 @@ export default async function DashboardLayout({
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm text-muted-foreground">{user.email}</span>
-            <form action="/api/auth/signout" method="post">
-              <button
-                type="submit"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
+            <SignOutButton className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" />
           </div>
         </div>
       </header>

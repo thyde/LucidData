@@ -5,7 +5,7 @@ import {
   mockVaultEntries,
   createMockVaultEntry,
 } from '@/test/fixtures/vault-data';
-import * as encryptionModule from '@/lib/crypto/encryption';
+import { keyManagement } from '@/lib/crypto/key-management';
 
 // Mock dependencies
 vi.mock('@/lib/db/prisma', () => ({
@@ -23,14 +23,9 @@ import { vaultRepository } from '@/lib/repositories/vault.repository';
 describe('VaultService', () => {
   let service: VaultService;
   const userId = 'user-123';
-  const masterKey = Buffer.from('test-master-key-32-bytes-long!', 'utf-8');
-
   beforeEach(() => {
     service = new VaultService();
     vi.clearAllMocks();
-
-    // Mock getMasterKey to return test key
-    vi.spyOn(encryptionModule, 'getMasterKey').mockReturnValue(masterKey);
   });
 
   describe('getUserVaultData', () => {
@@ -39,12 +34,15 @@ describe('VaultService', () => {
       const encryptedEntry = createMockVaultEntry({
         userId,
         encryptedData: 'encrypted-data',
+        encryptedKey: 'encrypted-dek',
         iv: 'iv-hex:authtag-hex',
+        keyIv: 'dek-iv:dek-auth-tag',
+        encryptionVersion: 'v2',
       });
 
       prismaMock.vaultData.findMany.mockResolvedValue([encryptedEntry]);
 
-      vi.spyOn(encryptionModule, 'decrypt').mockReturnValue(JSON.stringify(testData));
+      vi.spyOn(keyManagement, 'envelopeDecrypt').mockReturnValue(JSON.stringify(testData));
 
       const result = await service.getUserVaultData(userId);
 
@@ -52,11 +50,13 @@ describe('VaultService', () => {
       expect(result[0].data).toEqual(testData);
       expect(result[0].id).toBe(encryptedEntry.id);
       expect(result[0].label).toBe(encryptedEntry.label);
-      expect(encryptionModule.decrypt).toHaveBeenCalledWith(
+      expect(keyManagement.envelopeDecrypt).toHaveBeenCalledWith(
         encryptedEntry.encryptedData,
-        masterKey,
         'iv-hex',
-        'authtag-hex'
+        'authtag-hex',
+        'encrypted-dek',
+        'dek-iv',
+        'dek-auth-tag'
       );
     });
 
@@ -65,10 +65,12 @@ describe('VaultService', () => {
         userId,
         encryptedData: 'corrupted-data',
         iv: 'iv:tag',
+        keyIv: 'dek-iv:dek-tag',
+        encryptionVersion: 'v2',
       });
 
       prismaMock.vaultData.findMany.mockResolvedValue([encryptedEntry]);
-      vi.spyOn(encryptionModule, 'decrypt').mockImplementation(() => {
+      vi.spyOn(keyManagement, 'envelopeDecrypt').mockImplementation(() => {
         throw new Error('Decryption failed');
       });
 
@@ -91,30 +93,62 @@ describe('VaultService', () => {
 
     it('should decrypt multiple entries correctly', async () => {
       const entries = [
-        createMockVaultEntry({ id: 'vault-1', userId, iv: 'iv1:tag1' }),
-        createMockVaultEntry({ id: 'vault-2', userId, iv: 'iv2:tag2' }),
-        createMockVaultEntry({ id: 'vault-3', userId, iv: 'iv3:tag3' }),
+        createMockVaultEntry({
+          id: 'vault-1',
+          userId,
+          iv: 'iv1:tag1',
+          keyIv: 'dek1:tag1',
+          encryptionVersion: 'v2',
+        }),
+        createMockVaultEntry({
+          id: 'vault-2',
+          userId,
+          iv: 'iv2:tag2',
+          keyIv: 'dek2:tag2',
+          encryptionVersion: 'v2',
+        }),
+        createMockVaultEntry({
+          id: 'vault-3',
+          userId,
+          iv: 'iv3:tag3',
+          keyIv: 'dek3:tag3',
+          encryptionVersion: 'v2',
+        }),
       ];
 
       prismaMock.vaultData.findMany.mockResolvedValue(entries);
-      vi.spyOn(encryptionModule, 'decrypt').mockReturnValue(JSON.stringify({ data: 'test' }));
+      vi.spyOn(keyManagement, 'envelopeDecrypt').mockReturnValue(
+        JSON.stringify({ data: 'test' })
+      );
 
       const result = await service.getUserVaultData(userId);
 
       expect(result).toHaveLength(3);
       expect(result.every((r) => r.data !== null)).toBe(true);
-      expect(encryptionModule.decrypt).toHaveBeenCalledTimes(3);
+      expect(keyManagement.envelopeDecrypt).toHaveBeenCalledTimes(3);
     });
 
     it('should handle mix of successful and failed decryptions', async () => {
       const entries = [
-        createMockVaultEntry({ id: 'vault-1', userId, iv: 'iv1:tag1' }),
-        createMockVaultEntry({ id: 'vault-2', userId, iv: 'iv2:tag2' }),
+        createMockVaultEntry({
+          id: 'vault-1',
+          userId,
+          iv: 'iv1:tag1',
+          keyIv: 'dek1:tag1',
+          encryptionVersion: 'v2',
+        }),
+        createMockVaultEntry({
+          id: 'vault-2',
+          userId,
+          iv: 'iv2:tag2',
+          keyIv: 'dek2:tag2',
+          encryptionVersion: 'v2',
+        }),
       ];
 
       prismaMock.vaultData.findMany.mockResolvedValue(entries);
 
-      vi.spyOn(encryptionModule, 'decrypt')
+      vi.spyOn(keyManagement, 'envelopeDecrypt')
         .mockReturnValueOnce(JSON.stringify({ data: 'success' }))
         .mockImplementationOnce(() => {
           throw new Error('Decryption failed');
@@ -136,10 +170,13 @@ describe('VaultService', () => {
         id: 'vault-123',
         userId,
         iv: 'iv:tag',
+        encryptedKey: 'encrypted-dek',
+        keyIv: 'dek-iv:dek-tag',
+        encryptionVersion: 'v2',
       });
 
       prismaMock.vaultData.findUnique.mockResolvedValue(entry);
-      vi.spyOn(encryptionModule, 'decrypt').mockReturnValue(JSON.stringify(testData));
+      vi.spyOn(keyManagement, 'envelopeDecrypt').mockReturnValue(JSON.stringify(testData));
 
       const result = await service.getVaultDataById('vault-123', userId);
 
@@ -174,10 +211,13 @@ describe('VaultService', () => {
         id: 'vault-123',
         userId,
         iv: 'iv:tag',
+        encryptedKey: 'encrypted-dek',
+        keyIv: 'dek-iv:dek-tag',
+        encryptionVersion: 'v2',
       });
 
       prismaMock.vaultData.findUnique.mockResolvedValue(entry);
-      vi.spyOn(encryptionModule, 'decrypt').mockImplementation(() => {
+      vi.spyOn(keyManagement, 'envelopeDecrypt').mockImplementation(() => {
         throw new Error('Decryption error');
       });
 
@@ -199,7 +239,7 @@ describe('VaultService', () => {
         service.getVaultDataById('vault-123', userId)
       ).rejects.toThrow('Unauthorized access to vault data');
 
-      expect(encryptionModule.decrypt).not.toHaveBeenCalled();
+      expect(keyManagement.envelopeDecrypt).not.toHaveBeenCalled();
     });
   });
 
@@ -214,28 +254,34 @@ describe('VaultService', () => {
         data: { sensitive: 'information', value: 42 },
       };
 
-      const encrypted = {
-        encrypted: 'encrypted-data-hex',
-        iv: 'iv-hex',
-        authTag: 'auth-tag-hex',
+      const envelopeResult = {
+        encryptedData: 'encrypted-data-hex',
+        dataIv: 'iv-hex',
+        dataAuthTag: 'auth-tag-hex',
+        encryptedDek: 'encrypted-dek-hex',
+        dekIv: 'dek-iv-hex',
+        dekAuthTag: 'dek-auth-tag-hex',
+        encryptionVersion: 'v2',
       };
 
-      vi.spyOn(encryptionModule, 'encrypt').mockReturnValue(encrypted);
+      vi.spyOn(keyManagement, 'envelopeEncrypt').mockReturnValue(envelopeResult);
 
       const createdEntry = createMockVaultEntry({
         userId,
         ...payload,
-        encryptedData: encrypted.encrypted,
-        iv: `${encrypted.iv}:${encrypted.authTag}`,
+        encryptedData: envelopeResult.encryptedData,
+        encryptedKey: envelopeResult.encryptedDek,
+        iv: `${envelopeResult.dataIv}:${envelopeResult.dataAuthTag}`,
+        keyIv: `${envelopeResult.dekIv}:${envelopeResult.dekAuthTag}`,
+        encryptionVersion: envelopeResult.encryptionVersion,
       });
 
       prismaMock.vaultData.create.mockResolvedValue(createdEntry);
 
       const result = await service.createVaultData(userId, payload);
 
-      expect(encryptionModule.encrypt).toHaveBeenCalledWith(
-        JSON.stringify(payload.data),
-        masterKey
+      expect(keyManagement.envelopeEncrypt).toHaveBeenCalledWith(
+        JSON.stringify(payload.data)
       );
 
       expect(prismaMock.vaultData.create).toHaveBeenCalledWith({
@@ -246,9 +292,11 @@ describe('VaultService', () => {
           label: payload.label,
           description: payload.description,
           tags: payload.tags,
-          encryptedData: encrypted.encrypted,
-          encryptedKey: 'master-key-1',
-          iv: `${encrypted.iv}:${encrypted.authTag}`,
+          encryptedData: envelopeResult.encryptedData,
+          encryptedKey: envelopeResult.encryptedDek,
+          iv: `${envelopeResult.dataIv}:${envelopeResult.dataAuthTag}`,
+          keyIv: `${envelopeResult.dekIv}:${envelopeResult.dekAuthTag}`,
+          encryptionVersion: envelopeResult.encryptionVersion,
           schemaType: undefined,
           schemaVersion: undefined,
           expiresAt: undefined,
@@ -269,10 +317,14 @@ describe('VaultService', () => {
         expiresAt: new Date('2025-12-31'),
       };
 
-      vi.spyOn(encryptionModule, 'encrypt').mockReturnValue({
-        encrypted: 'enc',
-        iv: 'iv',
-        authTag: 'tag',
+      vi.spyOn(keyManagement, 'envelopeEncrypt').mockReturnValue({
+        encryptedData: 'enc',
+        dataIv: 'iv',
+        dataAuthTag: 'tag',
+        encryptedDek: 'dek',
+        dekIv: 'dek-iv',
+        dekAuthTag: 'dek-tag',
+        encryptionVersion: 'v2',
       });
 
       const createdEntry = createMockVaultEntry();
@@ -297,10 +349,14 @@ describe('VaultService', () => {
         data: { test: 'data' },
       };
 
-      vi.spyOn(encryptionModule, 'encrypt').mockReturnValue({
-        encrypted: 'enc',
-        iv: 'iv',
-        authTag: 'tag',
+      vi.spyOn(keyManagement, 'envelopeEncrypt').mockReturnValue({
+        encryptedData: 'enc',
+        dataIv: 'iv',
+        dataAuthTag: 'tag',
+        encryptedDek: 'dek',
+        dekIv: 'dek-iv',
+        dekAuthTag: 'dek-tag',
+        encryptionVersion: 'v2',
       });
 
       const createdEntry = createMockVaultEntry();
@@ -329,10 +385,14 @@ describe('VaultService', () => {
         data: complexData,
       };
 
-      vi.spyOn(encryptionModule, 'encrypt').mockReturnValue({
-        encrypted: 'enc',
-        iv: 'iv',
-        authTag: 'tag',
+      vi.spyOn(keyManagement, 'envelopeEncrypt').mockReturnValue({
+        encryptedData: 'enc',
+        dataIv: 'iv',
+        dataAuthTag: 'tag',
+        encryptedDek: 'dek',
+        dekIv: 'dek-iv',
+        dekAuthTag: 'dek-tag',
+        encryptionVersion: 'v2',
       });
 
       const createdEntry = createMockVaultEntry();
@@ -340,9 +400,8 @@ describe('VaultService', () => {
 
       await service.createVaultData(userId, payload);
 
-      expect(encryptionModule.encrypt).toHaveBeenCalledWith(
-        JSON.stringify(complexData),
-        masterKey
+      expect(keyManagement.envelopeEncrypt).toHaveBeenCalledWith(
+        JSON.stringify(complexData)
       );
     });
   });
@@ -389,28 +448,34 @@ describe('VaultService', () => {
 
       prismaMock.vaultData.findUnique.mockResolvedValue({ userId } as any);
 
-      const encrypted = {
-        encrypted: 'new-encrypted-data',
-        iv: 'new-iv',
-        authTag: 'new-tag',
+      const envelopeResult = {
+        encryptedData: 'new-encrypted-data',
+        dataIv: 'new-iv',
+        dataAuthTag: 'new-tag',
+        encryptedDek: 'new-encrypted-dek',
+        dekIv: 'new-dek-iv',
+        dekAuthTag: 'new-dek-tag',
+        encryptionVersion: 'v2',
       };
-      vi.spyOn(encryptionModule, 'encrypt').mockReturnValue(encrypted);
+      vi.spyOn(keyManagement, 'envelopeEncrypt').mockReturnValue(envelopeResult);
 
       const updatedEntry = createMockVaultEntry();
       prismaMock.vaultData.update.mockResolvedValue(updatedEntry);
 
       await service.updateVaultData(entryId, userId, payload);
 
-      expect(encryptionModule.encrypt).toHaveBeenCalledWith(
-        JSON.stringify(payload.data),
-        masterKey
+      expect(keyManagement.envelopeEncrypt).toHaveBeenCalledWith(
+        JSON.stringify(payload.data)
       );
 
       expect(prismaMock.vaultData.update).toHaveBeenCalledWith({
         where: { id: entryId },
         data: expect.objectContaining({
-          encryptedData: encrypted.encrypted,
-          iv: `${encrypted.iv}:${encrypted.authTag}`,
+          encryptedData: envelopeResult.encryptedData,
+          encryptedKey: envelopeResult.encryptedDek,
+          iv: `${envelopeResult.dataIv}:${envelopeResult.dataAuthTag}`,
+          keyIv: `${envelopeResult.dekIv}:${envelopeResult.dekAuthTag}`,
+          encryptionVersion: envelopeResult.encryptionVersion,
         }),
       });
     });
@@ -440,7 +505,7 @@ describe('VaultService', () => {
 
       await service.updateVaultData(entryId, userId, payload);
 
-      expect(encryptionModule.encrypt).not.toHaveBeenCalled();
+      expect(keyManagement.envelopeEncrypt).not.toHaveBeenCalled();
       expect(prismaMock.vaultData.update).toHaveBeenCalledWith({
         where: { id: entryId },
         data: expect.not.objectContaining({
@@ -592,17 +657,24 @@ describe('VaultService', () => {
       const testData = { secret: 'value' };
 
       // Create
-      vi.spyOn(encryptionModule, 'encrypt').mockReturnValue({
-        encrypted: 'enc',
-        iv: 'iv',
-        authTag: 'tag',
+      vi.spyOn(keyManagement, 'envelopeEncrypt').mockReturnValue({
+        encryptedData: 'enc',
+        dataIv: 'iv',
+        dataAuthTag: 'tag',
+        encryptedDek: 'dek',
+        dekIv: 'dek-iv',
+        dekAuthTag: 'dek-tag',
+        encryptionVersion: 'v2',
       });
 
       const createdEntry = createMockVaultEntry({
         id: 'new-vault',
         userId,
         encryptedData: 'enc',
+        encryptedKey: 'dek',
         iv: 'iv:tag',
+        keyIv: 'dek-iv:dek-tag',
+        encryptionVersion: 'v2',
       });
       prismaMock.vaultData.create.mockResolvedValue(createdEntry);
 
@@ -617,7 +689,7 @@ describe('VaultService', () => {
 
       // Read
       prismaMock.vaultData.findUnique.mockResolvedValue(createdEntry);
-      vi.spyOn(encryptionModule, 'decrypt').mockReturnValue(JSON.stringify(testData));
+      vi.spyOn(keyManagement, 'envelopeDecrypt').mockReturnValue(JSON.stringify(testData));
 
       const retrieved = await service.getVaultDataById('new-vault', userId);
       expect(retrieved?.data).toEqual(testData);

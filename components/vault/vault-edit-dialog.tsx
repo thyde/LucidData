@@ -14,17 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Form } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import {
+  FormTextField,
+  FormTextAreaField,
+  FormSelectField,
+  FormTagsField,
+  FormDateField,
+} from '@/components/common/form-fields';
 
 // Extend schema to handle JSON string input
 const formSchema = vaultDataSchema.extend({
@@ -129,80 +128,38 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
+                <FormTextField
                   control={form.control}
                   name="label"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Label</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter a label for this entry" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Label"
+                  placeholder="Enter a label for this entry"
                 />
 
-                <FormField
+                <FormSelectField
                   control={form.control}
                   name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <FormControl>
-                        <select
-                          {...field}
-                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <option value="">Select a category</option>
-                          <option value="personal">Personal</option>
-                          <option value="health">Health</option>
-                          <option value="financial">Financial</option>
-                          <option value="credentials">Credentials</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Category"
+                  placeholder="Select a category"
+                  options={[
+                    { value: 'personal', label: 'Personal' },
+                    { value: 'health', label: 'Health' },
+                    { value: 'financial', label: 'Financial' },
+                    { value: 'credentials', label: 'Credentials' },
+                    { value: 'other', label: 'Other' },
+                  ]}
                 />
 
-                <FormField
+                <FormTextAreaField
                   control={form.control}
                   name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Optional description" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Description"
+                  placeholder="Optional description"
                 />
 
-                <FormField
+                <FormTagsField
                   control={form.control}
                   name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tags</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter tags (comma-separated)"
-                          value={field.value?.join(', ') || ''}
-                          onChange={(e) => {
-                            const tags = e.target.value
-                              .split(',')
-                              .map((tag) => tag.trim())
-                              .filter((tag) => tag.length > 0);
-                            field.onChange(tags);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Tags"
                 />
 
                 <div className="space-y-2">
@@ -243,37 +200,17 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
                   )}
                 </div>
 
-                <FormField
+                <FormTextField
                   control={form.control}
                   name="schemaType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Schema Type</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Optional schema type" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Schema Type"
+                  placeholder="Optional schema type"
                 />
 
-                <FormField
+                <FormDateField
                   control={form.control}
                   name="expiresAt"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Expires At</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="datetime-local"
-                          {...field}
-                          value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value || ''}
-                          onChange={(e) => field.onChange(e.target.value || undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Expires At"
                 />
 
                 <DialogFooter>

@@ -7,6 +7,12 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './__tests__/e2e',
 
+  // Global setup to load .env.test before starting tests
+  globalSetup: './__tests__/e2e/global-setup.ts',
+
+  // Global teardown to clean up test data after all tests
+  globalTeardown: './__tests__/e2e/global-teardown.ts',
+
   // Run tests in files in parallel
   fullyParallel: true,
 
@@ -70,8 +76,9 @@ export default defineConfig({
   ],
 
   // Run your local dev server before starting the tests
+  // Use dotenv-cli to load .env.test before starting the dev server
   webServer: {
-    command: 'npm run dev',
+    command: 'npx dotenv-cli -e .env.test -- npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

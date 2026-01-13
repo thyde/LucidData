@@ -39,9 +39,11 @@ model VaultData {
   dataType  String   // e.g., "json", "credential", "document"
 
   // Encrypted content (envelope encryption: DEK encrypted with master KEK)
-  encryptedData String   @db.Text // AES-256 encrypted JSON
-  encryptedKey  String   // Encrypted data encryption key
-  iv            String   // Initialization vector + auth tag (format: "iv:authTag")
+  encryptedData     String  @db.Text // AES-256 encrypted JSON
+  encryptedKey      String  // Encrypted data encryption key (DEK)
+  iv                String  // Data IV + auth tag (format: "dataIV:dataAuthTag")
+  keyIv             String? // DEK IV + auth tag (format: "dekIV:dekAuthTag") - v2 only
+  encryptionVersion String  @default("v1") // "v1" (legacy) or "v2" (envelope)
 
   // Metadata (unencrypted for querying)
   label        String

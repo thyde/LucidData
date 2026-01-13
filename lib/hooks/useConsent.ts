@@ -1,172 +1,82 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, UseMutationResult } from '@tanstack/react-query';
 import { Consent } from '@prisma/client';
-import { ConsentInput, RevokeConsentInput, UpdateConsentInput } from '@/lib/validations/consent';
+import { ConsentInput, UpdateConsentInput } from '@/lib/validations/consent';
 import { useToast } from '@/lib/hooks/use-toast';
+import { createQueryHooks } from './factories/createQueryHooks';
+import { createMutationHooks } from './factories/createMutationHooks';
 
 /**
  * React Query hooks for consent operations
+ *
+ * Refactored to use generic hook factories with specialized hooks
+ * for consent-specific operations (revoke).
  */
-
-// Query keys
-const CONSENT_KEYS = {
-  all: ['consent'] as const,
-  lists: () => [...CONSENT_KEYS.all, 'list'] as const,
-  list: (filters?: { vaultDataId?: string; active?: boolean }) =>
-    [...CONSENT_KEYS.lists(), filters] as const,
-  details: () => [...CONSENT_KEYS.all, 'detail'] as const,
-  detail: (id: string) => [...CONSENT_KEYS.details(), id] as const,
-};
 
 export interface ConsentFilters {
   vaultDataId?: string;
   active?: boolean;
 }
 
-/**
- * Fetch all consents with optional filters
- */
-export function useConsentList(filters?: ConsentFilters) {
-  return useQuery({
-    queryKey: CONSENT_KEYS.list(filters),
-    queryFn: async (): Promise<Consent[]> => {
-      const params = new URLSearchParams();
-      if (filters?.vaultDataId) {
-        params.append('vaultDataId', filters.vaultDataId);
-      }
-      if (filters?.active !== undefined) {
-        params.append('active', String(filters.active));
-      }
-
-      const url = `/api/consent${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch consents');
-      }
-      return response.json();
-    },
-  });
+// Helper to convert filters to query params
+function filtersToParams(filters: ConsentFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.vaultDataId) {
+    params.append('vaultDataId', filters.vaultDataId);
+  }
+  if (filters.active !== undefined) {
+    params.append('active', String(filters.active));
+  }
+  return params;
 }
 
-/**
- * Fetch a single consent by ID
- */
-export function useConsentEntry(id: string) {
-  return useQuery({
-    queryKey: CONSENT_KEYS.detail(id),
-    queryFn: async (): Promise<Consent> => {
-      const response = await fetch(`/api/consent/${id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Consent not found');
-        }
-        throw new Error('Failed to fetch consent');
-      }
-      return response.json();
-    },
-    enabled: !!id,
-  });
-}
+// Create query hooks using factory
+const { useList, useEntry, queryKeys } = createQueryHooks<Consent, ConsentFilters>({
+  entityName: 'consent',
+  endpoints: {
+    list: '/api/consent',
+    detail: (id) => `/api/consent/${id}`,
+  },
+  errorMessages: {
+    listFetch: 'Failed to fetch consents',
+    detailFetch: 'Failed to fetch consent',
+    detailNotFound: 'Consent not found',
+  },
+  filterToParams: filtersToParams,
+});
 
-/**
- * Create a new consent
- */
-export function useCreateConsent() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (data: ConsentInput): Promise<Consent> => {
-      const response = await fetch('/api/consent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create consent');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      // Invalidate all consent lists
-      queryClient.invalidateQueries({ queryKey: CONSENT_KEYS.lists() });
-
-      toast({
-        title: 'Success',
-        description: 'Consent granted successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to create consent',
-      });
-    },
-  });
-}
-
-/**
- * Extend an existing consent (update endDate)
- */
-export function useExtendConsent() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: UpdateConsentInput;
-    }): Promise<Consent> => {
-      const response = await fetch(`/api/consent/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to extend consent');
-      }
-
-      return response.json();
-    },
-    onSuccess: (data) => {
-      // Invalidate both the list and the specific entry
-      queryClient.invalidateQueries({ queryKey: CONSENT_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CONSENT_KEYS.detail(data.id) });
-
-      toast({
-        title: 'Success',
-        description: 'Consent extended successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to extend consent',
-      });
-    },
-  });
-}
+// Create mutation hooks using factory
+const { useCreate, useUpdate } = createMutationHooks<
+  Consent,
+  ConsentInput,
+  UpdateConsentInput
+>({
+  entityName: 'consent',
+  queryKeys,
+  endpoints: {
+    create: '/api/consent',
+    update: (id) => `/api/consent/${id}`,
+    delete: (id) => `/api/consent/${id}`, // Not used, but required by interface
+  },
+  getIdFromData: (data) => data.id,
+  toastMessages: {
+    createSuccess: 'Consent granted successfully',
+    updateSuccess: 'Consent extended successfully',
+  },
+});
 
 /**
  * Revoke a consent
+ *
+ * Specialized mutation for revoking consents (requires reason parameter).
+ * This doesn't use the factory pattern because of its unique signature.
  */
-export function useRevokeConsent() {
+export function useRevokeConsent(): UseMutationResult<
+  Consent,
+  Error,
+  { id: string; reason: string }
+> {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -195,8 +105,8 @@ export function useRevokeConsent() {
     },
     onSuccess: (data) => {
       // Invalidate both the list and the specific entry
-      queryClient.invalidateQueries({ queryKey: CONSENT_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CONSENT_KEYS.detail(data.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.detail(data.id) });
 
       toast({
         title: 'Success',
@@ -212,3 +122,12 @@ export function useRevokeConsent() {
     },
   });
 }
+
+// Export query keys for external use
+export const CONSENT_KEYS = queryKeys;
+
+// Export hooks with original names for backward compatibility
+export const useConsentList = useList;
+export const useConsentEntry = useEntry;
+export const useCreateConsent = useCreate;
+export const useExtendConsent = useUpdate;

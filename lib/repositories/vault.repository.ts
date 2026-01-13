@@ -5,8 +5,10 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { VaultData } from '@prisma/client';
+import { BaseRepository } from './base.repository';
 
-export class VaultRepository {
+export class VaultRepository extends BaseRepository<VaultData> {
+  protected model = prisma.vaultData;
   /**
    * Find all vault entries for a user
    */
@@ -17,14 +19,6 @@ export class VaultRepository {
     });
   }
 
-  /**
-   * Find a single vault entry by ID
-   */
-  async findById(id: string): Promise<VaultData | null> {
-    return prisma.vaultData.findUnique({
-      where: { id },
-    });
-  }
 
   /**
    * Find vault entries by category
@@ -36,76 +30,14 @@ export class VaultRepository {
     });
   }
 
-  /**
-   * Create a new vault entry
-   */
-  async create(data: {
-    userId: string;
-    category: string;
-    dataType: string;
-    label: string;
-    description?: string;
-    tags: string[];
-    encryptedData: string;
-    encryptedKey: string;
-    iv: string;
-    schemaType?: string;
-    schemaVersion?: string;
-    expiresAt?: Date;
-  }): Promise<VaultData> {
-    return prisma.vaultData.create({
-      data,
-    });
-  }
-
-  /**
-   * Update a vault entry
-   */
-  async update(
-    id: string,
-    data: {
-      label?: string;
-      category?: string;
-      description?: string;
-      tags?: string[];
-      encryptedData?: string;
-      iv?: string;
-      expiresAt?: Date;
-    }
-  ): Promise<VaultData> {
-    return prisma.vaultData.update({
-      where: { id },
-      data,
-    });
-  }
-
-  /**
-   * Delete a vault entry
-   */
-  async delete(id: string): Promise<VaultData> {
-    return prisma.vaultData.delete({
-      where: { id },
-    });
-  }
-
-  /**
-   * Check if a vault entry belongs to a user
-   */
-  async belongsToUser(id: string, userId: string): Promise<boolean> {
-    const entry = await prisma.vaultData.findUnique({
-      where: { id },
-      select: { userId: true },
-    });
-    return entry?.userId === userId;
-  }
+  // Note: create(), update(), delete(), belongsToUser(), and count()
+  // are now inherited from BaseRepository
 
   /**
    * Count vault entries for a user
    */
   async countByUserId(userId: string): Promise<number> {
-    return prisma.vaultData.count({
-      where: { userId },
-    });
+    return this.count({ userId });
   }
 
   /**
@@ -119,6 +51,56 @@ export class VaultRepository {
         },
       },
     });
+  }
+
+  /**
+   * Find v1 encrypted entries for migration
+   * Returns entries that need to be migrated to v2 envelope encryption
+   *
+   * @param limit - Maximum number of entries to return
+   * @returns Array of v1 vault entries
+   */
+  async findV1Entries(limit: number = 50): Promise<VaultData[]> {
+    return prisma.vaultData.findMany({
+      where: {
+        OR: [
+          { encryptionVersion: 'v1' },
+          { keyIv: null }, // v1 entries don't have keyIv
+        ],
+      },
+      take: limit,
+      orderBy: { createdAt: 'asc' }, // Migrate oldest first
+    });
+  }
+
+  /**
+   * Count entries by encryption version
+   * Useful for migration progress tracking
+   *
+   * @returns Object with v1 and v2 counts
+   */
+  async countByEncryptionVersion(): Promise<{ v1: number; v2: number; total: number }> {
+    const [v1Count, v2Count, total] = await Promise.all([
+      prisma.vaultData.count({
+        where: {
+          OR: [
+            { encryptionVersion: 'v1' },
+            { keyIv: null },
+          ],
+        },
+      }),
+      prisma.vaultData.count({
+        where: {
+          AND: [
+            { encryptionVersion: 'v2' },
+            { keyIv: { not: null } },
+          ],
+        },
+      }),
+      prisma.vaultData.count(),
+    ]);
+
+    return { v1: v1Count, v2: v2Count, total };
   }
 }
 

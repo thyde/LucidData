@@ -4,8 +4,10 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { AuditLog } from '@prisma/client';
+import { BaseRepository } from './base.repository';
 
-export class AuditRepository {
+export class AuditRepository extends BaseRepository<AuditLog> {
+  protected model = prisma.auditLog;
   /**
    * Find all audit logs for a user
    */
@@ -46,39 +48,13 @@ export class AuditRepository {
     });
   }
 
-  /**
-   * Create a new audit log entry
-   */
-  async create(data: {
-    userId: string;
-    vaultDataId?: string;
-    consentId?: string;
-    eventType: string;
-    action: string;
-    actorId: string;
-    actorType: string;
-    actorName?: string;
-    ipAddress?: string;
-    userAgent?: string;
-    method?: string;
-    success?: boolean;
-    errorMessage?: string;
-    previousHash: string | null;
-    currentHash: string;
-    metadata?: object;
-  }): Promise<AuditLog> {
-    return prisma.auditLog.create({
-      data,
-    });
-  }
+  // Note: create() is inherited from BaseRepository
 
   /**
    * Count audit logs for a user
    */
   async countByUserId(userId: string): Promise<number> {
-    return prisma.auditLog.count({
-      where: { userId },
-    });
+    return this.count({ userId });
   }
 
   /**

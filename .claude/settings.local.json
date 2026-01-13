@@ -47,7 +47,19 @@
       "Bash(cat:*)",
       "Bash(npm run type-check:*)",
       "Bash(npm run:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git reset:*)",
+      "Bash(wc:*)",
+      "Bash(powershell:*)",
+      "Bash(dir \"c:\\\\repo\\\\LucidData\\\\components\\\\ui\" /b)",
+      "Bash(tree:*)",
+      "Bash(npm test:run:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(vitest:*)",
+      "Bash(npx playwright:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx supabase status)",
+      "Bash(findstr:*)"
     ]
   },
   "mcpServers": {

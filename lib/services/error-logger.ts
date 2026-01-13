@@ -148,3 +148,13 @@ export const logAuditIntegrityError = (error: Error | unknown, context?: ErrorCo
 
 export const logDatabaseError = (error: Error | unknown, context?: ErrorContext) =>
   errorLogger.database(error, context);
+
+export const logInfo = (message: string, context?: ErrorContext) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.info('[INFO]', {
+      timestamp: new Date().toISOString(),
+      message,
+      ...context,
+    });
+  }
+};
