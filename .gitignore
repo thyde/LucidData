@@ -34,3 +34,25 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Test artifacts
+*.spec.png
+*-debug.png
+*-validation-errors.png
+test-*.log
+test-audit-output.log
+
+# Debug scripts
+cleanup-*.js
+test-*.js
+debug-*.js
+
+# Temporary files
+nul
+*.tmp
+*.temp
