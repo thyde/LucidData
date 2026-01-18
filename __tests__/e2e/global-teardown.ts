@@ -5,27 +5,34 @@
  * It cleans up test data from the database to prevent test pollution.
  */
 
-import { PrismaClient } from '@prisma/client';
-
 export default async function globalTeardown() {
   console.log('🧹 Running E2E test cleanup...');
 
-  const prisma = new PrismaClient({
-    datasourceUrl: process.env.DATABASE_URL,
-  });
-
   try {
-    // Clean up test vault entries
-    const deletedVaultEntries = await prisma.vaultData.deleteMany();
-    console.log(`   Deleted ${deletedVaultEntries.count} vault entries`);
+    // Dynamically import PrismaClient to handle cases where it's not generated
+    const prismaModule = await import('@prisma/client');
+    const PrismaClient = prismaModule.PrismaClient;
 
-    // Note: We don't delete users created by Supabase auth
-    // Those are managed by Supabase and cleaned up separately
+    const prisma = new PrismaClient({
+      datasourceUrl: process.env.DATABASE_URL,
+    });
 
-    console.log('✅ E2E test cleanup complete');
+    try {
+      // Clean up test vault entries
+      const deletedVaultEntries = await prisma.vaultData.deleteMany();
+      console.log(`   Deleted ${deletedVaultEntries.count} vault entries`);
+
+      // Note: We don't delete users created by Supabase auth
+      // Those are managed by Supabase and cleaned up separately
+
+      console.log('✅ E2E test cleanup complete');
+    } catch (error) {
+      console.error('❌ Error during test cleanup:', error);
+    } finally {
+      await prisma.$disconnect();
+    }
   } catch (error) {
-    console.error('❌ Error during test cleanup:', error);
-  } finally {
-    await prisma.$disconnect();
+    console.warn('⚠️  Prisma client not available, skipping database cleanup');
+    console.warn('   This is expected if Prisma engines cannot be downloaded');
   }
 }
