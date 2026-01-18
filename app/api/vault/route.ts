@@ -7,18 +7,19 @@ import { vaultDataSchema } from '@/lib/validations/vault';
 import { logDatabaseError } from '@/lib/services/error-logger';
 import { HTTP_STATUS, ERROR_MESSAGES } from '@/lib/constants';
 
-export const GET = withAuth(async (request, { userId }) => {
+export const GET = withAuth(async (request, { userId, userEmail }) => {
   try {
+    // Debug logging to track userId consistency across sessions
+    console.log('[VAULT GET] Fetching vault for user:', { userId, userEmail });
+
     const decryptedEntries = await vaultService.getUserVaultData(userId);
 
-    await auditService.createAuditLogEntry({
-      userId,
-      eventType: 'data_accessed',
-      action: 'Listed vault entries',
-      actorId: userId,
-      actorType: 'user',
-      metadata: { count: decryptedEntries.length },
-    });
+    console.log('[VAULT GET] Found', decryptedEntries.length, 'entries for user', userId);
+
+    // Don't create audit logs for background polling/refetches
+    // Only log when the user explicitly navigates to the vault page
+    // Background refetches from React Query should not create audit entries
+    // to avoid duplicate logs every 5 minutes
 
     return NextResponse.json(decryptedEntries);
   } catch (error) {
@@ -33,8 +34,10 @@ export const GET = withAuth(async (request, { userId }) => {
   }
 });
 
-export const POST = withAuth(async (request, { userId }) => {
+export const POST = withAuth(async (request, { userId, userEmail }) => {
   try {
+    console.log('[VAULT POST] Creating vault entry for user:', { userId, userEmail });
+
     const body = await request.json();
     const validated = vaultDataSchema.parse({
       ...body,
@@ -42,6 +45,12 @@ export const POST = withAuth(async (request, { userId }) => {
     });
 
     const vaultEntry = await vaultService.createVaultData(userId, validated);
+
+    console.log('[VAULT POST] Created vault entry:', {
+      entryId: vaultEntry.id,
+      userId,
+      label: validated.label
+    });
 
     await auditService.createAuditLogEntry({
       userId,
