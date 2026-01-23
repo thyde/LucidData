@@ -66,6 +66,22 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=ebcilokuvbdkhkqfjaup&features=database%2Cdocs%2Caccount%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@automatalabs/mcp-server-playwright"],
+      "env": {
+        "PLAYWRIGHT_BASE_URL": "http://localhost:3000"
+      }
     }
   }
 }
