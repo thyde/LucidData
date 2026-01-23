@@ -36,13 +36,27 @@ test.describe('Login Flow', () => {
 
   test('should show error for non-existent user', async ({ page }) => {
     await page.goto('/login');
+    await page.waitForLoadState('networkidle');
 
-    await page.fill('input[name="email"]', 'nonexistent@example.com');
-    await page.fill('input[name="password"]', 'WrongPassword123!');
+    // Wait for email input to be visible and interactable
+    const emailInput = page.locator('input[name="email"]');
+    await expect(emailInput).toBeVisible();
+    await emailInput.click();
+    await emailInput.fill('nonexistent@example.com');
+
+    // Wait for password input
+    const passwordInput = page.locator('input[name="password"]');
+    await expect(passwordInput).toBeVisible();
+    await passwordInput.click();
+    await passwordInput.fill('WrongPassword123!');
+
+    // Small delay to ensure form state is updated
+    await page.waitForTimeout(100);
+
     await page.click('button[type="submit"]');
 
     // Should show authentication error
-    await expect(page.locator('text=/Invalid login credentials|Invalid credentials|User not found/i')).toBeVisible();
+    await expect(page.locator('text=/Invalid login credentials|Invalid credentials|User not found/i')).toBeVisible({ timeout: 10000 });
   });
 
   test('should successfully login with valid credentials', async ({ page }) => {

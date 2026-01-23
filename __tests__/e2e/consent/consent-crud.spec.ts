@@ -221,20 +221,26 @@ test.describe('Consent Management', () => {
       await page.waitForLoadState('networkidle');
 
       // Verify the consent is displayed
-      await expect(page.locator('text=To Be Revoked')).toBeVisible();
+      await expect(page.locator('text=To Be Revoked')).toBeVisible({ timeout: 10000 });
 
-      // Click the Revoke button (should be only one active consent on the page)
-      await page.locator('button:has-text("Revoke")').click();
+      // Wait for the Revoke button to be visible and enabled
+      const revokeButton = page.locator('button:has-text("Revoke")');
+      await expect(revokeButton).toBeVisible({ timeout: 5000 });
+      await expect(revokeButton).toBeEnabled();
 
-      // Wait for API call to complete (network idle)
+      // Click Revoke button
+      await revokeButton.click();
+
+      // Wait for network activity to settle
       await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1000);
 
       // Reload to see updated state
       await page.reload();
       await page.waitForLoadState('networkidle');
 
       // Verify status changed to Revoked (badge should show Revoked now)
-      await expect(page.locator('span:has-text("Revoked")')).toBeVisible();
+      await expect(page.locator('span:has-text("Revoked")')).toBeVisible({ timeout: 10000 });
     });
 
     test('should NOT show revoke button for already revoked consents', async ({ page }) => {

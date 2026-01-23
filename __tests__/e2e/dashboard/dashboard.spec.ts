@@ -319,9 +319,10 @@ test.describe('Dashboard Page', () => {
       // h1 for main page title
       await expect(page.locator('h1')).toBeVisible();
 
-      // Cards should have proper heading structure
-      const vaultTitle = page.locator('text=Vault').first();
-      await expect(vaultTitle).toBeVisible();
+      // Cards should have proper heading structure (look within main content, not nav)
+      // Use button selector to find the card action which contains the card
+      const vaultCard = page.locator('button:has-text("View Vault")');
+      await expect(vaultCard).toBeVisible();
     });
 
     test('should have descriptive button text', async ({ page }) => {

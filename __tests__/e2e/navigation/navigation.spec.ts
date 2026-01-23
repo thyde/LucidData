@@ -32,6 +32,11 @@ test.describe('Navigation', () => {
   });
 
   test.describe('Desktop Navigation', () => {
+    // Skip desktop navigation tests on mobile browsers
+    test.beforeEach(async ({}, testInfo) => {
+      test.skip(testInfo.project.name.includes('Mobile'), 'Desktop navigation is not visible on mobile viewports');
+    });
+
     test('should display all main navigation links', async ({ page }) => {
       // Verify all main navigation links are present
       await verifyAllNavLinksPresent(page);
@@ -127,6 +132,11 @@ test.describe('Navigation', () => {
   });
 
   test.describe('Browser Navigation', () => {
+    // Skip browser navigation tests on mobile browsers (uses desktop nav helpers)
+    test.beforeEach(async ({}, testInfo) => {
+      test.skip(testInfo.project.name.includes('Mobile'), 'Browser navigation tests use desktop nav which is not visible on mobile viewports');
+    });
+
     test('should navigate using browser back button', async ({ page }) => {
       // Start on dashboard, navigate to vault, then consent
       await verifyCurrentPage(page, '/dashboard');
@@ -364,7 +374,10 @@ test.describe('Navigation', () => {
   });
 
   test.describe('Accessibility', () => {
-    test('should support keyboard navigation through nav items', async ({ page }) => {
+    test('should support keyboard navigation through nav items', async ({ page }, testInfo) => {
+      // Skip on mobile - keyboard nav for desktop nav elements
+      test.skip(testInfo.project.name.includes('Mobile'), 'Desktop keyboard navigation not applicable on mobile');
+
       // Focus on first nav link
       await page.keyboard.press('Tab');
 
@@ -396,7 +409,10 @@ test.describe('Navigation', () => {
       }
     });
 
-    test('should have aria-current on active navigation item', async ({ page }) => {
+    test('should have aria-current on active navigation item', async ({ page }, testInfo) => {
+      // Skip on mobile - uses desktop navigation helper
+      test.skip(testInfo.project.name.includes('Mobile'), 'Uses desktop navigation which is not visible on mobile');
+
       // Navigate to vault
       await navigateToVault(page);
 
