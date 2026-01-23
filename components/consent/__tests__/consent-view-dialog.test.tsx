@@ -90,7 +90,6 @@ describe('ConsentViewDialog', () => {
     });
 
     it('closes via onOpenChange', async () => {
-      const user = userEvent.setup();
       render(<ConsentViewDialog {...defaultProps} />);
 
       // Dialog should be open

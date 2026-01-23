@@ -56,3 +56,4 @@ debug-*.js
 nul
 *.tmp
 *.temp
+.aider*

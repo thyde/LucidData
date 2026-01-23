@@ -15,7 +15,7 @@ import { createClient } from '@/lib/supabase/server';
  * GET /api/admin/migration-status
  * Get migration progress statistics
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Check authentication
     const supabase = await createClient();

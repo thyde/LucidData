@@ -60,7 +60,7 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
     resolver: zodResolver(formSchema),
     defaultValues: {
       label: '',
-      category: '' as any,
+      category: '',
       description: '',
       tags: [],
       data: '',

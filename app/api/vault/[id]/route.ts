@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { updateVaultDataSchema } from '@/lib/validations/vault';
 import { createAuditLogEntry } from '@/lib/db/queries/audit';
-import { vaultService } from '@/lib/services/vault.service';
+import { prisma } from '@/lib/db/prisma';
+import { decrypt, encrypt, getMasterKey } from '@/lib/crypto/encryption';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,15 +19,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
 
-    // Use vault service for proper decryption (supports both v1 and v2 encryption)
-    const entry = await vaultService.getVaultDataById(id, user.id);
+    const entry = await prisma.vaultData.findUnique({ where: { id } });
 
-    if (!entry) {
+    if (!entry || entry.userId !== user.id) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Create audit log asynchronously (fire-and-forget)
-    // Don't block the response waiting for audit logging to complete
+    const [ivHex, authTagHex] = entry.iv.split(':');
+    const masterKey = getMasterKey();
+    const decrypted = decrypt(entry.encryptedData, masterKey, ivHex, authTagHex);
+    const data = JSON.parse(decrypted);
+
     createAuditLogEntry({
       userId: user.id,
       vaultDataId: entry.id,
@@ -39,8 +42,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       console.error('Failed to create audit log entry for vault access:', error);
     });
 
-    return NextResponse.json(entry);
+    return NextResponse.json({ ...entry, data });
   } catch (error) {
+    // Check if it's an authorization error
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    
     console.error('Error fetching vault entry:', error);
     return NextResponse.json(
       { error: 'Failed to fetch vault entry', details: error instanceof Error ? error.message : 'Unknown error' },
@@ -68,15 +76,30 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
     });
 
-    // Use vault service for proper encryption (uses v2 envelope encryption)
-    await vaultService.updateVaultData(id, user.id, validated);
-
-    // Get the updated entry with proper decryption
-    const updated = await vaultService.getVaultDataById(id, user.id);
-
-    if (!updated) {
-      return NextResponse.json({ error: 'Not found after update' }, { status: 404 });
+    const existing = await prisma.vaultData.findUnique({ where: { id } });
+    if (!existing || existing.userId !== user.id) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
+
+    const updateData: Record<string, unknown> = {
+      label: validated.label,
+      category: validated.category,
+      description: validated.description,
+      tags: validated.tags,
+      expiresAt: validated.expiresAt,
+    };
+
+    if (validated.data) {
+      const masterKey = getMasterKey();
+      const { encrypted, iv, authTag } = encrypt(JSON.stringify(validated.data), masterKey);
+      updateData.encryptedData = encrypted;
+      updateData.iv = `${iv}:${authTag}`;
+    }
+
+    const updated = await prisma.vaultData.update({
+      where: { id },
+      data: updateData,
+    });
 
     await createAuditLogEntry({
       userId: user.id,
@@ -97,6 +120,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
+    // Check if it's an authorization error
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
     console.error('Error updating vault entry:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
@@ -107,43 +135,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    console.log('[DELETE /api/vault/[id]] Starting deletion');
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      console.log('[DELETE /api/vault/[id]] Unauthorized - no user');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { id } = await params;
-    console.log(`[DELETE /api/vault/[id]] Deleting entry ${id} for user ${user.id}`);
-
-    // Get entry details before deletion for audit log
-    console.log(`[DELETE /api/vault/[id]] Fetching entry ${id}`);
-    const existing = await vaultService.getVaultDataById(id, user.id);
-    if (!existing) {
-      console.log(`[DELETE /api/vault/[id]] Entry ${id} not found`);
+    const existing = await prisma.vaultData.findUnique({ where: { id } });
+    if (!existing || existing.userId !== user.id) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // If decryption failed but entry exists, still allow deletion
-    // This handles corrupted/undecryptable entries gracefully
-    if ('error' in existing && existing.error) {
-      console.warn(`[DELETE /api/vault/[id]] Deleting entry ${id} with decryption error: ${existing.error}`);
-    }
+    await prisma.vaultData.delete({ where: { id } });
 
-    // Use vault service for deletion
-    console.log(`[DELETE /api/vault/[id]] Calling vault service to delete ${id}`);
-    await vaultService.deleteVaultData(id, user.id);
-    console.log(`[DELETE /api/vault/[id]] Entry ${id} deleted from database`);
-
-    // Create audit log with timeout protection (2 seconds max)
-    // Don't let audit logging delay the response to user
-    console.log(`[DELETE /api/vault/[id]] Creating audit log for ${id}`);
-    const auditPromise = createAuditLogEntry({
+    await createAuditLogEntry({
       userId: user.id,
       vaultDataId: existing.id,
       eventType: 'data_deleted',
@@ -153,16 +162,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       request,
     });
 
-    await Promise.race([
-      auditPromise,
-      new Promise((resolve) => setTimeout(resolve, 2000))
-    ]).catch((error) => {
-      console.error('[DELETE /api/vault/[id]] Audit log failed or timed out:', error);
-    });
-
-    console.log(`[DELETE /api/vault/[id]] Successfully deleted ${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
+    // Check if it's an authorization error
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      console.log(`[DELETE /api/vault/[id]] Unauthorized access attempt`);
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    
     console.error('[DELETE /api/vault/[id]] Error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },

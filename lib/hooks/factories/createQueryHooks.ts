@@ -21,6 +21,7 @@ import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query
 /**
  * Configuration for query hooks factory
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface QueryHooksConfig<TData, TFilters = void> {
   /** Entity name for query keys (e.g., 'vault', 'consent', 'audit') */
   entityName: string;

@@ -43,7 +43,7 @@ export const POST = withAuth(async (request, { userId }) => {
     await auditService.createAuditLogEntry({
       userId,
       consentId: consent.id,
-      vaultDataId: consent.vaultDataId,
+      vaultDataId: consent.vaultDataId ?? undefined,
       eventType: 'consent_granted',
       action: `Granted ${consent.accessLevel} access to ${consent.grantedToName}`,
       actorId: userId,

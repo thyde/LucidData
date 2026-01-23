@@ -269,7 +269,6 @@ describe('VaultEditDialog', () => {
     });
 
     it('validates all enum fields', async () => {
-      const user = userEvent.setup();
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
       const categorySelect = screen.getByLabelText(/category/i) as HTMLSelectElement;

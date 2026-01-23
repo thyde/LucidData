@@ -144,7 +144,7 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
             <p>
               {searchTerm || statusFilter !== 'all'
                 ? 'No consents match your filters'
-                : 'No consents yet. Grant your first consent to allow others to access your data.'}
+                : 'No consents granted yet. Grant your first consent to allow others to access your data.'}
             </p>
             {!searchTerm && statusFilter === 'all' && (
               <ConsentCreateDialog
@@ -168,7 +168,7 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle>{consent.grantedToName}</CardTitle>
-                      <CardDescription className="mt-1">
+                      <CardDescription className="mt-1 line-clamp-2">
                         {consent.purpose}
                       </CardDescription>
                     </div>
@@ -188,11 +188,13 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
                 <CardContent>
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
-                      Access level: <span className="font-medium">{consent.accessLevel}</span>
-                      {consent.endDate && (
+                      <span className="font-medium">Access:</span> <span className="font-medium">{consent.accessLevel}</span>
+                      {consent.endDate ? (
                         <span className={isExpiringSoon ? 'text-warning ml-2' : 'ml-2'}>
                           · Expires: {format(new Date(consent.endDate), 'MMM d, yyyy')}
                         </span>
+                      ) : (
+                        <span className="ml-2">· No expiration</span>
                       )}
                     </div>
                     <div className="flex gap-2">

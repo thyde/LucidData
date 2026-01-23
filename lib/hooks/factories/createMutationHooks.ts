@@ -27,6 +27,7 @@ import { useToast } from '@/lib/hooks/use-toast';
 export interface QueryKeys {
   all: readonly string[];
   lists: () => readonly string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   list: (filters?: any) => readonly string[];
   details: () => readonly string[];
   detail: (id: string) => readonly string[];
@@ -35,6 +36,7 @@ export interface QueryKeys {
 /**
  * Configuration for mutation hooks factory
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface MutationHooksConfig<TData, TCreateInput, TUpdateInput = Partial<TCreateInput>> {
   /** Entity name for toast messages */
   entityName: string;

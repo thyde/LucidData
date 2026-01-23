@@ -65,18 +65,18 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
   const [showConsentCreate, setShowConsentCreate] = useState(false);
   const [deleteCompleted, setDeleteCompleted] = useState(false);
   const { data: entry, isLoading, isError, error } = useVaultEntry(entryId);
-  const { mutateAsync: deleteVault, isPending: isDeleting } = useDeleteVault();
+  const deleteMutation = useDeleteVault();
   const { data: consents } = useConsentList({ vaultDataId: entryId, active: true });
 
-  const handleDelete = async () => {
-    try {
-      await deleteVault(entryId);
-      setDeleteCompleted(true);
-    } catch (error) {
-      // Error is already handled by mutation's onError handler (toast notification)
-      // Keep the dialog open so user can try again
-      console.error('Delete failed:', error);
-    }
+  const handleDelete = () => {
+    deleteMutation.mutate(entryId, {
+      onSuccess: () => setDeleteCompleted(true),
+      onError: (mutationError) => {
+        // Error is already handled by mutation's onError handler (toast notification)
+        // Keep the dialog open so user can try again
+        console.error('Delete failed:', mutationError);
+      },
+    });
   };
 
   // Close dialogs when deletion is complete
@@ -264,7 +264,7 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   type="button"
                   variant="destructive"
                   onClick={() => setShowDeleteDialog(true)}
-                  disabled={isDeleting}
+                  disabled={deleteMutation.isPending}
                 >
                   Delete
                 </Button>
@@ -279,17 +279,17 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{entry?.label}". This action cannot be undone.
+              This will permanently delete &quot;{entry?.label}&quot;. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={isDeleting}
+              disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

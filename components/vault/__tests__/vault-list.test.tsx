@@ -4,7 +4,7 @@ import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { VaultList } from '../vault-list';
 import { createMockQuery, createLoadingQuery, createErrorQuery, createMockMutation } from '@/test/utils';
-import { waitForToast, flushPromises } from '@/test/utils';
+import { flushPromises } from '@/test/utils';
 
 // Mock hooks
 vi.mock('@/lib/hooks/useVault', () => ({

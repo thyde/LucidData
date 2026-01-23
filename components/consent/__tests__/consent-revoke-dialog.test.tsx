@@ -4,7 +4,7 @@ import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { ConsentRevokeDialog } from '../consent-revoke-dialog';
 import { createMockMutation } from '@/test/utils/mockFactories';
-import { waitForToast, flushPromises } from '@/test/utils/async-helpers';
+import { flushPromises } from '@/test/utils/async-helpers';
 
 // Mock hooks
 vi.mock('@/lib/hooks/useConsent', () => ({

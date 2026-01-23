@@ -27,6 +27,7 @@ export abstract class BaseRepository<T> {
    * Prisma model delegate
    * Must be set by child class (e.g., prisma.vaultData)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected abstract model: any;
 
   /**
@@ -48,6 +49,7 @@ export abstract class BaseRepository<T> {
    * @param orderBy - Optional Prisma orderBy clause (default: createdAt desc)
    * @returns Array of records
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async findMany(where?: any, orderBy?: any): Promise<T[]> {
     return this.model.findMany({
       where,
@@ -61,6 +63,7 @@ export abstract class BaseRepository<T> {
    * @param data - Data to create
    * @returns Created record
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async create(data: any): Promise<T> {
     return this.model.create({
       data,
@@ -74,6 +77,7 @@ export abstract class BaseRepository<T> {
    * @param data - Data to update
    * @returns Updated record
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async update(id: string, data: any): Promise<T> {
     return this.model.update({
       where: { id },
@@ -99,6 +103,7 @@ export abstract class BaseRepository<T> {
    * @param where - Optional Prisma where clause
    * @returns Count of records
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async count(where?: any): Promise<number> {
     return this.model.count({
       where,
@@ -127,6 +132,7 @@ export abstract class BaseRepository<T> {
    * @param where - Prisma where clause
    * @returns First matching record or null
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async findFirst(where: any): Promise<T | null> {
     return this.model.findFirst({
       where,
@@ -139,6 +145,7 @@ export abstract class BaseRepository<T> {
    * @param where - Prisma where clause
    * @returns true if at least one record exists
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async exists(where: any): Promise<boolean> {
     const count = await this.model.count({
       where,
@@ -153,6 +160,7 @@ export abstract class BaseRepository<T> {
    * @param where - Prisma where clause
    * @returns Count of deleted records
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async deleteMany(where: any): Promise<number> {
     const result = await this.model.deleteMany({
       where,
@@ -167,6 +175,7 @@ export abstract class BaseRepository<T> {
    * @param data - Data to update
    * @returns Count of updated records
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async updateMany(where: any, data: any): Promise<number> {
     const result = await this.model.updateMany({
       where,

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { ConsentCreateDialog } from '../consent-create-dialog';
 import { createMockMutation, createMockQuery } from '@/test/utils/mockFactories';
 import { waitForToast, flushPromises } from '@/test/utils/async-helpers';
-import { mockVaultEntry, mockVaultEntries } from '@/test/fixtures/vault-data';
+import { mockVaultEntries } from '@/test/fixtures/vault-data';
 
 // Mock hooks
 vi.mock('@/lib/hooks/useConsent', () => ({

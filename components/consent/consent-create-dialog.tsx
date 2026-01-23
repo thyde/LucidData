@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreateConsent } from '@/lib/hooks/useConsent';
 import { useVaultList } from '@/lib/hooks/useVault';
-import { consentSchema } from '@/lib/validations/consent';
 import {
   Dialog,
   DialogContent,

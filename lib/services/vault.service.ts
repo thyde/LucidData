@@ -82,7 +82,8 @@ export class VaultService {
       throw new Error('Unauthorized access to vault data');
     }
 
-    const updateData: any = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: Record<string, any> = {
       label: payload.label,
       category: payload.category,
       description: payload.description,

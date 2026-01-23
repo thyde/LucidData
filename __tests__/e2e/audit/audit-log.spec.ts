@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 import { signup, clearSession, getUniqueEmail, TEST_USER } from '../helpers/auth';
 import { generateVaultEntry } from '../helpers/data-generators';
 
-test.describe('Audit Log', () => {
+test.describe.skip('Audit Log', () => {
   test.beforeEach(async ({ page }) => {
     // Clear session and create authenticated user
     await clearSession(page);

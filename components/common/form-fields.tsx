@@ -6,7 +6,7 @@
  */
 
 import { ReactNode } from 'react';
-import { Control, FieldPath, FieldValues } from 'react-hook-form';
+import { Control, ControllerRenderProps, FieldPath, FieldValues } from 'react-hook-form';
 import {
   FormControl,
   FormField,
@@ -188,11 +188,13 @@ export function FormDateField<TFieldValues extends FieldValues>({
               disabled={disabled}
               {...inputProps}
               {...field}
-              value={
-                field.value instanceof Date
-                  ? field.value.toISOString().slice(0, type === 'date' ? 10 : 16)
-                  : field.value || ''
-              }
+              value={(() => {
+                const val = field.value as unknown;
+                if (val instanceof Date) {
+                  return val.toISOString().slice(0, type === 'date' ? 10 : 16);
+                }
+                return (val as string) || '';
+              })()}
               onChange={(e) => field.onChange(e.target.value || undefined)}
             />
           </FormControl>
@@ -256,7 +258,7 @@ export function FormCustomField<TFieldValues extends FieldValues>({
   description,
   render,
 }: BaseFormFieldProps<TFieldValues> & {
-  render: (field: any) => ReactNode;
+  render: (field: ControllerRenderProps<TFieldValues, FieldPath<TFieldValues>>) => ReactNode;
 }) {
   return (
     <FormField

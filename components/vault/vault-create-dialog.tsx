@@ -55,7 +55,7 @@ export function VaultCreateDialog() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       label: '',
-      category: '' as any,
+      category: '',
       description: '',
       tags: [],
       data: '',

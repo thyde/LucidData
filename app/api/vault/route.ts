@@ -16,10 +16,15 @@ export const GET = withAuth(async (request, { userId, userEmail }) => {
 
     console.log('[VAULT GET] Found', decryptedEntries.length, 'entries for user', userId);
 
-    // Don't create audit logs for background polling/refetches
-    // Only log when the user explicitly navigates to the vault page
-    // Background refetches from React Query should not create audit entries
-    // to avoid duplicate logs every 5 minutes
+    await auditService.createAuditLogEntry({
+      userId,
+      eventType: 'data_accessed',
+      action: 'Listed vault entries',
+      actorId: userId,
+      actorType: 'user',
+      request,
+      metadata: { count: decryptedEntries.length },
+    });
 
     return NextResponse.json(decryptedEntries);
   } catch (error) {

@@ -19,8 +19,8 @@ export interface NetworkErrorAnalysis {
  * @param error - Error object from fetch, Supabase, or other network calls
  * @returns Analysis with error type and diagnostic information
  */
-export function analyzeError(error: any): NetworkErrorAnalysis {
-  const errorMsg = error?.message || '';
+export function analyzeError(error: unknown): NetworkErrorAnalysis {
+  const errorMsg = (error as Error)?.message || '';
 
   // Check for fetch network errors
   if (
@@ -65,7 +65,7 @@ export function analyzeError(error: any): NetworkErrorAnalysis {
  * @param error - Error object from Supabase auth calls
  * @returns User-friendly error message
  */
-export function getAuthErrorMessage(error: any): string {
+export function getAuthErrorMessage(error: unknown): string {
   const analysis = analyzeError(error);
 
   if (analysis.isNetworkError) {

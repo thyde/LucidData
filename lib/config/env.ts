@@ -70,7 +70,7 @@ class EnvironmentValidator {
             `ENCRYPTION_KEY must be 32 bytes (256 bits), got ${keyBuffer.length} bytes`
           );
         }
-      } catch (error) {
+      } catch {
         errors.push('ENCRYPTION_KEY is not valid base64');
       }
     }

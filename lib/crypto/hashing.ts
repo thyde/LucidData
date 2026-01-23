@@ -95,7 +95,7 @@ export function hashPassword(password: string, salt?: string): string {
  * Verify password against hash
  */
 export function verifyPassword(password: string, hashedPassword: string): boolean {
-  const [salt, hash] = hashedPassword.split(':');
+  const [salt] = hashedPassword.split(':');
   const hashedAttempt = hashPassword(password, salt);
   return hashedAttempt === hashedPassword;
 }

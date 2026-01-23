@@ -21,6 +21,10 @@ import {
 // Mock hooks
 vi.mock('@/lib/hooks/useConsent', () => ({
   useConsentList: vi.fn(),
+  useRevokeConsent: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+  })),
 }));
 
 // Mock child components

@@ -118,7 +118,7 @@ describe('VaultViewDialog', () => {
 
       render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/loading/i).length).toBeGreaterThan(0);
     });
 
     it('displays label field (read-only)', () => {
@@ -394,7 +394,7 @@ describe('VaultViewDialog', () => {
 
       render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      expect(screen.getByText(/error|failed/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/error|failed/i).length).toBeGreaterThan(0);
     });
 
     it('shows error toast if delete fails', async () => {
