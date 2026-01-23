@@ -162,6 +162,7 @@ model AuditLog {
   @@index([consentId])
   @@index([eventType])
   @@index([timestamp])
+  @@index([userId, timestamp(sort: Desc)]) // Composite index for efficient hash chain lookups
   @@map("audit_logs")
 }
 

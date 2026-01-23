@@ -26,8 +26,8 @@ import {
   FormDateField,
 } from '@/components/common/form-fields';
 
-// Extend schema to handle JSON string input
-const formSchema = vaultDataSchema.extend({
+// Extend schema to handle JSON string input and date string from form
+const formSchema = vaultDataSchema.omit({ expiresAt: true }).extend({
   data: z.string().min(1, 'Data is required').refine(
     (val) => {
       try {
@@ -38,6 +38,10 @@ const formSchema = vaultDataSchema.extend({
       }
     },
     { message: 'Invalid JSON' }
+  ),
+  expiresAt: z.string().optional().refine(
+    (val) => !val || val === '' || !isNaN(Date.parse(val)),
+    { message: 'Invalid date format' }
   ),
 });
 

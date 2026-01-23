@@ -19,10 +19,11 @@ export function SignOutButton({ className }: SignOutButtonProps) {
       });
 
       if (response.ok) {
-        router.push('/login');
-        router.refresh();
+        // Force a hard redirect to ensure clean state
+        window.location.href = '/login';
       }
-    } finally {
+    } catch (error) {
+      console.error('Signout error:', error);
       setLoading(false);
     }
   };

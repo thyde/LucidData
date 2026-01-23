@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { getAuthErrorMessage } from '@/lib/utils/network-errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,7 +64,7 @@ export default function RegisterPage() {
       });
 
       if (error) {
-        setErrors({ general: error.message });
+        setErrors({ general: getAuthErrorMessage(error) });
         return;
       }
 
@@ -74,13 +75,16 @@ export default function RegisterPage() {
         });
 
         if (signInError) {
-          setErrors({ general: signInError.message });
+          setErrors({ general: getAuthErrorMessage(signInError) });
           return;
         }
       }
 
       router.push('/dashboard');
       router.refresh();
+    } catch (error) {
+      // Catch network errors (connection refused, timeout, etc.)
+      setErrors({ general: getAuthErrorMessage(error) });
     } finally {
       setLoading(false);
     }

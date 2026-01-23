@@ -31,11 +31,19 @@ interface AuditLogInput {
 }
 
 export async function createAuditLogEntry(input: AuditLogInput) {
+  const startTime = Date.now();
+
   const previousLog = await prisma.auditLog.findFirst({
     where: { userId: input.userId },
     orderBy: { timestamp: 'desc' },
     select: { currentHash: true },
+    take: 1, // Explicit limit for performance
   });
+
+  const queryTime = Date.now() - startTime;
+  if (queryTime > 100) {
+    console.warn(`[PERF] Slow audit log query: ${queryTime}ms for user ${input.userId}`);
+  }
 
   const timestamp = input.timestamp ?? new Date();
   const currentHash = createAuditHash(previousLog?.currentHash ?? null, {

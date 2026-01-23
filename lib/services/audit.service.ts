@@ -39,7 +39,6 @@ export class AuditService {
       userId: payload.userId,
       timestamp: new Date(),
       action: payload.action,
-      actorId: payload.actorId,
     });
 
     return auditRepository.create({

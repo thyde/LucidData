@@ -5,20 +5,18 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { signup, clearSession, getUniqueEmail, TEST_USER, login } from '../helpers/auth';
+import { signup, clearSession, getUniqueEmail, TEST_USER } from '../helpers/auth';
 import {
   navigateToDashboard,
   navigateToVault,
   navigateToConsent,
   navigateToAudit,
-  verifyActiveNavItem,
   goBack,
   goForward,
   verifyCurrentPage,
   verifyAllNavLinksPresent,
   verifyRedirectsToLogin,
   openMobileMenu,
-  closeMobileMenu,
 } from '../helpers/navigation-helpers';
 
 test.describe('Navigation', () => {
@@ -38,11 +36,11 @@ test.describe('Navigation', () => {
       // Verify all main navigation links are present
       await verifyAllNavLinksPresent(page);
 
-      // Explicitly check each link
-      await expect(page.locator('nav a[href*="dashboard"], a:has-text("Dashboard")')).toBeVisible();
-      await expect(page.locator('nav a[href*="vault"], a:has-text("Vault")')).toBeVisible();
-      await expect(page.locator('nav a[href*="consent"], a:has-text("Consent")')).toBeVisible();
-      await expect(page.locator('nav a[href*="audit"], a:has-text("Audit")')).toBeVisible();
+      // Explicitly check each link (using nav-specific selectors to avoid strict mode violations)
+      await expect(page.locator('nav a[href*="dashboard"]')).toBeVisible();
+      await expect(page.locator('nav a[href*="vault"]')).toBeVisible();
+      await expect(page.locator('nav a[href*="consent"]')).toBeVisible();
+      await expect(page.locator('nav a[href*="audit"]')).toBeVisible();
     });
 
     test('should navigate to vault page using nav link', async ({ page }) => {
@@ -288,47 +286,41 @@ test.describe('Navigation', () => {
     test.use({ viewport: { width: 375, height: 667 } });
 
     test('should display hamburger menu on mobile', async ({ page }) => {
-      // Look for hamburger menu button
-      const menuButton = page.locator('button[aria-label*="menu" i], button[aria-label*="navigation" i], button[aria-label*="open" i]');
+      // Wait for page to fully load
+      await page.waitForLoadState('networkidle');
 
-      // Menu button might be visible, or nav might be hidden on mobile
-      const hasHamburger = await menuButton.isVisible().catch(() => false);
-      const navVisible = await page.locator('nav').isVisible();
+      // Look for hamburger menu button with specific aria-label
+      const menuButton = page.locator('button[aria-label="Open menu"]');
 
-      // Either hamburger exists OR navigation is visible (different mobile implementations)
-      expect(hasHamburger || navVisible).toBe(true);
+      // Hamburger menu should be visible on mobile
+      await expect(menuButton).toBeVisible({ timeout: 5000 });
     });
 
     test('should open mobile menu when clicking hamburger', async ({ page }) => {
-      // Try to open mobile menu
-      const menuButton = page.locator('button[aria-label*="menu" i], button[aria-label*="navigation" i]');
+      await page.waitForLoadState('networkidle');
 
-      if (await menuButton.isVisible()) {
-        await openMobileMenu(page);
+      // Click hamburger menu button
+      const menuButton = page.locator('button[aria-label="Open menu"]');
+      await expect(menuButton).toBeVisible();
+      await menuButton.click();
 
-        // Verify menu opened (dialog, menu, or expanded navigation)
-        const menuOpened =
-          await page.locator('[role="dialog"]').isVisible().catch(() => false) ||
-          await page.locator('[role="menu"]').isVisible().catch(() => false) ||
-          await page.locator('nav.mobile-menu').isVisible().catch(() => false) ||
-          await page.locator('nav a[href*="vault"]').isVisible();
+      // Verify dialog opened
+      await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 5000 });
 
-        expect(menuOpened).toBe(true);
-      } else {
-        // Navigation might be always visible on mobile in this implementation
-        await expect(page.locator('nav')).toBeVisible();
-      }
+      // Verify navigation links are visible in the dialog
+      await expect(page.locator('[role="dialog"] a[href="/vault"]')).toBeVisible();
     });
 
     test('should navigate using mobile menu links', async ({ page }) => {
-      // Open mobile menu if it exists
-      const menuButton = page.locator('button[aria-label*="menu" i]');
-      if (await menuButton.isVisible()) {
-        await openMobileMenu(page);
-      }
+      await page.waitForLoadState('networkidle');
 
-      // Click vault link
-      await page.click('a[href*="vault"], a:has-text("Vault")');
+      // Open mobile menu
+      const menuButton = page.locator('button[aria-label="Open menu"]');
+      await menuButton.click();
+      await expect(page.locator('[role="dialog"]')).toBeVisible();
+
+      // Click vault link inside the dialog
+      await page.locator('[role="dialog"] a[href="/vault"]').click();
 
       // Wait for navigation
       await page.waitForURL('**/vault');
@@ -338,38 +330,36 @@ test.describe('Navigation', () => {
     });
 
     test('should close mobile menu after navigation', async ({ page }) => {
-      // Open mobile menu if it exists
-      const menuButton = page.locator('button[aria-label*="menu" i]');
-      const hadHamburger = await menuButton.isVisible();
+      await page.waitForLoadState('networkidle');
 
-      if (hadHamburger) {
-        await openMobileMenu(page);
+      // Open mobile menu
+      const menuButton = page.locator('button[aria-label="Open menu"]');
+      await menuButton.click();
+      await expect(page.locator('[role="dialog"]')).toBeVisible();
 
-        // Navigate
-        await page.click('a[href*="vault"]');
-        await page.waitForURL('**/vault');
+      // Navigate using link in dialog (menu should auto-close on navigation)
+      await page.locator('[role="dialog"] a[href="/vault"]').click();
+      await page.waitForURL('**/vault');
 
-        // Menu should close automatically after navigation
-        // Or close button should work
-        const menuStillOpen = await page.locator('[role="dialog"]').isVisible().catch(() => false);
+      // Menu should be closed after navigation
+      await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 5000 });
 
-        // If menu is still open, close it
-        if (menuStillOpen) {
-          await closeMobileMenu(page);
-        }
-
-        // Verify content is visible (menu not blocking)
-        await expect(page.locator('h1:has-text("Vault")')).toBeVisible();
-      }
+      // Verify content is visible
+      await expect(page.locator('h1:has-text("Vault")')).toBeVisible();
     });
 
     test('should maintain mobile navigation across page changes', async ({ page }) => {
-      // Navigate between pages
-      await navigateToVault(page);
+      await page.waitForLoadState('networkidle');
 
-      // Menu button or nav should still be present
-      const hasNav = await page.locator('nav, button[aria-label*="menu" i]').isVisible();
-      expect(hasNav).toBe(true);
+      // Open mobile menu and navigate to vault
+      const menuButton = page.locator('button[aria-label="Open menu"]');
+      await menuButton.click();
+      await expect(page.locator('[role="dialog"]')).toBeVisible();
+      await page.locator('[role="dialog"] a[href="/vault"]').click();
+      await page.waitForURL('**/vault');
+
+      // Menu button should still be present on the new page
+      await expect(menuButton).toBeVisible({ timeout: 5000 });
     });
   });
 

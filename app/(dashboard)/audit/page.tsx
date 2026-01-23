@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -13,12 +13,20 @@ interface AuditEntry {
   success: boolean;
 }
 
+interface AuditApiResponse {
+  logs: AuditEntry[];
+  chainValid: boolean;
+  totalLogs: number;
+}
+
 export default function AuditPage() {
   const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
+  // Function to fetch audit logs
+  const fetchAuditLogs = () => {
     fetch('/api/audit')
       .then((res) => {
         if (!res.ok) {
@@ -26,8 +34,8 @@ export default function AuditPage() {
         }
         return res.json();
       })
-      .then((data) => {
-        setLogs(Array.isArray(data) ? data : []);
+      .then((data: AuditApiResponse) => {
+        setLogs(data.logs || []);
         setError(null);
         setLoading(false);
       })
@@ -37,6 +45,26 @@ export default function AuditPage() {
         setLogs([]);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    // Initial fetch
+    fetchAuditLogs();
+
+    // Set up polling interval (5 seconds)
+    // Only poll when the page is visible
+    intervalRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchAuditLogs();
+      }
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, []);
 
   if (loading) {
@@ -105,6 +133,8 @@ export default function AuditPage() {
               {logs.map((log) => (
                 <div
                   key={log.id}
+                  data-testid="audit-entry"
+                  role="article"
                   className="flex items-start space-x-4 border-l-2 border-blue-500 pl-4 py-2"
                 >
                   <div className="flex-1">

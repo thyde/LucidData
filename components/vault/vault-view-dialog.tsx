@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useVaultEntry, useDeleteVault } from '@/lib/hooks/useVault';
 import { useConsentList } from '@/lib/hooks/useConsent';
 import {
@@ -63,30 +63,60 @@ function getCategoryVariant(category: string): 'default' | 'secondary' | 'destru
 export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: VaultViewDialogProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showConsentCreate, setShowConsentCreate] = useState(false);
+  const [deleteCompleted, setDeleteCompleted] = useState(false);
   const { data: entry, isLoading, isError, error } = useVaultEntry(entryId);
-  const { mutate: deleteVault, isPending: isDeleting } = useDeleteVault();
+  const { mutateAsync: deleteVault, isPending: isDeleting } = useDeleteVault();
   const { data: consents } = useConsentList({ vaultDataId: entryId, active: true });
 
-  const handleDelete = () => {
-    deleteVault(entryId, {
-      onSuccess: () => {
-        setShowDeleteDialog(false);
-        onOpenChange(false);
-      },
-    });
+  const handleDelete = async () => {
+    try {
+      await deleteVault(entryId);
+      setDeleteCompleted(true);
+    } catch (error) {
+      // Error is already handled by mutation's onError handler (toast notification)
+      // Keep the dialog open so user can try again
+      console.error('Delete failed:', error);
+    }
   };
+
+  // Close dialogs when deletion is complete
+  useEffect(() => {
+    if (deleteCompleted) {
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+      setDeleteCompleted(false);
+    }
+  }, [deleteCompleted, onOpenChange]);
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          {isLoading && <div>Loading...</div>}
-          {isError && <div>Error: {error instanceof Error ? error.message : 'Failed to load entry'}</div>}
+          <DialogHeader>
+            <DialogTitle>
+              {isLoading ? 'Loading...' : isError ? 'Error' : entry?.label || 'Vault Entry'}
+            </DialogTitle>
+          </DialogHeader>
+          {isLoading && <div className="p-4 text-center">Loading vault entry...</div>}
+          {isError && (
+            <div className="p-4 space-y-2">
+              <p className="text-destructive font-medium">
+                {error instanceof Error ? error.message : 'Failed to load entry'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Please check the browser console for more details or try refreshing the page.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="mt-2"
+              >
+                Close
+              </Button>
+            </div>
+          )}
           {entry && !isLoading && !isError && (
             <>
-              <DialogHeader>
-                <DialogTitle>{entry.label}</DialogTitle>
-              </DialogHeader>
 
               <div className="space-y-4">
                 {/* Label Section */}

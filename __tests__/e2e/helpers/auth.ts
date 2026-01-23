@@ -30,12 +30,47 @@ export async function login(
   password: string = TEST_USER.password
 ): Promise<void> {
   await page.goto('/login');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
+
+  // Wait for form to be ready
+  await page.waitForSelector('input[name="email"]', { state: 'visible' });
+
+  // Fill fields using click + pressSequentially for reliable React onChange events
+  const emailInput = page.locator('input[name="email"]');
+  await emailInput.click();
+  await emailInput.pressSequentially(email, { delay: 50 });
+
+  // Verify the email was actually set
+  await page.waitForFunction(
+    (expectedEmail) => {
+      const input = document.querySelector('input[name="email"]') as HTMLInputElement;
+      return input && input.value === expectedEmail;
+    },
+    email,
+    { timeout: 2000 }
+  );
+
+  const passwordInput = page.locator('input[name="password"]');
+  await passwordInput.click();
+  await passwordInput.pressSequentially(password, { delay: 50 });
+
+  // Verify the password was actually set
+  await page.waitForFunction(
+    (expectedPassword) => {
+      const input = document.querySelector('input[name="password"]') as HTMLInputElement;
+      return input && input.value === expectedPassword;
+    },
+    password,
+    { timeout: 2000 }
+  );
+
+  // Wait a moment for any validation
+  await page.waitForTimeout(500);
+
+  // Click submit
   await page.click('button[type="submit"]');
 
-  // Wait for redirect to dashboard
-  await page.waitForURL('/dashboard', { timeout: 10000 });
+  // Wait for redirect to dashboard with increased timeout for slower browsers
+  await page.waitForURL('/dashboard', { timeout: 15000 });
 }
 
 /**
@@ -53,13 +88,65 @@ export async function signup(
   password: string = TEST_USER.password
 ): Promise<void> {
   await page.goto('/signup');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
-  await page.fill('input[name="confirmPassword"]', password);
-  await page.click('button[type="submit"]');
 
-  // Wait for redirect or success message
-  await page.waitForURL('/dashboard', { timeout: 10000 });
+  // Wait for form to be ready
+  await page.waitForSelector('input[name="email"]', { state: 'visible' });
+
+  // Fill fields using click + pressSequentially for reliable React onChange events
+  const emailInput = page.locator('input[name="email"]');
+  await emailInput.click();
+  await emailInput.pressSequentially(email, { delay: 50 });
+
+  // Verify the email was actually set before moving on
+  await page.waitForFunction(
+    (expectedEmail) => {
+      const input = document.querySelector('input[name="email"]') as HTMLInputElement;
+      return input && input.value === expectedEmail;
+    },
+    email,
+    { timeout: 2000 }
+  );
+  await emailInput.blur(); // Trigger validation
+
+  const passwordInput = page.locator('input[name="password"]');
+  await passwordInput.click();
+  await passwordInput.pressSequentially(password, { delay: 50 });
+
+  // Verify the password was actually set
+  await page.waitForFunction(
+    (expectedPassword) => {
+      const input = document.querySelector('input[name="password"]') as HTMLInputElement;
+      return input && input.value === expectedPassword;
+    },
+    password,
+    { timeout: 2000 }
+  );
+  await passwordInput.blur();
+
+  const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
+  await confirmPasswordInput.click();
+  await confirmPasswordInput.pressSequentially(password, { delay: 50 });
+
+  // Verify the confirm password was actually set
+  await page.waitForFunction(
+    (expectedPassword) => {
+      const input = document.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+      return input && input.value === expectedPassword;
+    },
+    password,
+    { timeout: 2000 }
+  );
+  await confirmPasswordInput.blur();
+
+  // Wait for validation to complete (increased from 500ms to 1000ms)
+  await page.waitForTimeout(1000);
+
+  // Click submit button
+  const submitButton = page.locator('button[type="submit"]');
+  await submitButton.click();
+
+  // Wait for redirect or success message with increased timeout for slower browsers
+  await page.waitForURL('/dashboard', { timeout: 15000 });
 }
 
 /**
@@ -72,13 +159,15 @@ export async function signup(
 export async function logout(page: Page): Promise<void> {
   // Navigate to a page where the logout button is available
   await page.goto('/dashboard');
+  await page.waitForLoadState('networkidle');
 
-  // Click logout button (adjust selector based on your UI)
+  // Wait for the page to fully load and sign out button to be visible
   const logoutButton = page.locator('button:has-text("Sign out")');
+  await logoutButton.waitFor({ state: 'visible', timeout: 10000 });
   await logoutButton.click();
 
-  // Wait for redirect to login
-  await page.waitForURL('/login', { timeout: 5000 });
+  // Wait for redirect to login with flexible URL matching
+  await page.waitForURL(/\/login/, { timeout: 10000 });
 }
 
 /**
@@ -110,6 +199,36 @@ export async function isAuthenticated(page: Page): Promise<boolean> {
  */
 export function getUniqueEmail(prefix: string = 'test'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+}
+
+/**
+ * Fill form field with value using reliable method for all browsers
+ *
+ * Uses pressSequentially() instead of fill() to ensure React onChange events
+ * are triggered consistently across all browsers, especially WebKit/Safari.
+ *
+ * @param page - Playwright page object
+ * @param selector - CSS selector for the input field
+ * @param value - Value to fill
+ */
+export async function fillFormField(
+  page: Page,
+  selector: string,
+  value: string
+): Promise<void> {
+  const input = page.locator(selector);
+  await input.click();
+  await input.pressSequentially(value, { delay: 50 });
+
+  // Verify the value was actually set
+  await page.waitForFunction(
+    ({ sel, val }) => {
+      const elem = document.querySelector(sel) as HTMLInputElement;
+      return elem && elem.value === val;
+    },
+    { sel: selector, val: value },
+    { timeout: 2000 }
+  );
 }
 
 /**

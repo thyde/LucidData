@@ -5,7 +5,7 @@ export const consentSchema = z.object({
   grantedTo: z.string().min(1, 'Organization identifier is required'),
   grantedToName: z.string().min(1, 'Organization name is required'),
   grantedToEmail: z.string().email('Invalid email address').optional(),
-  accessLevel: z.enum(['read', 'export', 'verify']),
+  accessLevel: z.enum(['read', 'write', 'admin', 'export', 'verify']),
   purpose: z.string().min(1, 'Purpose is required').max(500, 'Purpose must be 500 characters or less'),
   endDate: z.date().optional(),
   termsVersion: z.string().default('1.0'),
@@ -21,6 +21,8 @@ export type RevokeConsentInput = z.infer<typeof revokeConsentSchema>;
 
 export const updateConsentSchema = z.object({
   endDate: z.date().optional(),
+  revoked: z.boolean().optional(),
+  revokedReason: z.string().max(500).optional(),
 });
 
 export type UpdateConsentInput = z.infer<typeof updateConsentSchema>;

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { SignOutButton } from '@/components/auth/sign-out-button';
+import { MobileNav } from '@/components/layout/mobile-nav';
 
 export default async function DashboardLayout({
   children,
@@ -21,7 +22,8 @@ export default async function DashboardLayout({
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-8">
+          <div className="flex items-center space-x-4 md:space-x-8">
+            <MobileNav />
             <Link href="/dashboard" className="text-2xl font-bold">
               Lucid
             </Link>

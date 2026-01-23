@@ -41,13 +41,13 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+        <Card data-testid="vault-stats-card">
           <CardHeader>
             <CardTitle>Vault</CardTitle>
             <CardDescription>Manage your encrypted data</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold mb-4">{vaultCount} {vaultCount === 1 ? 'entry' : 'entries'}</p>
+            <p className="text-2xl font-bold mb-4" data-testid="vault-count">{vaultCount} {vaultCount === 1 ? 'entry' : 'entries'}</p>
             <Link href="/vault">
               <Button variant="outline" className="w-full">
                 View Vault
@@ -56,13 +56,13 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="consents-stats-card">
           <CardHeader>
             <CardTitle>Consents</CardTitle>
             <CardDescription>Control data access permissions</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold mb-4">{consentCount} {consentCount === 1 ? 'active' : 'active'}</p>
+            <p className="text-2xl font-bold mb-4" data-testid="consents-count">{consentCount} {consentCount === 1 ? 'consent' : 'consents'}</p>
             <Link href="/consent">
               <Button variant="outline" className="w-full">
                 Manage Consents
@@ -71,13 +71,13 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="audit-stats-card">
           <CardHeader>
             <CardTitle>Audit Log</CardTitle>
             <CardDescription>Track all data access events</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold mb-4">{auditCount} {auditCount === 1 ? 'event' : 'events'}</p>
+            <p className="text-2xl font-bold mb-4" data-testid="audit-count">{auditCount} {auditCount === 1 ? 'event' : 'events'}</p>
             <Link href="/audit">
               <Button variant="outline" className="w-full">
                 View Log

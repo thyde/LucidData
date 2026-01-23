@@ -5,7 +5,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { clearSession, getUniqueEmail, TEST_USER } from '../helpers/auth';
+import { clearSession, getUniqueEmail, fillFormField, TEST_USER } from '../helpers/auth';
 
 test.describe('Signup Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -37,9 +37,9 @@ test.describe('Signup Flow', () => {
   test('should validate email format', async ({ page }) => {
     await page.goto('/signup');
 
-    await page.fill('input[name="email"]', 'invalid-email');
-    await page.fill('input[name="password"]', TEST_USER.password);
-    await page.fill('input[name="confirmPassword"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="email"]', 'invalid-email');
+    await fillFormField(page, 'input[name="password"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
     await page.click('button[type="submit"]');
 
     // Should show email validation error
@@ -49,9 +49,9 @@ test.describe('Signup Flow', () => {
   test('should validate password strength', async ({ page }) => {
     await page.goto('/signup');
 
-    await page.fill('input[name="email"]', getUniqueEmail());
-    await page.fill('input[name="password"]', 'weak');
-    await page.fill('input[name="confirmPassword"]', 'weak');
+    await fillFormField(page, 'input[name="email"]', getUniqueEmail());
+    await fillFormField(page, 'input[name="password"]', 'weak');
+    await fillFormField(page, 'input[name="confirmPassword"]', 'weak');
     await page.click('button[type="submit"]');
 
     // Should show password validation error
@@ -63,9 +63,9 @@ test.describe('Signup Flow', () => {
   test('should validate password confirmation match', async ({ page }) => {
     await page.goto('/signup');
 
-    await page.fill('input[name="email"]', getUniqueEmail());
-    await page.fill('input[name="password"]', TEST_USER.password);
-    await page.fill('input[name="confirmPassword"]', 'DifferentPassword123!');
+    await fillFormField(page, 'input[name="email"]', getUniqueEmail());
+    await fillFormField(page, 'input[name="password"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="confirmPassword"]', 'DifferentPassword123!');
     await page.click('button[type="submit"]');
 
     // Should show password mismatch error
@@ -76,9 +76,9 @@ test.describe('Signup Flow', () => {
     await page.goto('/signup');
 
     const email = getUniqueEmail();
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', TEST_USER.password);
-    await page.fill('input[name="confirmPassword"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="email"]', email);
+    await fillFormField(page, 'input[name="password"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
     await page.click('button[type="submit"]');
 
     // Should redirect to dashboard
@@ -93,9 +93,9 @@ test.describe('Signup Flow', () => {
 
     // First signup
     await page.goto('/signup');
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', TEST_USER.password);
-    await page.fill('input[name="confirmPassword"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="email"]', email);
+    await fillFormField(page, 'input[name="password"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
     await page.click('button[type="submit"]');
 
     // Wait for success
@@ -106,9 +106,9 @@ test.describe('Signup Flow', () => {
 
     // Try to signup again with same email
     await page.goto('/signup');
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', TEST_USER.password);
-    await page.fill('input[name="confirmPassword"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="email"]', email);
+    await fillFormField(page, 'input[name="password"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
     await page.click('button[type="submit"]');
 
     // Should show error about existing account
@@ -134,9 +134,9 @@ test.describe('Signup Flow', () => {
     const termsCheckbox = page.locator('input[name="acceptTerms"]');
     if (await termsCheckbox.count() > 0) {
       const email = getUniqueEmail();
-      await page.fill('input[name="email"]', email);
-      await page.fill('input[name="password"]', TEST_USER.password);
-      await page.fill('input[name="confirmPassword"]', TEST_USER.password);
+      await fillFormField(page, 'input[name="email"]', email);
+      await fillFormField(page, 'input[name="password"]', TEST_USER.password);
+      await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
 
       // Try without accepting terms
       await page.click('button[type="submit"]');

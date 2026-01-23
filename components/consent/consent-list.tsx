@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useConsentList } from '@/lib/hooks/useConsent';
+import { useConsentList, useRevokeConsent } from '@/lib/hooks/useConsent';
 import { Consent } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConsentCreateDialog } from './consent-create-dialog';
 import { ConsentViewDialog } from './consent-view-dialog';
 import { format } from 'date-fns';
-import { Shield, Search, AlertCircle } from 'lucide-react';
+import { Shield, Search } from 'lucide-react';
 
 interface ConsentListProps {
   vaultDataId?: string;
@@ -18,6 +17,7 @@ interface ConsentListProps {
 
 export function ConsentList({ vaultDataId }: ConsentListProps) {
   const { data: consents, isLoading, error } = useConsentList({ vaultDataId });
+  const revokeConsent = useRevokeConsent();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'revoked' | 'expired'>('all');
   const [selectedConsentId, setSelectedConsentId] = useState<string | null>(null);
@@ -49,21 +49,56 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
     });
   }, [consents, statusFilter, searchTerm]);
 
+  const handleRevoke = async (consentId: string) => {
+    // For simple revoke without reason dialog, use a default reason
+    await revokeConsent.mutateAsync({ id: consentId, reason: 'Revoked by user' });
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
-        <div className="h-32 w-full bg-gray-200 animate-pulse rounded" />
-        <div className="h-32 w-full bg-gray-200 animate-pulse rounded" />
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Consent Management</h2>
+            <p className="text-muted-foreground">
+              Manage who has access to your data
+            </p>
+          </div>
+          <Button disabled>Grant Consent</Button>
+        </div>
+        <div className="flex items-center justify-center p-8 text-muted-foreground">
+          Loading consents...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-8 text-destructive">
-        <AlertCircle className="mx-auto h-12 w-12 mb-4" />
-        <p>Failed to load consents. Please try again.</p>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Consent Management</h2>
+            <p className="text-muted-foreground">
+              Manage who has access to your data
+            </p>
+          </div>
+          <ConsentCreateDialog trigger={<Button>Grant Consent</Button>} />
+        </div>
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-red-900">Error loading consents</CardTitle>
+            <CardDescription className="text-red-800">Failed to load consents. Please try again.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -92,7 +127,7 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as any)}
+          onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'revoked' | 'expired')}
           className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
           <option value="all">All Status</option>
@@ -104,12 +139,12 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
 
       {filteredConsents.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
+          <CardContent className="pt-6 text-center text-muted-foreground">
             <Shield className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
+            <p>
               {searchTerm || statusFilter !== 'all'
                 ? 'No consents match your filters'
-                : 'No consents granted yet'}
+                : 'No consents yet. Grant your first consent to allow others to access your data.'}
             </p>
             {!searchTerm && statusFilter === 'all' && (
               <ConsentCreateDialog
@@ -119,7 +154,7 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4">
           {filteredConsents.map((consent) => {
             const status = getConsentStatus(consent);
             const isExpiringSoon =
@@ -128,55 +163,58 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
               new Date(consent.endDate).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
 
             return (
-              <Card key={consent.id} className="cursor-pointer hover:border-primary transition-colors">
+              <Card key={consent.id}>
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{consent.grantedToName}</CardTitle>
-                    <Badge
-                      variant={
-                        status === 'active'
-                          ? 'default'
-                          : status === 'revoked'
-                          ? 'destructive'
-                          : 'secondary'
-                      }
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle>{consent.grantedToName}</CardTitle>
+                      <CardDescription className="mt-1">
+                        {consent.purpose}
+                      </CardDescription>
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                        status === 'revoked'
+                          ? 'bg-red-100 text-red-800'
+                          : status === 'expired'
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}
                     >
-                      {status}
-                    </Badge>
+                      {status === 'active' ? 'Active' : status === 'revoked' ? 'Revoked' : 'Expired'}
+                    </span>
                   </div>
-                  <CardDescription className="line-clamp-2">
-                    {consent.purpose}
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Access:</span>
-                      <span className="font-medium capitalize">{consent.accessLevel}</span>
-                    </div>
-                    {consent.endDate && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Expires:</span>
-                        <span className={isExpiringSoon ? 'text-warning font-medium' : ''}>
-                          {format(new Date(consent.endDate), 'MMM d, yyyy')}
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Access level: <span className="font-medium">{consent.accessLevel}</span>
+                      {consent.endDate && (
+                        <span className={isExpiringSoon ? 'text-warning ml-2' : 'ml-2'}>
+                          · Expires: {format(new Date(consent.endDate), 'MMM d, yyyy')}
                         </span>
-                      </div>
-                    )}
-                    {!consent.endDate && status === 'active' && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Duration:</span>
-                        <span>No expiration</span>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedConsentId(consent.id)}
+                      >
+                        View Details
+                      </Button>
+                      {status === 'active' && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRevoke(consent.id)}
+                          disabled={revokeConsent.isPending}
+                        >
+                          Revoke
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-4"
-                    onClick={() => setSelectedConsentId(consent.id)}
-                  >
-                    View Details
-                  </Button>
                 </CardContent>
               </Card>
             );

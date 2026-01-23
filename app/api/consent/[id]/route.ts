@@ -66,19 +66,41 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       endDate: body.endDate ? new Date(body.endDate) : undefined,
     });
 
+    // Build update data based on what's being changed
+    const updateData: {
+      endDate?: Date;
+      revoked?: boolean;
+      revokedAt?: Date;
+      revokedReason?: string;
+    } = {};
+
+    if (validated.endDate !== undefined) {
+      updateData.endDate = validated.endDate;
+    }
+
+    if (validated.revoked === true) {
+      updateData.revoked = true;
+      updateData.revokedAt = new Date();
+      updateData.revokedReason = validated.revokedReason || 'Revoked via API';
+    }
+
     const updated = await prisma.consent.update({
       where: { id: existing.id },
-      data: {
-        endDate: validated.endDate,
-      },
+      data: updateData,
     });
+
+    // Determine audit event type
+    const eventType = validated.revoked ? 'consent_revoked' : 'consent_updated';
+    const action = validated.revoked
+      ? `Revoked consent for ${updated.grantedToName}`
+      : `Extended consent for ${updated.grantedToName}`;
 
     await createAuditLogEntry({
       userId: user.id,
       consentId: updated.id,
       vaultDataId: updated.vaultDataId,
-      eventType: 'consent_updated',
-      action: `Extended consent for ${updated.grantedToName}`,
+      eventType,
+      action,
       actorId: user.id,
       actorType: 'user',
       request,

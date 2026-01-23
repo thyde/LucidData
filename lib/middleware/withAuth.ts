@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { userService } from '@/lib/services/user.service';
 
 export type AuthenticatedHandler = (
   request: NextRequest,
@@ -34,6 +35,10 @@ export function withAuth(handler: AuthenticatedHandler) {
           { status: 401 }
         );
       }
+
+      // Ensure user exists in application database
+      // This syncs Supabase auth users with our users table
+      await userService.ensureUserExists(user.id, user.email || '');
 
       // Call the wrapped handler with user context
       return await handler(request, {
@@ -74,6 +79,9 @@ export function withAuthAndParams<T extends Record<string, string>>(
           { status: 401 }
         );
       }
+
+      // Ensure user exists in application database
+      await userService.ensureUserExists(user.id, user.email || '');
 
       return await handler(request, {
         userId: user.id,

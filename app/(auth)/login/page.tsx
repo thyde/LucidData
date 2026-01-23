@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { getAuthErrorMessage } from '@/lib/utils/network-errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,21 +44,27 @@ export default function LoginPage() {
     setErrors({});
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
 
-    if (error) {
-      setErrors({ general: 'Invalid credentials. Please check your email and password.' });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setErrors({ general: getAuthErrorMessage(error) });
+        return;
+      }
+
+      const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
+      router.push(redirectTo);
+      router.refresh();
+    } catch (error) {
+      // Catch network errors (connection refused, timeout, etc.)
+      setErrors({ general: getAuthErrorMessage(error) });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
-    router.push(redirectTo);
-    router.refresh();
-    setLoading(false);
   };
 
   return (

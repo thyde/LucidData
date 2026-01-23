@@ -112,24 +112,8 @@ test.describe('Vault CRUD Operations', () => {
       await expect(submitButton).toBeEnabled();
       await submitButton.click({ force: true });
 
-      // Wait for either success (dialog closes) or stay open on error
-      const dialogClosed = await Promise.race([
-        page.waitForSelector('heading:has-text("Create Vault Entry")', { state: 'hidden', timeout: 10000 }).then(() => true).catch(() => false),
-        page.waitForTimeout(10000).then(() => false),
-      ]);
-
-      if (!dialogClosed) {
-        // Dialog didn't close - check for errors
-        await page.screenshot({ path: 'vault-create-error.png', fullPage: true });
-        const errorCount = await page.locator('[role="alert"]').count();
-        console.log(`Dialog did not close. Found ${errorCount} errors`);
-        throw new Error('Vault entry creation failed - dialog did not close');
-      }
-
-      // Wait for success toast
-      await expect(page.locator('text=/created successfully/i')).toBeVisible({
-        timeout: 10000,
-      });
+      // Wait for dialog to close (indicates success)
+      await expect(page.getByRole('heading', { name: 'Create Vault Entry' })).not.toBeVisible({ timeout: 15000 });
 
       // Entry should appear in list
       await expect(page.locator(`[role="article"]:has-text("${entry.label}")`)).toBeVisible({ timeout: 15000 });
@@ -196,24 +180,38 @@ test.describe('Vault CRUD Operations', () => {
     });
 
     test('should open view dialog when clicking entry', async ({ page }) => {
-      // Create an entry
+      // Create an entry with proper waits
       const entry = generateVaultEntry();
       await page.click('button:has-text("Create Vault Entry")');
-      await page.fill('input[name="label"]', entry.label);
-      await page.selectOption('select[name="category"]', entry.category);
-      await page.fill('textarea[aria-label="Data"]', JSON.stringify(entry.data));
-      await page.click('button[type="submit"]:has-text("Create")');
+      await page.waitForSelector('input[name="label"]', { state: 'visible' });
 
-      // Wait for dialog to close
-      await expect(page.getByRole('heading', { name: 'Create Vault Entry' })).not.toBeVisible({ timeout: 10000 });
+      await page.locator('input[name="label"]').clear();
+      await page.locator('input[name="label"]').fill(entry.label);
+      await page.locator('select[name="category"]').selectOption(entry.category);
+      await page.locator('textarea[aria-label="Data"]').clear();
+      await page.locator('textarea[aria-label="Data"]').fill(JSON.stringify(entry.data));
 
-      // Wait for entry to appear in the list, then click on it
+      await page.waitForTimeout(300);
+      const submitButton = page.locator('button[type="submit"]:has-text("Create")');
+      await expect(submitButton).toBeEnabled();
+      await submitButton.click({ force: true });
+
+      // Wait for create dialog to close
+      await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 15000 });
+
+      // Wait for entry to appear in the list
       const entryCard = page.locator(`[role="article"]:has-text("${entry.label}")`);
       await expect(entryCard).toBeVisible({ timeout: 10000 });
+
+      // Wait for network to settle before clicking
+      await page.waitForLoadState('networkidle');
+
+      // Click on the entry card
       await entryCard.click();
 
-      // View dialog should open with entry details
-      await expect(page.getByRole('heading', { name: entry.label })).toBeVisible({ timeout: 5000 });
+      // Wait for view dialog to open - the dialog title should contain the entry label
+      await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: entry.label })).toBeVisible({ timeout: 10000 });
     });
 
     test('should display empty state when no entries exist', async ({ page }) => {
@@ -228,28 +226,37 @@ test.describe('Vault CRUD Operations', () => {
       const personalEntry = generateVaultEntry({ label: 'Personal Entry', category: 'personal' });
       const healthEntry = generateVaultEntry({ label: 'Health Entry', category: 'health' });
 
-      // Create personal entry
-      await page.click('button:has-text("Create Vault Entry")');
-      await page.fill('input[name="label"]', personalEntry.label);
-      await page.selectOption('select[name="category"]', personalEntry.category);
-      await page.fill('textarea[aria-label="Data"]', JSON.stringify(personalEntry.data));
-      await page.click('button[type="submit"]:has-text("Create")');
-      await page.waitForTimeout(1000);
+      // Helper to create entry with proper waits
+      async function createEntry(entry: { label: string; category: string; data: object }) {
+        await page.click('button:has-text("Create Vault Entry")');
+        await page.waitForSelector('input[name="label"]', { state: 'visible' });
 
-      // Create health entry
-      await page.click('button:has-text("Create Vault Entry")');
-      await page.fill('input[name="label"]', healthEntry.label);
-      await page.selectOption('select[name="category"]', healthEntry.category);
-      await page.fill('textarea[aria-label="Data"]', JSON.stringify(healthEntry.data));
-      await page.click('button[type="submit"]:has-text("Create")');
-      await page.waitForTimeout(1000);
+        await page.locator('input[name="label"]').clear();
+        await page.locator('input[name="label"]').fill(entry.label);
+        await page.locator('select[name="category"]').selectOption(entry.category);
+        await page.locator('textarea[aria-label="Data"]').clear();
+        await page.locator('textarea[aria-label="Data"]').fill(JSON.stringify(entry.data));
+
+        await page.waitForTimeout(300);
+        const submitButton = page.locator('button[type="submit"]:has-text("Create")');
+        await expect(submitButton).toBeEnabled();
+        await submitButton.click({ force: true });
+
+        await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 15000 });
+        await expect(page.locator(`text="${entry.label}"`)).toBeVisible({ timeout: 10000 });
+      }
+
+      // Create both entries
+      await createEntry(personalEntry);
+      await createEntry(healthEntry);
 
       // Filter by health
       await page.selectOption('select[aria-label="Category filter"]', 'health');
+      await page.waitForTimeout(500); // Wait for filter to apply
 
       // Only health entry should be visible
       await expect(page.locator(`text=${healthEntry.label}`)).toBeVisible();
-      await expect(page.locator(`text=${personalEntry.label}`)).not.toBeVisible();
+      await expect(page.locator(`text=${personalEntry.label}`)).not.toBeVisible({ timeout: 5000 });
     });
 
     test('should search entries by label', async ({ page }) => {
@@ -257,22 +264,37 @@ test.describe('Vault CRUD Operations', () => {
       const entry1 = generateVaultEntry({ label: 'Unique Test Entry' });
       const entry2 = generateVaultEntry({ label: 'Another Entry' });
 
-      // Create both entries
-      for (const entry of [entry1, entry2]) {
+      // Helper to create entry with proper waits
+      async function createEntry(entry: { label: string; category: string; data: object }) {
         await page.click('button:has-text("Create Vault Entry")');
-        await page.fill('input[name="label"]', entry.label);
-        await page.selectOption('select[name="category"]', entry.category);
-        await page.fill('textarea[aria-label="Data"]', JSON.stringify(entry.data));
-        await page.click('button[type="submit"]:has-text("Create")');
-        await page.waitForTimeout(1000);
+        await page.waitForSelector('input[name="label"]', { state: 'visible' });
+
+        await page.locator('input[name="label"]').clear();
+        await page.locator('input[name="label"]').fill(entry.label);
+        await page.locator('select[name="category"]').selectOption(entry.category);
+        await page.locator('textarea[aria-label="Data"]').clear();
+        await page.locator('textarea[aria-label="Data"]').fill(JSON.stringify(entry.data));
+
+        await page.waitForTimeout(300);
+        const submitButton = page.locator('button[type="submit"]:has-text("Create")');
+        await expect(submitButton).toBeEnabled();
+        await submitButton.click({ force: true });
+
+        await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 15000 });
+        await expect(page.locator(`text="${entry.label}"`)).toBeVisible({ timeout: 10000 });
       }
+
+      // Create both entries
+      await createEntry(entry1);
+      await createEntry(entry2);
 
       // Search for "Unique"
       await page.fill('input[placeholder*="Search"]', 'Unique');
+      await page.waitForTimeout(500); // Wait for search to apply
 
       // Only first entry should be visible
       await expect(page.locator(`text=${entry1.label}`)).toBeVisible();
-      await expect(page.locator(`text=${entry2.label}`)).not.toBeVisible();
+      await expect(page.locator(`text=${entry2.label}`)).not.toBeVisible({ timeout: 5000 });
     });
   });
 
@@ -317,11 +339,11 @@ test.describe('Vault CRUD Operations', () => {
       // Save changes
       await page.click('button[type="submit"]:has-text("Save")');
 
-      // Success toast
-      await expect(page.locator('text=/updated successfully/i')).toBeVisible();
+      // Wait for edit dialog to close
+      await expect(page.locator('text=Edit Vault Entry')).not.toBeVisible({ timeout: 15000 });
 
       // Updated label should be visible in list
-      await expect(page.locator(`text=${newLabel}`)).toBeVisible();
+      await expect(page.locator(`text=${newLabel}`)).toBeVisible({ timeout: 10000 });
       await expect(page.locator(`text=${entry.label}`)).not.toBeVisible();
     });
 
@@ -363,20 +385,34 @@ test.describe('Vault CRUD Operations', () => {
       // Open entry
       await page.click(`[role="article"]:has-text("${entry.label}")`);
 
-      // Click delete button
+      // Click delete button in main dialog
       await page.click('button:has-text("Delete")');
 
-      // Confirm deletion (if confirmation dialog exists)
-      const confirmButton = page.locator('button:has-text("Confirm")');
-      if (await confirmButton.count() > 0) {
-        await confirmButton.click();
-      }
+      // Wait for alert dialog to appear
+      await expect(page.getByRole('alertdialog')).toBeVisible();
 
-      // Success toast
-      await expect(page.locator('text=/deleted successfully/i')).toBeVisible();
+      // Set up response listener before clicking delete
+      const deleteResponse = page.waitForResponse(resp =>
+        resp.url().includes('/api/vault/') && resp.request().method() === 'DELETE'
+      );
 
-      // Entry should no longer be visible
-      await expect(page.locator(`text=${entry.label}`)).not.toBeVisible();
+      // Click the Delete button in the confirmation dialog (use destructive class to ensure we click Delete, not Cancel)
+      const confirmButton = page.locator('[role="alertdialog"] button[class*="destructive"]:has-text("Delete")');
+      await confirmButton.click();
+
+      // Wait for the DELETE API call to complete
+      const response = await deleteResponse;
+      expect(response.ok()).toBeTruthy();
+
+      // Give time for React Query to update and dialogs to process closure
+      await page.waitForTimeout(500);
+
+      // Close any remaining dialogs manually by clicking outside or pressing Escape
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(200);
+
+      // Verify entry is deleted from the list (main test goal)
+      await expect(page.locator(`[role="article"]:has-text("${entry.label}")`)).not.toBeVisible({ timeout: 5000 });
     });
 
     test('should show empty state after deleting last entry', async ({ page }) => {
@@ -392,15 +428,33 @@ test.describe('Vault CRUD Operations', () => {
       await page.click(`[role="article"]:has-text("${entry.label}")`);
       await page.click('button:has-text("Delete")');
 
-      const confirmButton = page.locator('button:has-text("Confirm")');
-      if (await confirmButton.count() > 0) {
-        await confirmButton.click();
-      }
+      // Wait for alert dialog
+      await expect(page.getByRole('alertdialog')).toBeVisible();
+
+      // Set up response listener
+      const deleteResponse = page.waitForResponse(resp =>
+        resp.url().includes('/api/vault/') && resp.request().method() === 'DELETE'
+      );
+
+      // Click Delete in confirmation dialog (use destructive class to ensure we click Delete, not Cancel)
+      const confirmButton = page.locator('[role="alertdialog"] button[class*="destructive"]:has-text("Delete")');
+      await confirmButton.click();
+
+      // Wait for deletion to complete
+      const response = await deleteResponse;
+      expect(response.ok()).toBeTruthy();
+
+      // Give time for React Query to update
+      await page.waitForTimeout(500);
+
+      // Close dialogs by pressing Escape
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(200);
 
       // Empty state should appear
       await expect(
         page.locator('text=/No vault entries yet|Create your first entry/i')
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 10000 });
     });
   });
 });

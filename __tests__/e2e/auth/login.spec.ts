@@ -42,7 +42,7 @@ test.describe('Login Flow', () => {
     await page.click('button[type="submit"]');
 
     // Should show authentication error
-    await expect(page.locator('text=/Invalid credentials|User not found/i')).toBeVisible();
+    await expect(page.locator('text=/Invalid login credentials|Invalid credentials|User not found/i')).toBeVisible();
   });
 
   test('should successfully login with valid credentials', async ({ page }) => {

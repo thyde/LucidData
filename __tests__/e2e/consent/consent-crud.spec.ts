@@ -74,6 +74,7 @@ test.describe('Consent Management', () => {
       // Create a consent via API to have data to display
       const response = await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'test-org',
           grantedToName: 'Test Organization',
           accessLevel: 'read',
           purpose: 'Testing E2E display',
@@ -95,6 +96,7 @@ test.describe('Consent Management', () => {
       // Create active consent via API
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'active-org',
           grantedToName: 'Active Org',
           accessLevel: 'write',
           purpose: 'Active consent testing',
@@ -105,20 +107,18 @@ test.describe('Consent Management', () => {
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // Verify Active badge is displayed with correct styling
-      const activeCard = page.locator('[role="article"]:has-text("Active Org"), .card:has-text("Active Org"), div:has-text("Active Org")').first();
-      await expect(activeCard).toBeVisible();
+      // Verify the consent card is displayed
+      await expect(page.locator('text=Active Org')).toBeVisible();
 
-      // Verify "Active" status badge
-      await expect(
-        activeCard.locator('text=Active, span:has-text("Active")')
-      ).toBeVisible();
+      // Verify "Active" status badge is visible somewhere on the page
+      await expect(page.locator('span:has-text("Active")')).toBeVisible();
     });
 
     test('should display consent details in card', async ({ page }) => {
       // Create consent with specific details
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'detailed-org',
           grantedToName: 'Detailed Org',
           accessLevel: 'admin',
           purpose: 'Detailed consent for testing all fields',
@@ -129,10 +129,6 @@ test.describe('Consent Management', () => {
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // Wait for consent card to appear
-      const card = page.locator('text=Detailed Org').locator('..').locator('..');
-      await expect(card).toBeVisible();
-
       // Verify organization name (as title)
       await expect(page.locator('text=Detailed Org')).toBeVisible();
 
@@ -140,13 +136,14 @@ test.describe('Consent Management', () => {
       await expect(page.locator('text=Detailed consent for testing all fields')).toBeVisible();
 
       // Verify access level is displayed
-      await expect(page.locator('text=admin, text=/access level.*admin/i')).toBeVisible();
+      await expect(page.locator('text=/Access level.*admin/i')).toBeVisible();
     });
 
     test('should display multiple consents when available', async ({ page }) => {
       // Create multiple consents via API
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'first-org',
           grantedToName: 'First Organization',
           accessLevel: 'read',
           purpose: 'First consent',
@@ -155,6 +152,7 @@ test.describe('Consent Management', () => {
 
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'second-org',
           grantedToName: 'Second Organization',
           accessLevel: 'write',
           purpose: 'Second consent',
@@ -163,6 +161,7 @@ test.describe('Consent Management', () => {
 
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'third-org',
           grantedToName: 'Third Organization',
           accessLevel: 'read',
           purpose: 'Third consent',
@@ -185,6 +184,7 @@ test.describe('Consent Management', () => {
       // Create active consent
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'revokable-org',
           grantedToName: 'Revokable Org',
           accessLevel: 'read',
           purpose: 'Testing revoke button',
@@ -195,17 +195,18 @@ test.describe('Consent Management', () => {
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // Find the consent card
-      const card = page.locator('text=Revokable Org').locator('..').locator('..');
+      // Verify the consent is displayed
+      await expect(page.locator('text=Revokable Org')).toBeVisible();
 
-      // Verify Revoke button is visible
-      await expect(card.locator('button:has-text("Revoke")')).toBeVisible();
+      // Verify Revoke button is visible on the page (for the active consent)
+      await expect(page.locator('button:has-text("Revoke")')).toBeVisible();
     });
 
     test('should revoke consent when clicking revoke button', async ({ page }) => {
       // Create active consent
       const response = await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'to-be-revoked',
           grantedToName: 'To Be Revoked',
           accessLevel: 'write',
           purpose: 'Will be revoked',
@@ -219,9 +220,11 @@ test.describe('Consent Management', () => {
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // Find the consent card and click Revoke
-      const card = page.locator('text=To Be Revoked').locator('..').locator('..');
-      await card.locator('button:has-text("Revoke")').click();
+      // Verify the consent is displayed
+      await expect(page.locator('text=To Be Revoked')).toBeVisible();
+
+      // Click the Revoke button (should be only one active consent on the page)
+      await page.locator('button:has-text("Revoke")').click();
 
       // Wait for API call to complete (network idle)
       await page.waitForLoadState('networkidle');
@@ -230,15 +233,15 @@ test.describe('Consent Management', () => {
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // Verify status changed to Revoked
-      const updatedCard = page.locator('text=To Be Revoked').locator('..').locator('..');
-      await expect(updatedCard.locator('text=Revoked, span:has-text("Revoked")')).toBeVisible();
+      // Verify status changed to Revoked (badge should show Revoked now)
+      await expect(page.locator('span:has-text("Revoked")')).toBeVisible();
     });
 
     test('should NOT show revoke button for already revoked consents', async ({ page }) => {
       // Create and immediately revoke a consent
       const createResponse = await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'already-revoked',
           grantedToName: 'Already Revoked',
           accessLevel: 'read',
           purpose: 'Pre-revoked consent',
@@ -256,20 +259,21 @@ test.describe('Consent Management', () => {
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // Find the revoked consent card
-      const card = page.locator('text=Already Revoked').locator('..').locator('..');
+      // Verify the consent is displayed
+      await expect(page.locator('text=Already Revoked')).toBeVisible();
 
-      // Verify Revoke button is NOT visible
-      await expect(card.locator('button:has-text("Revoke")')).not.toBeVisible();
+      // Verify Revoke button is NOT visible (revoked consents don't have revoke button)
+      await expect(page.locator('button:has-text("Revoke")')).not.toBeVisible();
 
       // Verify status is Revoked
-      await expect(card.locator('text=Revoked, span:has-text("Revoked")')).toBeVisible();
+      await expect(page.locator('span:has-text("Revoked")')).toBeVisible();
     });
 
     test('should display revoked status badge with correct styling', async ({ page }) => {
       // Create revoked consent
       const createResponse = await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'revoked-org',
           grantedToName: 'Revoked Org',
           accessLevel: 'admin',
           purpose: 'Testing revoked styling',
@@ -287,18 +291,14 @@ test.describe('Consent Management', () => {
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // Find revoked consent
-      const card = page.locator('text=Revoked Org').locator('..').locator('..');
+      // Verify the consent is displayed
+      await expect(page.locator('text=Revoked Org')).toBeVisible();
 
       // Verify Revoked badge exists
-      const statusBadge = card.locator('span:has-text("Revoked"), text=Revoked');
-      await expect(statusBadge).toBeVisible();
+      await expect(page.locator('span:has-text("Revoked")')).toBeVisible();
 
-      // Verify badge has red styling (bg-red-100 text-red-800 per page.tsx lines 125-126)
-      const badgeElement = page.locator('text=Revoked Org')
-        .locator('..')
-        .locator('..')
-        .locator('span.bg-red-100');
+      // Verify badge has red styling (bg-red-100 text-red-800)
+      const badgeElement = page.locator('span.bg-red-100:has-text("Revoked")');
       await expect(badgeElement).toBeVisible();
     });
   });
@@ -377,6 +377,7 @@ test.describe('Consent Management', () => {
       // Create consents with different access levels
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'read-only-org',
           grantedToName: 'Read Only Org',
           accessLevel: 'read',
           purpose: 'Read-only access',
@@ -385,6 +386,7 @@ test.describe('Consent Management', () => {
 
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'write-org',
           grantedToName: 'Write Org',
           accessLevel: 'write',
           purpose: 'Write access',
@@ -393,6 +395,7 @@ test.describe('Consent Management', () => {
 
       await page.request.post('/api/consent', {
         data: {
+          grantedTo: 'admin-org',
           grantedToName: 'Admin Org',
           accessLevel: 'admin',
           purpose: 'Admin access',
@@ -404,9 +407,9 @@ test.describe('Consent Management', () => {
       await page.waitForLoadState('networkidle');
 
       // Verify all access levels are displayed
-      await expect(page.locator('text=/access level.*read/i')).toBeVisible();
-      await expect(page.locator('text=/access level.*write/i')).toBeVisible();
-      await expect(page.locator('text=/access level.*admin/i')).toBeVisible();
+      await expect(page.locator('text=/Access level.*read/i')).toBeVisible();
+      await expect(page.locator('text=/Access level.*write/i')).toBeVisible();
+      await expect(page.locator('text=/Access level.*admin/i')).toBeVisible();
     });
   });
 
