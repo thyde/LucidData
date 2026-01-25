@@ -29,11 +29,18 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => ({
     auth: {
       getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: 'test-user-id-123' } },
+        data: { user: { id: 'test-user-id-123', email: 'test@example.com' } },
         error: null,
       }),
     },
   })),
+}));
+
+// Mock user service to prevent database calls during auth
+vi.mock('@/lib/services/user.service', () => ({
+  userService: {
+    ensureUserExists: vi.fn().mockResolvedValue({ id: 'test-user-id-123', email: 'test@example.com' }),
+  },
 }));
 
 import { vaultService } from '@/lib/services/vault.service';
@@ -92,14 +99,16 @@ describe('GET /api/vault', () => {
     const request = new NextRequest('http://localhost:3000/api/vault');
     await GET(request);
 
-    expect(auditService.createAuditLogEntry).toHaveBeenCalledWith({
-      userId: mockUserId,
-      eventType: 'data_accessed',
-      action: 'Listed vault entries',
-      actorId: mockUserId,
-      actorType: 'user',
-      metadata: { count: mockVaultData.length },
-    });
+    expect(auditService.createAuditLogEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: mockUserId,
+        eventType: 'data_accessed',
+        action: 'Listed vault entries',
+        actorId: mockUserId,
+        actorType: 'user',
+        metadata: { count: mockVaultData.length },
+      })
+    );
   });
 
   it('should return empty array when user has no vault entries', async () => {

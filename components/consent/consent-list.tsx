@@ -66,8 +66,13 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
           </div>
           <Button disabled>Grant Consent</Button>
         </div>
-        <div className="flex items-center justify-center p-8 text-muted-foreground">
-          Loading consents...
+        {/* Skeleton loading cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="h-48 bg-gray-200 rounded-lg" />
+            </div>
+          ))}
         </div>
       </div>
     );

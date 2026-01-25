@@ -31,9 +31,9 @@ vi.mock('@/lib/crypto/encryption', () => ({
   getMasterKey: vi.fn(() => Buffer.from('test-key-32-bytes-long-for-test')),
 }));
 
-// Mock audit function
+// Mock audit function - must return a Promise since code calls .catch() on it
 vi.mock('@/lib/db/queries/audit', () => ({
-  createAuditLogEntry: vi.fn(),
+  createAuditLogEntry: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock Supabase

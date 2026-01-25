@@ -30,6 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const decrypted = decrypt(entry.encryptedData, masterKey, ivHex, authTagHex);
     const data = JSON.parse(decrypted);
 
+    // Fire-and-forget audit log entry (don't await)
     createAuditLogEntry({
       userId: user.id,
       vaultDataId: entry.id,

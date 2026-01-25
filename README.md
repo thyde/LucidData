@@ -46,188 +46,29 @@ Lucid enables a fundamental shift: transforming personal data from a harvested r
 
 ---
 
-## 🎯 MVP Goals
+##  MVP Features
 
-The MVP aims to prove one foundational truth: **personal data can be licensed securely and transparently without surrendering ownership.**
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Encrypted Personal Data Vault** | Secure storage with AES-256 encryption, user-controlled keys | ✅ MVP |
+| **Consent-Based Access Control** | Granular permissions defining who can access what data, for how long | ✅ MVP |
+| **Immutable Audit Ledger** | Hash-chained transparency log of all data access events | ✅ MVP |
+| **Data Portability** | Export to open standards (JSON-LD, Verifiable Credentials) | ✅ MVP |
+| **Intuitive User Experience** | Banking metaphor: "Your data. Your bank. Your rules." | ✅ MVP |
 
-### Must Have Features
+## Features in active development
 
-✅ **Encrypted Personal Data Vault**
-Secure storage with AES-256 encryption, user-controlled keys
 
-✅ **Consent-Based Access Control**
-Granular permissions defining who can access what data, for how long
+## Deferred to Beta
 
-✅ **Immutable Audit Ledger**
-Hash-chained transparency log of all data access events
+| Feature | Description | Target Phase |
+|---------|-------------|--------------|
+| **Payment Integration** | Stripe Connect for monetization and revenue tracking | Beta |
+| **Multiple Data Schemas** | FHIR (healthcare), Open Banking APIs (financial data) | Beta |
+| **Advanced Verifiable Credentials** | Full W3C VC implementation with DID support | Beta |
+| **Mobile Applications** | Native iOS/Android apps for on-the-go access | Post-Beta |
+| **Buyer Marketplace** | Public marketplace for data consumers to discover and request access | Post-Beta |
 
-✅ **Data Portability**
-Export to open standards (JSON-LD, Verifiable Credentials)
-
-✅ **Intuitive User Experience**
-Banking metaphor: "Your data. Your bank. Your rules."
-
-### Deferred to Beta
-
-- Payment integration (Stripe Connect)
-- Multiple data schemas (FHIR, Open Banking APIs)
-- Advanced Verifiable Credentials
-- Mobile applications
-- Buyer marketplace
-
----
-
-## ✨ Features
-
-### Consent Management System
-
-The Lucid MVP includes a comprehensive consent management system that allows users to grant organizations granular access to their vault data with full transparency and control.
-
-#### Core Capabilities
-
-- **Granular Permission Control**: Grant consent for specific vault entries or general access to all data
-- **Three Access Levels**:
-  - **Read**: View-only access to data
-  - **Export**: Download and export data capabilities
-  - **Verify**: Authenticate and verify data authenticity
-- **Time-Based Expiration**: Flexible expiration with presets (30/90/365 days) or indefinite duration
-- **Full Revocation**: Revoke consent at any time with mandatory reason tracking
-- **Status Tracking**: Real-time consent status (Active, Expired, or Revoked)
-- **Audit Trail Integration**: All consent actions logged to immutable audit ledger
-
-#### Components
-
-- **ConsentList** - Dashboard with search, filtering by status/organization, and real-time status indicators
-- **ConsentCreateDialog** - Interactive form to grant new consent with organization details, access level selection, purpose declaration, and expiration presets
-- **ConsentViewDialog** - Detailed consent view showing access details, timeline, legal/compliance information, and action buttons
-- **ConsentExtendDialog** - Update consent expiration dates with quick preset options
-- **ConsentRevokeDialog** - Revoke consent with mandatory reason and confirmation
-
-#### API Endpoints
-
-- `GET /api/consent` - List user consents with optional filters (vaultDataId, active status)
-- `POST /api/consent` - Create new consent with validation and audit logging
-- `GET /api/consent/[id]` - Get specific consent details
-- `PATCH /api/consent/[id]` - Extend consent expiration date
-- `DELETE /api/consent/[id]` - Revoke consent with reason
-
-#### Data Model
-
-The consent system uses a robust data model with the following key fields:
-- User and organization identifiers (userId, grantedTo, grantedToName)
-- Optional vault data linkage (vaultDataId) for specific data sharing
-- Access control (accessLevel, purpose)
-- Temporal tracking (startDate, endDate, createdAt, updatedAt)
-- Revocation management (revoked, revokedAt, revokedReason)
-- Compliance metadata (ipAddress, userAgent, termsVersion)
-
-All consent actions are automatically logged to the immutable audit trail for full transparency and compliance.
-
----
-
-## 🧩 Technology Stack
-
-After careful evaluation of TypeScript vs Go, **TypeScript** was chosen for optimal learning path, UX iteration speed, and ecosystem alignment.
-
-### Frontend
-- **Framework**: [Next.js 14+](https://nextjs.org/) (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Components**: shadcn/ui (Radix UI primitives)
-- **Forms**: React Hook Form + Zod validation
-- **State**: TanStack Query
-
-### Backend
-- **Runtime**: Node.js 20+ LTS
-- **Framework**: Next.js API Routes (may extract to Fastify later)
-- **Language**: TypeScript
-- **Validation**: Zod
-- **Logging**: Winston
-
-### Testing
-- **Test Framework**: Vitest
-- **Component Testing**: React Testing Library
-- **API Mocking**: MSW (Mock Service Worker)
-- **Coverage**: 466 tests across vault and consent components (460 passing, 98.7% pass rate)
-
-### Database & Auth
-- **Database**: PostgreSQL 15+ with pgcrypto
-- **Platform**: [Supabase](https://supabase.io/) (managed PostgreSQL + Auth + Storage)
-- **ORM**: Prisma (type-safe database access)
-- **Auth**: Supabase Auth (OAuth 2.0 + email/password)
-
-### Infrastructure
-- **Hosting**: Vercel (frontend) + Supabase (backend/database)
-- **CI/CD**: GitHub Actions
-- **Monitoring**: OpenTelemetry
-
-### Security & Encryption
-- **Encryption**: Web Crypto API (browser) + Node.js crypto (server)
-- **Hashing**: argon2 (passwords)
-- **Headers**: helmet
-- **Rate Limiting**: rate-limiter-flexible
-
-### Standards & Compliance
-- **Data Format**: JSON-LD
-- **Identity**: W3C Decentralized Identifiers (DID) - Phase 3
-- **Credentials**: W3C Verifiable Credentials - Phase 3
-- **Audit**: Hash-chained event logs
-- **Compliance**: GDPR, CCPA by design
-
----
-
-## 📅 Development Roadmap
-
-### Phase 0: Foundation Learning (2-3 weeks)
-**Goal**: Build TypeScript fundamentals
-
-- Week 1: TypeScript basics, types, interfaces, generics
-- Week 2: React/Next.js foundations, App Router, Server Components
-- Week 3: Supabase setup, authentication, database queries
-
-**Deliverable**: Working knowledge of full-stack TypeScript
-
-### Phase 1: Core Vault Foundation (4-6 weeks)
-**Goal**: Build secure, encrypted data storage with excellent UX
-
-- Authentication & user onboarding (Supabase Auth)
-- Encrypted vault CRUD operations
-- Data visualization components
-- Responsive design & error handling
-- First user testing sessions
-
-**Deliverable**: Secure vault where users can store & manage encrypted personal data
-
-### Phase 2: Consent & Transparency (4-6 weeks)
-**Goal**: Build intuitive consent management and audit visibility
-
-- Consent granting interface
-- Permission management dashboard
-- Hash-chained audit log implementation
-- Audit history viewer with transparency dashboard
-- User testing & refinement
-
-**Deliverable**: Clear, understandable consent system that users trust
-
-### Phase 3: Data Portability & Standards (3-4 weeks)
-**Goal**: Enable interoperability and data export
-
-- JSON-LD export functionality
-- Verifiable Credentials support
-- Export format selector UI
-- Developer API documentation
-
-**Deliverable**: Users can export data in standard formats
-
-### Phase 4: Pilot Exchange (Optional)
-**Goal**: Enable licensed data access for pilot buyers
-
-- Buyer API endpoints
-- Simple buyer dashboard
-- Revenue tracking (sandbox mode)
-- End-to-end transaction testing
-
-**Total Timeline**: 15-20 weeks (3.5-5 months) for comprehensive learning + functional MVP
 
 ---
 
@@ -263,21 +104,6 @@ npm run dev
 npm test
 ```
 
-### Environment Variables
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# Database
-DATABASE_URL=your-database-url
-
-# Encryption
-ENCRYPTION_KEY=your-encryption-key
-```
-
 ---
 
 ## 🏗️ Project Structure
@@ -311,137 +137,17 @@ lucid-mvp/
 └── types/                # TypeScript type definitions
 ```
 
----
 
-## 🔒 Security
+## 🔗 Service URLs
 
-### Encryption Strategy
-- **At Rest**: AES-256 encryption via pgcrypto (PostgreSQL)
-- **In Transit**: TLS 1.3
-- **Key Management**: User-derived keys with optional recovery
-- **Field-level**: Sensitive data encrypted before storage
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Web Application** | http://localhost:3000 | Main Next.js app |
+| **Supabase Studio** | http://127.0.0.1:54323 | Database admin & Auth management |
+| **Supabase API** | http://127.0.0.1:54321 | REST API & Auth endpoints |
+| **Mailpit** | http://127.0.0.1:54324 | Email testing (view sent emails) |
+| **Database** | postgresql://postgres:postgres@127.0.0.1:54322/postgres | PostgreSQL connection |
 
-### Privacy by Design
-- Opt-in sharing only (no data collection without consent)
-- Consent and audit systems integrated into core architecture
-- Privacy protection coexists with functionality
-- Right to portability and deletion built-in
 
-### Compliance
-- **GDPR**: Right to access, portability, erasure
-- **CCPA**: "Do Not Sell" mechanisms, data transparency
-- **HIPAA**: Encrypted medical data storage (Phase 3)
 
----
 
-## 📊 Success Metrics
-
-### Technical (MVP)
-- [ ] Functional encrypted vault with AES-256
-- [ ] Consent-based access working end-to-end
-- [ ] Immutable audit log with hash chain
-- [ ] JSON-LD export functioning
-- [ ] Zero critical security vulnerabilities
-
-### User (MVP)
-- [ ] 50+ users onboarded
-- [ ] 80%+ trust rating in feedback surveys
-- [ ] 2+ weeks average retention
-- [ ] Positive qualitative feedback on UX clarity
-
-### Business (MVP)
-- [ ] 2+ buyer pilot commitments
-- [ ] Legal review completed (GDPR/CCPA compatibility)
-- [ ] 1 repeatable revenue model identified
-- [ ] Grant or partnership opportunity in progress
-
----
-
-## 🤝 Contributing
-
-Lucid is currently in early development. Contributions will be welcomed once the core MVP is stable.
-
-### Interested in Contributing?
-- Review the [implementation plan](https://github.com/terronhyde/lucid-mvp/blob/main/PLAN.md)
-- Check [open issues](https://github.com/terronhyde/lucid-mvp/issues)
-- Join discussions about privacy-first data infrastructure
-
----
-
-## 📚 Learning Resources
-
-### For Developers
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Supabase Guides](https://supabase.com/docs)
-- [Prisma Documentation](https://www.prisma.io/docs)
-
-### For Understanding Lucid's Vision
-- [Strategy Document](./LucidStrategy.pdf)
-- [MyData.org](https://mydata.org/) - Global data rights movement
-- [W3C Verifiable Credentials](https://www.w3.org/TR/vc-data-model/)
-- [Solid Project](https://solidproject.org/) - Data ownership protocol
-
----
-
-## 🎯 Why TypeScript (Not Go)?
-
-After evaluating both languages, **TypeScript** was chosen because:
-
-✅ **Better for learning** - Great IDE support, type checking catches errors
-✅ **Perfect for UX iteration** - Rapid frontend development with hot reload
-✅ **Seamless integration** - Works perfectly with Supabase and Vercel
-✅ **Single language** - No context switching between frontend/backend
-✅ **Massive ecosystem** - Extensive community support and libraries
-
-**Go consideration**: While Go offers excellent performance and concurrency, it would add unnecessary complexity for MVP development. Performance-critical services can migrate to Go in later phases if needed.
-
----
-
-## 🚀 Next Steps
-
-### This Week
-1. Complete TypeScript Handbook basics
-2. Set up development environment (Node.js, VSCode)
-3. Create Supabase and Vercel accounts
-
-### Next Week
-4. Complete Next.js official tutorial
-5. Build first authenticated app with Supabase
-6. Deploy demo to Vercel
-
-### Week 3
-7. Initialize Lucid project structure
-8. Implement basic vault CRUD
-9. Conduct first user testing
-
-See the full [Implementation Plan](https://github.com/terronhyde/lucid-mvp/blob/main/PLAN.md) for detailed week-by-week guidance.
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details
-
----
-
-## 📞 Contact
-
-**Terron Hyde**
-Project Lead & Developer
-
-For questions, partnerships, or pilot buyer inquiries:
-- GitHub: [@terronhyde](https://github.com/terronhyde)
-- Email: [your-email]
-
----
-
-## 🌟 Vision
-
-Lucid's long-term vision is to become a **foundational layer of ethical digital infrastructure**, transforming personal data from a harvested resource into a governed, portable, and monetizable asset class under full user control.
-
-**The key principle**: *Data as property, not product.*
-
----
-
-**Built with privacy, transparency, and user empowerment at the core.**
