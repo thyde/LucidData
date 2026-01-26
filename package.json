@@ -18,6 +18,8 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:all": "npm run test:run && npm run test:e2e",
+    "test:e2e:ci": "playwright test --config=playwright.ci.config.ts",
+    "test:all:ci": "npm run test:run && npm run test:e2e:ci",
     "playwright:install": "playwright install --with-deps",
     "cleanup:audit-logs": "ts-node --compiler-options {\\\"module\\\":\\\"CommonJS\\\"} scripts/cleanup-corrupted-audit-logs.ts"
   },
