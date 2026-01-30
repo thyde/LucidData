@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, within } from '@/test/helpers/render';
+import { act, screen, waitFor, within } from '@/test/helpers/render';
 import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { VaultList } from '../vault-list';
@@ -653,7 +653,9 @@ describe('VaultList', () => {
         const call = mockUpdateMutation.mutate.mock.calls[0];
         const options = call[1];
         if (options?.onSuccess) {
-          options.onSuccess({} as any, {} as any, {} as any);
+          await act(async () => {
+            options.onSuccess?.({} as any, {} as any, {} as any);
+          });
         }
       }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { ConsentCreateDialog } from '../consent-create-dialog';
@@ -620,7 +620,9 @@ describe('ConsentCreateDialog', () => {
       const mutateCall = vi.mocked(mockMutation.mutate).mock.calls[0];
       const options = mutateCall[1];
       if (options?.onSuccess) {
-        options.onSuccess({} as any);
+        await act(async () => {
+          options.onSuccess?.({} as any);
+        });
       }
 
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
@@ -646,7 +648,9 @@ describe('ConsentCreateDialog', () => {
       const mutateCall = vi.mocked(mockMutation.mutate).mock.calls[0];
       const options = mutateCall[1];
       if (options?.onSuccess) {
-        options.onSuccess({} as any);
+        await act(async () => {
+          options.onSuccess?.({} as any);
+        });
       }
 
       // Form should be reset (though dialog will close)

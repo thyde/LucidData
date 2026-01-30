@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { ConsentRevokeDialog } from '../consent-revoke-dialog';
@@ -278,7 +278,9 @@ describe('ConsentRevokeDialog', () => {
       const mutateCall = vi.mocked(mockMutation.mutate).mock.calls[0];
       const options = mutateCall[1];
       if (options?.onSuccess) {
-        options.onSuccess({} as any);
+        await act(async () => {
+          options.onSuccess?.({} as any);
+        });
       }
 
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
@@ -334,7 +336,9 @@ describe('ConsentRevokeDialog', () => {
       const mutateCall = vi.mocked(mockMutation.mutate).mock.calls[0];
       const options = mutateCall[1];
       if (options?.onSuccess) {
-        options.onSuccess({} as any);
+        await act(async () => {
+          options.onSuccess?.({} as any);
+        });
       }
 
       // After success, form should be reset

@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { act } from '@testing-library/react';
 
 /**
  * Creates a mock mutation function that simulates async React Query behavior
@@ -18,11 +19,13 @@ export function createMockMutation<TData = any, TVariables = any>(options?: {
     setTimeout(() => {
       const data = variables as unknown as TData;
 
-      // Call hook-level onSuccess first (like React Query does)
-      options?.onSuccessHook?.(data);
+      act(() => {
+        // Call hook-level onSuccess first (like React Query does)
+        options?.onSuccessHook?.(data);
 
-      // Then call component-level onSuccess
-      callbackOptions?.onSuccess?.(data);
+        // Then call component-level onSuccess
+        callbackOptions?.onSuccess?.(data);
+      });
     }, 0);
   });
 

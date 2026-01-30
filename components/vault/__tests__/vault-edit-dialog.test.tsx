@@ -477,7 +477,7 @@ describe('VaultEditDialog', () => {
 
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      expect(screen.getByText(/not found/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /not found/i })).toBeInTheDocument();
     });
 
     it('keeps dialog open on error', async () => {
@@ -557,7 +557,7 @@ describe('VaultEditDialog', () => {
 
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /loading/i })).toBeInTheDocument();
     });
   });
 });

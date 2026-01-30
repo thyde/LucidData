@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -48,6 +49,9 @@ export function MobileNav() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="fixed left-0 top-0 h-full w-[280px] translate-x-0 translate-y-0 rounded-none data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left">
           <DialogTitle className="sr-only">Navigation Menu</DialogTitle>
+          <DialogDescription className="sr-only">
+            Quick navigation links for the dashboard.
+          </DialogDescription>
           <nav className="flex flex-col space-y-4 mt-8">
             {navLinks.map((link) => (
               <Link

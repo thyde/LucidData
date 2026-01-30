@@ -9,6 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -96,6 +97,9 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
             <DialogTitle>
               {isLoading ? 'Loading...' : isError ? 'Error' : entry?.label || 'Vault Entry'}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              View details for a vault entry, including metadata and sharing status.
+            </DialogDescription>
           </DialogHeader>
           {isLoading && <div className="p-4 text-center">Loading vault entry...</div>}
           {isError && (

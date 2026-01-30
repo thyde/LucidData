@@ -1,11 +1,14 @@
 import { vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
+import { act } from '@testing-library/react';
 
 /**
  * Flushes all pending promises in the microtask queue
  */
 export async function flushPromises() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
 }
 
 /**

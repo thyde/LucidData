@@ -119,17 +119,18 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {isLoading ? 'Loading...' : error ? 'Not found' : 'Edit Vault Entry'}
+          </DialogTitle>
+          <DialogDescription>
+            Update your encrypted vault entry. All data will be encrypted before storage.
+          </DialogDescription>
+        </DialogHeader>
         {isLoading && <div>Loading...</div>}
         {error && <div>Not found</div>}
         {entry && (
           <>
-            <DialogHeader>
-              <DialogTitle>Edit Vault Entry</DialogTitle>
-              <DialogDescription>
-                Update your encrypted vault entry. All data will be encrypted before storage.
-              </DialogDescription>
-            </DialogHeader>
-
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormTextField

@@ -33,6 +33,9 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Consent Details</DialogTitle>
+            <DialogDescription className="sr-only">
+              View consent details for the selected organization.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-8 text-center">Loading...</div>
         </DialogContent>
