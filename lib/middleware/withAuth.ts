@@ -65,8 +65,9 @@ export function withAuthAndParams<T extends Record<string, string>>(
     context: { userId: string; userEmail: string; params: T }
   ) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, { params }: { params: T }) => {
+  return async (request: NextRequest, { params }: { params: T | Promise<T> }) => {
     try {
+      const resolvedParams = await params;
       const supabase = await createClient();
       const {
         data: { user },
@@ -86,7 +87,7 @@ export function withAuthAndParams<T extends Record<string, string>>(
       return await handler(request, {
         userId: user.id,
         userEmail: user.email || '',
-        params,
+        params: resolvedParams,
       });
     } catch (error) {
       console.error('Auth middleware error:', error);

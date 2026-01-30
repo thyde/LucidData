@@ -54,16 +54,16 @@ test.describe('Consent Management', () => {
     test('should display empty state for new user with no consents', async ({ page }) => {
       // Verify empty state message
       await expect(
-        page.locator('text=No consents yet. Grant your first consent to allow others to access your data.')
+        page.locator('text=No consents granted yet. Grant your first consent to allow others to access your data.')
       ).toBeVisible();
 
       // Verify Grant Consent button is still visible in empty state
-      await expect(page.locator('button:has-text("Grant Consent")')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Grant Your First Consent' })).toBeVisible();
     });
 
     test('should keep Grant Consent button enabled in empty state', async ({ page }) => {
       // Verify button is not disabled
-      const grantButton = page.locator('button:has-text("Grant Consent")');
+      const grantButton = page.getByRole('button', { name: 'Grant Your First Consent' });
       await expect(grantButton).toBeVisible();
       await expect(grantButton).toBeEnabled();
     });
@@ -136,7 +136,7 @@ test.describe('Consent Management', () => {
       await expect(page.locator('text=Detailed consent for testing all fields')).toBeVisible();
 
       // Verify access level is displayed
-      await expect(page.locator('text=/Access level.*admin/i')).toBeVisible();
+      await expect(page.locator('text=/Access:\\s*admin/i')).toBeVisible();
     });
 
     test('should display multiple consents when available', async ({ page }) => {
@@ -228,16 +228,32 @@ test.describe('Consent Management', () => {
       await expect(revokeButton).toBeVisible({ timeout: 5000 });
       await expect(revokeButton).toBeEnabled();
 
-      // Click Revoke button
+      // Click Revoke button and wait for API update
+      const revokeResponsePromise = page.waitForResponse((response) => {
+        return (
+          response.url().includes(`/api/consent/${consentId}`) &&
+          response.request().method() === 'DELETE'
+        );
+      });
       await revokeButton.click();
-
-      // Wait for network activity to settle
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(1000);
+      const revokeResponse = await revokeResponsePromise;
+      expect(revokeResponse.ok()).toBe(true);
 
       // Reload to see updated state
       await page.reload();
       await page.waitForLoadState('networkidle');
+
+      await expect
+        .poll(async () => {
+          const listResponse = await page.request.get('/api/consent');
+          if (!listResponse.ok()) {
+            return false;
+          }
+          const consentList = await listResponse.json();
+          const updatedConsent = consentList.find((item: { id: string; revoked?: boolean }) => item.id === consentId);
+          return updatedConsent?.revoked === true;
+        })
+        .toBe(true);
 
       // Verify status changed to Revoked (badge should show Revoked now)
       await expect(page.locator('span:has-text("Revoked")')).toBeVisible({ timeout: 10000 });
@@ -373,7 +389,7 @@ test.describe('Consent Management', () => {
 
       // Should show empty state
       await expect(
-        page.locator('text=No consents yet')
+        page.locator('text=No consents granted yet. Grant your first consent to allow others to access your data.')
       ).toBeVisible();
     });
   });
@@ -413,9 +429,9 @@ test.describe('Consent Management', () => {
       await page.waitForLoadState('networkidle');
 
       // Verify all access levels are displayed
-      await expect(page.locator('text=/Access level.*read/i')).toBeVisible();
-      await expect(page.locator('text=/Access level.*write/i')).toBeVisible();
-      await expect(page.locator('text=/Access level.*admin/i')).toBeVisible();
+      await expect(page.locator('text=/Access:\\s*read/i')).toBeVisible();
+      await expect(page.locator('text=/Access:\\s*write/i')).toBeVisible();
+      await expect(page.locator('text=/Access:\\s*admin/i')).toBeVisible();
     });
   });
 

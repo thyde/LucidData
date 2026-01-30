@@ -1,113 +1,58 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { withAuthAndParams } from '@/lib/middleware/withAuth';
+import { vaultService } from '@/lib/services/vault.service';
+import { auditService } from '@/lib/services/audit.service';
 import { updateVaultDataSchema } from '@/lib/validations/vault';
-import { createAuditLogEntry } from '@/lib/db/queries/audit';
-import { prisma } from '@/lib/db/prisma';
-import { decrypt, encrypt, getMasterKey } from '@/lib/crypto/encryption';
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withAuthAndParams(async (request, { userId, params }) => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const entry = await vaultService.getVaultDataById(params.id, userId);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
-
-    const entry = await prisma.vaultData.findUnique({ where: { id } });
-
-    if (!entry || entry.userId !== user.id) {
+    if (!entry) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    const [ivHex, authTagHex] = entry.iv.split(':');
-    const masterKey = getMasterKey();
-    const decrypted = decrypt(entry.encryptedData, masterKey, ivHex, authTagHex);
-    const data = JSON.parse(decrypted);
-
-    // Fire-and-forget audit log entry (don't await)
-    createAuditLogEntry({
-      userId: user.id,
+    await auditService.createAuditLogEntry({
+      userId,
       vaultDataId: entry.id,
       eventType: 'data_accessed',
       action: `Accessed vault entry: ${entry.label}`,
-      actorId: user.id,
+      actorId: userId,
       actorType: 'user',
       request,
-    }).catch((error) => {
-      console.error('Failed to create audit log entry for vault access:', error);
     });
 
-    return NextResponse.json({ ...entry, data });
+    return NextResponse.json(entry);
   } catch (error) {
-    // Check if it's an authorization error
     if (error instanceof Error && error.message.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-    
+
     console.error('Error fetching vault entry:', error);
     return NextResponse.json(
       { error: 'Failed to fetch vault entry', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
-}
+});
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withAuthAndParams(async (request, { userId, params }) => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
-
     const body = await request.json();
     const validated = updateVaultDataSchema.parse({
       ...body,
       expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
     });
 
-    const existing = await prisma.vaultData.findUnique({ where: { id } });
-    if (!existing || existing.userId !== user.id) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
+    const updated = await vaultService.updateVaultData(params.id, userId, validated);
 
-    const updateData: Record<string, unknown> = {
-      label: validated.label,
-      category: validated.category,
-      description: validated.description,
-      tags: validated.tags,
-      expiresAt: validated.expiresAt,
-    };
-
-    if (validated.data) {
-      const masterKey = getMasterKey();
-      const { encrypted, iv, authTag } = encrypt(JSON.stringify(validated.data), masterKey);
-      updateData.encryptedData = encrypted;
-      updateData.iv = `${iv}:${authTag}`;
-    }
-
-    const updated = await prisma.vaultData.update({
-      where: { id },
-      data: updateData,
-    });
-
-    await createAuditLogEntry({
-      userId: user.id,
+    await auditService.createAuditLogEntry({
+      userId,
       vaultDataId: updated.id,
       eventType: 'data_updated',
       action: `Updated vault entry: ${updated.label}`,
-      actorId: user.id,
+      actorId: userId,
       actorType: 'user',
       request,
     });
@@ -121,7 +66,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    // Check if it's an authorization error
     if (error instanceof Error && error.message.includes('Unauthorized')) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
@@ -132,49 +76,42 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       { status: 500 }
     );
   }
-}
+});
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withAuthAndParams(async (request, { userId, params }) => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const entry = await vaultService.getVaultDataById(params.id, userId);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
-    const existing = await prisma.vaultData.findUnique({ where: { id } });
-    if (!existing || existing.userId !== user.id) {
+    if (!entry) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    await prisma.vaultData.delete({ where: { id } });
+    await vaultService.deleteVaultData(entry.id, userId);
 
-    await createAuditLogEntry({
-      userId: user.id,
-      vaultDataId: existing.id,
+    await auditService.createAuditLogEntry({
+      userId,
       eventType: 'data_deleted',
-      action: `Deleted vault entry: ${existing.label}`,
-      actorId: user.id,
+      action: `Deleted vault entry: ${entry.label}`,
+      actorId: userId,
       actorType: 'user',
       request,
+      metadata: {
+        vaultDataId: entry.id,
+        category: entry.category,
+      },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    // Check if it's an authorization error
     if (error instanceof Error && error.message.includes('Unauthorized')) {
       console.log(`[DELETE /api/vault/[id]] Unauthorized access attempt`);
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-    
+
     console.error('[DELETE /api/vault/[id]] Error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
-}
+});
