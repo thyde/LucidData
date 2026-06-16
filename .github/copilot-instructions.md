@@ -46,6 +46,7 @@ This file is self-contained: the patterns below live in its own sections. The ol
 - **Encrypt vault data in the browser** before it reaches the server. Use `lib/crypto/client-crypto.ts` for AES-GCM and `lib/crypto/key-derivation.ts` for the PBKDF2 master key.
 - **Use envelope encryption:** encrypt data with a per-entry DEK, wrap the DEK with the user's master key, and send only `client_ciphertext`, `encrypted_dek`, and `dek_salt`.
 - **Never send plaintext, the master key, or the password to the server.** There is no server-side `ENCRYPTION_KEY` or `getMasterKey()`.
+- **Validate the encrypted payload before persisting:** in the server action's Zod schema, require `client_ciphertext`, `encrypted_dek`, and `dek_salt` to be non-empty strings. Throw a validation error if any is absent; do not write a partial or plaintext row.
 - **Server-held keys exist only for issuer signing:** issuer Ed25519 private keys are AES-256-GCM-wrapped with `ISSUER_KEY_SECRET` (see `lib/crypto/credential-signing.ts`).
 
 ### Audit Logging (Hash Chains)
@@ -66,10 +67,10 @@ This file is self-contained: the patterns below live in its own sections. The ol
 
 ## User-Facing Copy
 
-Use the **humanizer** skill ([.github/skills/humanizer/SKILL.md](.github/skills/humanizer/SKILL.md)) to validate and update any user-readable text before committing it. This covers README and docs, UI labels, button text, empty states, error and toast messages, onboarding copy, and email or notification text.
+When generating or editing user-facing copy, apply the **humanizer** rules ([.github/skills/humanizer/SKILL.md](.github/skills/humanizer/SKILL.md)) directly as you write it. This covers README and docs, UI labels, button text, empty states, error and toast messages, onboarding copy, and email or notification text.
 
-- Run it on new or edited copy to strip AI-writing tells: em dashes, emoji in headings, Title Case headings, promotional and rule-of-three phrasing, and filler.
-- Keep the neutral, plain voice that fits product and reference text; do not add personality or first person to UI strings.
+- Strip AI-writing tells as you generate copy: em dashes, emoji in headings, Title Case headings, promotional and rule-of-three phrasing, and filler words.
+- Use plain, neutral, second-person voice that fits product and reference text; do not add personality or first-person language to UI strings.
 - When copy describes a feature, confirm it matches the current implementation (Supabase plus client-side encryption), not the old Prisma or server-encryption model.
 
 ---
@@ -362,20 +363,18 @@ The browser does all vault encryption; the server only stores ciphertext.
 'use server'
 import { createClient } from '@/lib/supabase/server'
 import { createVaultData } from '@/lib/services/vault.service'
+import { createVaultSchema } from '@/lib/validations/vault'
 
-export async function createVaultEntryAction(payload: {
-  label: string
-  category?: string
-  tags?: string[]
-  schema_type?: string
-  client_ciphertext: string  // encrypted in the browser
-  encrypted_dek: string      // DEK wrapped with the master key
-  dek_salt: string
-  expires_at?: string
-}) {
+export async function createVaultEntryAction(input: unknown) {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) throw new Error('Unauthorized')
+
+  // Validate all inputs with Zod before touching the service.
+  // createVaultSchema requires client_ciphertext, encrypted_dek, and
+  // dek_salt to be non-empty strings; .parse() throws on invalid input.
+  const payload = createVaultSchema.parse(input)
+
   return createVaultData(user.id, payload) // service writes ciphertext + audit log
 }
 ```
