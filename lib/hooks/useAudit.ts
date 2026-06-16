@@ -1,32 +1,69 @@
-'use client';
+'use client'
 
-import { useQuery, UseQueryResult } from '@tanstack/react-query';
-import { AuditLog } from '@prisma/client';
-import { createQueryKeys } from './factories/createQueryHooks';
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { getAuditLogsAction } from '@/lib/actions/audit.actions'
 
-/**
- * React Query hooks for audit log operations
- *
- * NOTE: Audit logs are read-only from the client perspective.
- * Creation happens automatically through auditService in API routes.
- */
+export function useAuditLogs() {
+  const queryClient = useQueryClient()
 
-// Query keys
-export const AUDIT_KEYS = createQueryKeys('audit');
+  const query = useQuery({
+    queryKey: ['audit'],
+    queryFn: getAuditLogsAction,
+    staleTime: 30_000,
+  })
 
-/**
- * Audit logs response with chain verification
- */
+  // Realtime subscription — invalidate cache on new audit log
+  useEffect(() => {
+    const supabase = createClient()
+
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const channel = supabase
+        .channel('audit-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'audit_logs',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['audit'] })
+          }
+        )
+        .subscribe()
+
+      return channel
+    }
+
+    const channelPromise = getUser()
+
+    return () => {
+      channelPromise.then(channel => {
+        if (channel) createClient().removeChannel(channel)
+      })
+    }
+  }, [queryClient])
+
+  return query
+}
+
+// ---------------------------------------------------------------------------
+// Legacy-compatible exports — kept for any existing consumers
+// ---------------------------------------------------------------------------
+
 export interface AuditLogsResponse {
-  logs: AuditLog[];
+  logs: import('@/types/database.types').AuditLog[];
   chainValid: boolean;
-  totalLogs: number;
+  totalLogs?: number;
   brokenAt?: number | null;
 }
 
-/**
- * Filters for audit log queries
- */
 export interface AuditFilters {
   eventType?: string;
   vaultDataId?: string;
@@ -36,165 +73,52 @@ export interface AuditFilters {
 }
 
 /**
- * Fetch all audit logs for the current user with chain verification
- *
- * The API automatically:
- * - Retrieves all audit logs for the authenticated user
- * - Verifies the hash chain integrity
- * - Creates an audit log for accessing audit logs
- *
- * @example
- * ```tsx
- * const { data, isLoading } = useAuditList();
- * if (data && !data.chainValid) {
- *   // Alert user to potential tampering
- * }
- * ```
+ * @deprecated Use useAuditLogs() instead. Kept for backward compatibility.
  */
-export function useAuditList(
-  filters?: AuditFilters
-): UseQueryResult<AuditLogsResponse, Error> {
-  return useQuery({
-    queryKey: AUDIT_KEYS.list(filters),
-    queryFn: async (): Promise<AuditLogsResponse> => {
-      let url = '/api/audit';
+export function useAuditList(filters?: AuditFilters) {
+  const result = useAuditLogs()
+  if (!filters || !result.data) return result as unknown as ReturnType<typeof useQuery<AuditLogsResponse, Error>>
 
-      // Apply filters if provided
-      if (filters) {
-        const params = new URLSearchParams();
-
-        if (filters.eventType) {
-          params.append('eventType', filters.eventType);
-        }
-        if (filters.vaultDataId) {
-          params.append('vaultDataId', filters.vaultDataId);
-        }
-        if (filters.consentId) {
-          params.append('consentId', filters.consentId);
-        }
-        if (filters.startDate) {
-          params.append('startDate', filters.startDate.toISOString());
-        }
-        if (filters.endDate) {
-          params.append('endDate', filters.endDate.toISOString());
-        }
-
-        if (params.toString()) {
-          url += `?${params.toString()}`;
-        }
+  // Apply client-side filtering on the returned data
+  const filteredData: AuditLogsResponse | undefined = result.data
+    ? {
+        ...result.data,
+        logs: result.data.logs.filter((log) => {
+          if (filters.eventType && log.event_type !== filters.eventType) return false
+          if (filters.vaultDataId && log.vault_data_id !== filters.vaultDataId) return false
+          if (filters.consentId && log.consent_id !== filters.consentId) return false
+          if (filters.startDate && new Date(log.timestamp) < filters.startDate) return false
+          if (filters.endDate && new Date(log.timestamp) > filters.endDate) return false
+          return true
+        }),
       }
+    : undefined
 
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch audit logs');
-      }
-
-      return response.json();
-    },
-    // Audit logs are critical - don't cache too aggressively
-    staleTime: 1000 * 60, // 1 minute
-  });
+  return { ...result, data: filteredData } as unknown as ReturnType<typeof useQuery<AuditLogsResponse, Error>>
 }
 
-/**
- * Verify the hash chain integrity for the current user
- *
- * This is a lightweight check that only verifies the chain without
- * fetching all logs.
- *
- * @example
- * ```tsx
- * const { data: verification } = useAuditVerification();
- * if (verification && !verification.valid) {
- *   showSecurityWarning();
- * }
- * ```
- */
-export function useAuditVerification(): UseQueryResult<
-  { valid: boolean; brokenAt?: number | null },
-  Error
-> {
-  return useQuery({
-    queryKey: [...AUDIT_KEYS.all, 'verification'] as const,
-    queryFn: async (): Promise<{ valid: boolean; brokenAt?: number | null }> => {
-      const response = await fetch('/api/audit/verify');
-
-      if (!response.ok) {
-        throw new Error('Failed to verify audit chain');
-      }
-
-      return response.json();
-    },
-    // Run verification regularly
-    refetchInterval: 1000 * 60 * 5, // 5 minutes
-    staleTime: 1000 * 60 * 2, // 2 minutes
-  });
+// Convenience aliases
+export const AUDIT_KEYS = {
+  all: ['audit'] as const,
+  lists: () => ['audit', 'list'] as const,
+  list: (filters?: AuditFilters) =>
+    filters ? (['audit', 'list', filters] as const) : (['audit', 'list'] as const),
+  details: () => ['audit', 'detail'] as const,
+  detail: (id: string) => ['audit', 'detail', id] as const,
 }
 
-/**
- * Fetch audit logs for a specific vault entry
- *
- * @param vaultDataId - Vault entry ID
- *
- * @example
- * ```tsx
- * const { data: auditLogs } = useVaultAuditHistory(vaultId);
- * ```
- */
-export function useVaultAuditHistory(
-  vaultDataId: string
-): UseQueryResult<AuditLogsResponse, Error> {
-  return useAuditList({ vaultDataId });
+export function useVaultAuditHistory(vaultDataId: string) {
+  return useAuditList({ vaultDataId })
 }
 
-/**
- * Fetch audit logs for a specific consent
- *
- * @param consentId - Consent ID
- *
- * @example
- * ```tsx
- * const { data: auditLogs } = useConsentAuditHistory(consentId);
- * ```
- */
-export function useConsentAuditHistory(
-  consentId: string
-): UseQueryResult<AuditLogsResponse, Error> {
-  return useAuditList({ consentId });
+export function useConsentAuditHistory(consentId: string) {
+  return useAuditList({ consentId })
 }
 
-/**
- * Fetch audit logs by event type
- *
- * @param eventType - Event type to filter by (e.g., 'data_created', 'consent_granted')
- *
- * @example
- * ```tsx
- * const { data: loginLogs } = useAuditByEventType('user_login');
- * ```
- */
-export function useAuditByEventType(
-  eventType: string
-): UseQueryResult<AuditLogsResponse, Error> {
-  return useAuditList({ eventType });
+export function useAuditByEventType(eventType: string) {
+  return useAuditList({ eventType })
 }
 
-/**
- * Fetch audit logs within a date range
- *
- * @param startDate - Start of date range
- * @param endDate - End of date range
- *
- * @example
- * ```tsx
- * const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
- * const { data: recentLogs } = useAuditDateRange(lastWeek, new Date());
- * ```
- */
-export function useAuditDateRange(
-  startDate: Date,
-  endDate: Date
-): UseQueryResult<AuditLogsResponse, Error> {
-  return useAuditList({ startDate, endDate });
+export function useAuditDateRange(startDate: Date, endDate: Date) {
+  return useAuditList({ startDate, endDate })
 }

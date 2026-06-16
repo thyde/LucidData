@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getAuthErrorMessage } from '@/lib/utils/network-errors';
+import { useEncryption } from '@/lib/context/encryption-context';
+import { generateKeySalt } from '@/lib/crypto/key-derivation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { unlock } = useEncryption();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -55,6 +58,8 @@ export default function RegisterPage() {
     setLoading(true);
     setErrors({});
 
+    // Generate a unique key salt before registration (browser crypto, no server involvement)
+    const keySalt = generateKeySalt();
     const supabase = createClient();
 
     try {
@@ -78,6 +83,24 @@ export default function RegisterPage() {
           setErrors({ general: getAuthErrorMessage(signInError) });
           return;
         }
+      }
+
+      // Store the key_salt in the users table
+      try {
+        await fetch('/api/user/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key_salt: keySalt }),
+        });
+      } catch {
+        // Non-fatal: key_salt can be regenerated, but user must re-register to set it properly
+      }
+
+      // Derive master key for this session
+      try {
+        await unlock(password, keySalt);
+      } catch {
+        // Non-fatal: vault will be locked but user is still registered
       }
 
       router.push('/dashboard');

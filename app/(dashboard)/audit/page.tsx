@@ -1,73 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-interface AuditEntry {
-  id: string;
-  eventType: string;
-  action: string;
-  actorType: string;
-  timestamp: string;
-  success: boolean;
-}
-
-interface AuditApiResponse {
-  logs: AuditEntry[];
-  chainValid: boolean;
-  totalLogs: number;
-}
+import { useAuditLogs } from '@/lib/hooks/useAudit';
 
 export default function AuditPage() {
-  const [logs, setLogs] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { data, isLoading, error, refetch } = useAuditLogs();
 
-  // Function to fetch audit logs
-  const fetchAuditLogs = () => {
-    fetch('/api/audit')
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`API error: ${res.status} ${res.statusText}`);
-        }
-        return res.json();
-      })
-      .then((data: AuditApiResponse) => {
-        setLogs(data.logs || []);
-        setError(null);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error('Error fetching audit logs:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load audit logs');
-        setLogs([]);
-        setLoading(false);
-      });
-  };
+  const logs = data?.logs ?? [];
 
-  useEffect(() => {
-    // Initial fetch
-    fetchAuditLogs();
-
-    // Set up polling interval (5 seconds)
-    // Only poll when the page is visible
-    intervalRef.current = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchAuditLogs();
-      }
-    }, 5000);
-
-    // Cleanup interval on unmount
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
@@ -97,11 +39,10 @@ export default function AuditPage() {
             <CardTitle className="text-red-900">Error loading audit log</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-red-800 mb-4">{error}</p>
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.reload()}
-            >
+            <p className="text-sm text-red-800 mb-4">
+              {error instanceof Error ? error.message : 'Failed to load audit logs'}
+            </p>
+            <Button variant="outline" onClick={() => refetch()}>
               Retry
             </Button>
           </CardContent>
@@ -142,9 +83,9 @@ export default function AuditPage() {
                     <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                       <span>{new Date(log.timestamp).toLocaleString()}</span>
                       <span>•</span>
-                      <span className="capitalize">{log.eventType.replace('_', ' ')}</span>
+                      <span className="capitalize">{log.event_type.replace('_', ' ')}</span>
                       <span>•</span>
-                      <span className="capitalize">{log.actorType}</span>
+                      <span className="capitalize">{log.actor_type}</span>
                     </div>
                   </div>
                   <span

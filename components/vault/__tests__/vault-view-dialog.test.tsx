@@ -16,6 +16,10 @@ vi.mock('@/lib/hooks/useVault', () => ({
   })),
 }));
 
+vi.mock('@/lib/context/encryption-context', () => ({
+  useEncryption: vi.fn(() => ({ isLocked: false })),
+}));
+
 vi.mock('@/lib/hooks/useConsent', () => ({
   useConsentList: vi.fn(() => ({
     data: [],
@@ -36,24 +40,22 @@ import { useToast } from '@/lib/hooks/use-toast';
 
 const mockEntry = {
   id: 'vault-123',
-  userId: 'user-123',
+  user_id: 'user-123',
   label: 'Medical Records',
   description: 'My health information',
-  category: 'health' as const,
-  dataType: 'json' as const,
+  category: 'health',
   data: { bloodType: 'A+', allergies: ['peanuts'] },
   tags: ['medical', 'important'],
-  schemaType: 'MedicalRecord',
-  schemaVersion: '1.0',
-  expiresAt: null,
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-02'),
+  schema_type: 'MedicalRecord',
+  expires_at: null,
+  created_at: '2024-01-01T00:00:00.000Z',
+  updated_at: '2024-01-02T00:00:00.000Z',
 };
 
 const mockExpiredEntry = {
   ...mockEntry,
   id: 'vault-expired',
-  expiresAt: new Date('2023-12-31'),
+  expires_at: '2023-12-31T00:00:00.000Z',
 };
 
 describe('VaultViewDialog', () => {
@@ -181,11 +183,11 @@ describe('VaultViewDialog', () => {
       expect(dataDisplay).toBeInTheDocument();
     });
 
-    it('displays encrypted metadata', () => {
+    it('displays schema type if set', () => {
       render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      expect(screen.getByText(/data type/i)).toBeInTheDocument();
-      expect(screen.getByText(/json/i)).toBeInTheDocument();
+      expect(screen.getByText(/schema type/i)).toBeInTheDocument();
+      expect(screen.getByText('MedicalRecord')).toBeInTheDocument();
     });
 
     it('shows category with correct icon', () => {
@@ -199,7 +201,7 @@ describe('VaultViewDialog', () => {
 
     it('displays expiration date if set', () => {
       vi.mocked(useVaultEntry).mockReturnValue(
-        createMockQuery({ ...mockEntry, expiresAt: new Date('2025-12-31') })
+        createMockQuery({ ...mockEntry, expires_at: '2025-12-31T00:00:00.000Z' })
       );
 
       render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);

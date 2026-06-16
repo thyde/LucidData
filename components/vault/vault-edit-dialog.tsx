@@ -80,19 +80,18 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
         description: entry.description || '',
         tags: entry.tags || [],
         data: JSON.stringify(entry.data, null, 2),
-        dataType: entry.dataType,
-        schemaType: entry.schemaType || '',
-        schemaVersion: entry.schemaVersion,
-        expiresAt: entry.expiresAt ? new Date(entry.expiresAt).toISOString().slice(0, 16) : undefined,
+        dataType: 'json',
+        schemaType: entry.schema_type || '',
+        schemaVersion: '1.0',
+        expiresAt: entry.expires_at ? new Date(entry.expires_at).toISOString().slice(0, 16) : undefined,
       });
     }
   }, [entry, form]);
 
   const onSubmit = (values: FormValues) => {
-    // Parse JSON string to object
-    const parsedData = JSON.parse(values.data);
+    // Parse JSON string to object — hook handles re-encryption
+    const parsedData = JSON.parse(values.data) as Record<string, unknown>;
 
-    // Convert form values to API payload
     mutate(
       {
         id: entryId,
@@ -102,9 +101,7 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
           description: values.description || undefined,
           tags: values.tags || [],
           data: parsedData,
-          dataType: values.dataType,
           schemaType: values.schemaType || undefined,
-          schemaVersion: values.schemaVersion,
           expiresAt: values.expiresAt ? new Date(values.expiresAt) : undefined,
         },
       },

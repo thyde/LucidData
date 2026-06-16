@@ -3,7 +3,6 @@
  * All application types in one location for consistency
  */
 
-import { User, VaultData, Consent, AuditLog, ExportRequest } from '@prisma/client';
 import {
   VaultCategory,
   VaultDataType,
@@ -18,10 +17,15 @@ import {
 
 /**
  * ============================================================================
- * Prisma model types (re-export for convenience)
+ * Database model types (re-export for convenience)
  * ============================================================================
  */
-export type { User, VaultData, Consent, AuditLog, ExportRequest };
+export type { User, VaultData, Consent, AuditLog, ConsentRequest } from '@/types/database.types';
+import type { VaultData, ConsentRequest } from '@/types/database.types';
+
+export type ConsentRequestWithOrg = ConsentRequest & {
+  organization: { name: string; email: string } | null
+}
 
 /**
  * ============================================================================
@@ -30,22 +34,12 @@ export type { User, VaultData, Consent, AuditLog, ExportRequest };
  */
 
 /**
- * Decrypted vault data (what the API returns)
+ * Decrypted vault data (client-side, after decryption via Web Crypto API)
+ * The encrypted fields are stripped and replaced with the plaintext `data` field.
  */
-export interface DecryptedVaultData {
-  id: string;
-  label: string;
-  category: VaultCategory | string;
-  description: string;
-  dataType: VaultDataType | string;
-  tags: string[];
-  schemaType: SchemaType | string | null;
-  schemaVersion: string | null;
-  expiresAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  data: Record<string, unknown> | null;
-  error?: string; // If decryption failed
+export interface DecryptedVaultData extends Omit<VaultData, 'client_ciphertext' | 'encrypted_dek' | 'dek_salt'> {
+  data: Record<string, unknown> | string | null;
+  decryptionError?: string;
 }
 
 /**
@@ -97,13 +91,6 @@ export interface CreateConsentPayload {
 }
 
 /**
- * Consent with vault data (populated)
- */
-export interface ConsentWithVaultData extends Consent {
-  vaultData?: VaultData | null;
-}
-
-/**
  * Consent revocation payload
  */
 export interface RevokeConsentPayload {
@@ -134,13 +121,6 @@ export interface CreateAuditLogPayload {
   success?: boolean;
   errorMessage?: string;
   metadata?: Record<string, unknown>;
-}
-
-/**
- * Audit log with chain validation
- */
-export interface AuditLogWithValidation extends AuditLog {
-  chainValid: boolean;
 }
 
 /**
@@ -180,8 +160,8 @@ export interface ExportData {
     createdAt: Date;
   };
   vaultData: DecryptedVaultData[];
-  consents?: Consent[];
-  auditLogs?: AuditLog[];
+  consents?: import('@/types/database.types').Consent[];
+  auditLogs?: import('@/types/database.types').AuditLog[];
   exportedAt: Date;
   format: ExportFormat | string;
 }

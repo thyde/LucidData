@@ -16,8 +16,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Form } from '@/components/ui/form';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   FormTextField,
   FormTextAreaField,
@@ -25,40 +25,35 @@ import {
   FormTagsField,
   FormDateField,
 } from '@/components/common/form-fields';
+import { VAULT_SCHEMA_TYPES, type VaultSchemaType } from '@/lib/schemas/vault-schemas';
+import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields';
+import { SchemaForm } from './schema-form';
 
-// Extend schema to handle JSON string input and date string from form
-const formSchema = vaultDataSchema.omit({ expiresAt: true }).extend({
-  data: z.string().min(1, 'Data is required').refine(
-    (val) => {
-      try {
-        JSON.parse(val);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    { message: 'Invalid JSON' }
-  ),
+// Form schema for the non-data fields (label, category, description, tags, expiresAt)
+const metaFormSchema = vaultDataSchema.omit({ data: true, expiresAt: true }).extend({
   expiresAt: z.string().optional().refine(
     (val) => !val || val === '' || !isNaN(Date.parse(val)),
     { message: 'Invalid date format' }
   ),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type MetaFormValues = z.infer<typeof metaFormSchema>;
 
 export function VaultCreateDialog() {
   const [open, setOpen] = useState(false);
+  const [schemaType, setSchemaType] = useState<VaultSchemaType>('custom');
+  const [schemaData, setSchemaData] = useState<Record<string, unknown>>({});
+  const [customJson, setCustomJson] = useState('{}');
+  const [jsonError, setJsonError] = useState<string | null>(null);
   const { mutate, isPending } = useCreateVault();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<MetaFormValues>({
+    resolver: zodResolver(metaFormSchema),
     defaultValues: {
       label: '',
       category: '',
       description: '',
       tags: [],
-      data: '',
       dataType: 'json',
       schemaType: '',
       schemaVersion: '1.0',
@@ -66,11 +61,30 @@ export function VaultCreateDialog() {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
-    // Parse JSON string to object
-    const parsedData = JSON.parse(values.data);
+  const handleSchemaTypeChange = (type: VaultSchemaType) => {
+    setSchemaType(type);
+    setSchemaData({});
+    setCustomJson('{}');
+    setJsonError(null);
+    form.setValue('category', VAULT_SCHEMA_TYPES[type].category);
+    form.setValue('schemaType', type === 'custom' ? '' : type);
+  };
 
-    // Convert form values to API payload
+  const onSubmit = (values: MetaFormValues) => {
+    let parsedData: Record<string, unknown>;
+
+    if (schemaType !== 'custom') {
+      parsedData = schemaData;
+    } else {
+      try {
+        parsedData = JSON.parse(customJson);
+        setJsonError(null);
+      } catch {
+        setJsonError('Invalid JSON');
+        return;
+      }
+    }
+
     const payload = {
       label: values.label,
       category: values.category,
@@ -86,6 +100,10 @@ export function VaultCreateDialog() {
     mutate(payload, {
       onSuccess: () => {
         form.reset();
+        setSchemaType('custom');
+        setSchemaData({});
+        setCustomJson('{}');
+        setJsonError(null);
         setOpen(false);
       },
     });
@@ -106,6 +124,27 @@ export function VaultCreateDialog() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Schema type selector */}
+            <div className="space-y-2">
+              <Label htmlFor="schema-type-select">Data type</Label>
+              <select
+                id="schema-type-select"
+                title="Data type"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={schemaType}
+                onChange={e => handleSchemaTypeChange(e.target.value as VaultSchemaType)}
+              >
+                {Object.entries(VAULT_SCHEMA_TYPES).map(([key, { label }]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+              {schemaType !== 'custom' && (
+                <p className="text-xs text-muted-foreground">
+                  {VAULT_SCHEMA_TYPES[schemaType].description}
+                </p>
+              )}
+            </div>
+
             <FormTextField
               control={form.control}
               name="label"
@@ -140,21 +179,34 @@ export function VaultCreateDialog() {
               label="Tags"
             />
 
+            {/* Dynamic data form or JSON textarea */}
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                JSON Content
-              </label>
-              <Textarea
-                aria-label="Data"
-                placeholder='{"key": "value"}'
-                className="font-mono"
-                rows={6}
-                {...form.register('data')}
-              />
-              {form.formState.errors.data && (
-                <p className="text-sm font-medium text-destructive">
-                  {form.formState.errors.data.message}
-                </p>
+              <Label>
+                {schemaType !== 'custom' ? 'Entry data' : 'Data (JSON)'}
+              </Label>
+              {schemaType !== 'custom' && SCHEMA_FORM_FIELDS[schemaType] ? (
+                <SchemaForm
+                  fields={SCHEMA_FORM_FIELDS[schemaType]}
+                  value={schemaData}
+                  onChange={setSchemaData}
+                />
+              ) : (
+                <>
+                  <textarea
+                    aria-label="Data"
+                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none"
+                    value={customJson}
+                    onChange={e => {
+                      setCustomJson(e.target.value);
+                      setJsonError(null);
+                    }}
+                    placeholder='{"key": "value"}'
+                    rows={6}
+                  />
+                  {jsonError && (
+                    <p className="text-sm font-medium text-destructive">{jsonError}</p>
+                  )}
+                </>
               )}
             </div>
 
@@ -177,13 +229,6 @@ export function VaultCreateDialog() {
                 </p>
               )}
             </div>
-
-            <FormTextField
-              control={form.control}
-              name="schemaType"
-              label="Schema Type"
-              placeholder="Optional schema type"
-            />
 
             <FormDateField
               control={form.control}

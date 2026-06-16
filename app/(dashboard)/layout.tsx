@@ -52,6 +52,12 @@ export default async function DashboardLayout({
               >
                 Audit Log
               </Link>
+              <Link
+                href="/requests"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Requests
+              </Link>
             </nav>
           </div>
           <div className="flex items-center space-x-4">

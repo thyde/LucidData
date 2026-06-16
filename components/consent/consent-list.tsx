@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useConsentList, useRevokeConsent } from '@/lib/hooks/useConsent';
-import { Consent } from '@prisma/client';
+import { Consent } from '@/types/database.types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +24,7 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
 
   const getConsentStatus = (consent: Consent): 'active' | 'expired' | 'revoked' => {
     if (consent.revoked) return 'revoked';
-    if (consent.endDate && new Date(consent.endDate) < new Date()) return 'expired';
+    if (consent.end_date && new Date(consent.end_date) < new Date()) return 'expired';
     return 'active';
   };
 
@@ -40,7 +40,7 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
         return (
-          consent.grantedToName.toLowerCase().includes(searchLower) ||
+          (consent.granted_to_name ?? '').toLowerCase().includes(searchLower) ||
           consent.purpose.toLowerCase().includes(searchLower)
         );
       }
@@ -164,15 +164,15 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
             const status = getConsentStatus(consent);
             const isExpiringSoon =
               status === 'active' &&
-              consent.endDate &&
-              new Date(consent.endDate).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+              consent.end_date &&
+              new Date(consent.end_date).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
 
             return (
               <Card key={consent.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle>{consent.grantedToName}</CardTitle>
+                      <CardTitle>{consent.granted_to_name}</CardTitle>
                       <CardDescription className="mt-1 line-clamp-2">
                         {consent.purpose}
                       </CardDescription>
@@ -193,10 +193,10 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
                 <CardContent>
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
-                      <span className="font-medium">Access:</span> <span className="font-medium">{consent.accessLevel}</span>
-                      {consent.endDate ? (
+                      <span className="font-medium">Access:</span> <span className="font-medium">{consent.access_level}</span>
+                      {consent.end_date ? (
                         <span className={isExpiringSoon ? 'text-warning ml-2' : 'ml-2'}>
-                          · Expires: {format(new Date(consent.endDate), 'MMM d, yyyy')}
+                          · Expires: {format(new Date(consent.end_date), 'MMM d, yyyy')}
                         </span>
                       ) : (
                         <span className="ml-2">· No expiration</span>

@@ -27,7 +27,7 @@ import { formatDateTime } from '@/lib/utils/date-formatter';
 
 interface ConsentExtendDialogProps {
   consentId: string;
-  currentEndDate: Date | null;
+  currentEndDate: Date | string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useVaultEntry, useDeleteVault } from '@/lib/hooks/useVault';
+import { useEncryption } from '@/lib/context/encryption-context';
 import { useConsentList } from '@/lib/hooks/useConsent';
 import {
   Dialog,
@@ -24,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConsentCreateDialog } from '@/components/consent/consent-create-dialog';
+import { VaultDataDisplay } from './vault-data-display';
 import { Share2 } from 'lucide-react';
 
 interface VaultViewDialogProps {
@@ -65,6 +67,7 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showConsentCreate, setShowConsentCreate] = useState(false);
   const [deleteCompleted, setDeleteCompleted] = useState(false);
+  const { isLocked } = useEncryption();
   const { data: entry, isLoading, isError, error } = useVaultEntry(entryId);
   const deleteMutation = useDeleteVault();
   const { data: consents } = useConsentList({ vaultDataId: entryId, active: true });
@@ -101,8 +104,18 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
               View details for a vault entry, including metadata and sharing status.
             </DialogDescription>
           </DialogHeader>
-          {isLoading && <div className="p-4 text-center">Loading vault entry...</div>}
-          {isError && (
+          {isLocked && (
+            <div className="p-4 space-y-2">
+              <p className="text-muted-foreground font-medium">
+                Vault locked — please sign in again to view this entry.
+              </p>
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="mt-2">
+                Close
+              </Button>
+            </div>
+          )}
+          {!isLocked && isLoading && <div className="p-4 text-center">Loading vault entry...</div>}
+          {!isLocked && isError && (
             <div className="p-4 space-y-2">
               <p className="text-destructive font-medium">
                 {error instanceof Error ? error.message : 'Failed to load entry'}
@@ -119,7 +132,7 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
               </Button>
             </div>
           )}
-          {entry && !isLoading && !isError && (
+          {!isLocked && entry && !isLoading && !isError && (
             <>
 
               <div className="space-y-4">
@@ -159,41 +172,34 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   </div>
                 )}
 
-                {/* Data Type */}
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Data Type</h3>
-                  <p className="text-sm">{entry.dataType}</p>
-                </div>
-
-                {/* JSON Data */}
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Data</h3>
-                  <pre className="bg-muted p-2 rounded overflow-x-auto">
-                    {JSON.stringify(entry.data, null, 2)}
-                  </pre>
-                </div>
-
                 {/* Schema Type */}
-                {entry.schemaType && (
+                {entry.schema_type && (
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">Schema Type</h3>
-                    <p className="text-sm">{entry.schemaType}</p>
+                    <p className="text-sm">{entry.schema_type}</p>
                   </div>
                 )}
 
-                {/* Schema Version */}
+                {/* Data */}
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Schema Version</h3>
-                  <p className="text-sm">{entry.schemaVersion}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Data</h3>
+                  {entry.decryptionError ? (
+                    <p className="text-sm text-destructive">{entry.decryptionError}</p>
+                  ) : (
+                    <VaultDataDisplay
+                      schemaType={entry.schema_type}
+                      data={entry.data as Record<string, unknown> | null}
+                    />
+                  )}
                 </div>
 
                 {/* Expiration */}
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Expires At</h3>
-                  {entry.expiresAt ? (
+                  {entry.expires_at ? (
                     <div className="flex items-center gap-2">
-                      <p className="text-sm">{formatDate(entry.expiresAt)}</p>
-                      {isExpired(entry.expiresAt) && (
+                      <p className="text-sm">{formatDate(entry.expires_at)}</p>
+                      {isExpired(entry.expires_at) && (
                         <Badge variant="destructive">Expired</Badge>
                       )}
                     </div>
@@ -239,11 +245,11 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
                     <div>
                       <span className="font-medium">Created:</span>{' '}
-                      {formatDate(entry.createdAt)}
+                      {formatDate(entry.created_at)}
                     </div>
                     <div>
                       <span className="font-medium">Updated:</span>{' '}
-                      {formatDate(entry.updatedAt)}
+                      {formatDate(entry.updated_at)}
                     </div>
                   </div>
                 </div>

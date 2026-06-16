@@ -1,4 +1,5 @@
-import { createBrowserClient } from '@supabase/ssr';
+import { createBrowserClient } from '@supabase/ssr'
+import { Database } from '@/types/database.types'
 
 /**
  * Creates a Supabase client for browser use
@@ -9,8 +10,8 @@ import { createBrowserClient } from '@supabase/ssr';
  * your network IP (e.g., http://192.168.8.159:54321) instead of localhost.
  */
 export function createClient() {
-  return createBrowserClient(
+  return createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  )
 }

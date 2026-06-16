@@ -45,14 +45,14 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
 
   const status = consent.revoked
     ? 'revoked'
-    : consent.endDate && new Date(consent.endDate) < new Date()
+    : consent.end_date && new Date(consent.end_date) < new Date()
     ? 'expired'
     : 'active';
 
   const isExpiringSoon =
     status === 'active' &&
-    consent.endDate &&
-    new Date(consent.endDate).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+    consent.end_date &&
+    new Date(consent.end_date).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
 
   return (
     <>
@@ -61,9 +61,9 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
           <DialogHeader>
             <div className="flex justify-between items-start">
               <div>
-                <DialogTitle className="text-2xl">{consent.grantedToName}</DialogTitle>
+                <DialogTitle className="text-2xl">{consent.granted_to_name}</DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground mt-1">
-                  {consent.grantedTo}
+                  {consent.granted_to}
                 </DialogDescription>
               </div>
               <Badge
@@ -91,7 +91,7 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Access Level:</span>
-                  <span className="font-medium capitalize">{consent.accessLevel}</span>
+                  <span className="font-medium capitalize">{consent.access_level}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Purpose:</span>
@@ -109,13 +109,13 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Granted on:</span>
-                  <span>{formatDateTime(consent.createdAt)}</span>
+                  <span>{formatDateTime(consent.created_at)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Starts:</span>
-                  <span>{formatDate(consent.startDate)}</span>
+                  <span>{formatDate(consent.start_date)}</span>
                 </div>
-                {consent.endDate ? (
+                {consent.end_date ? (
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Expires:</span>
                     <div className="flex items-center gap-2">
@@ -123,7 +123,7 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
                         <AlertTriangle className="h-4 w-4 text-warning" />
                       )}
                       <span className={isExpiringSoon ? 'text-warning font-medium' : ''}>
-                        {formatDate(consent.endDate)}
+                        {formatDate(consent.end_date)}
                         {isExpiringSoon && ' (Soon)'}
                       </span>
                     </div>
@@ -134,16 +134,16 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
                     <span>No expiration</span>
                   </div>
                 )}
-                {consent.revoked && consent.revokedAt && (
+                {consent.revoked && consent.revoked_at && (
                   <>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Revoked on:</span>
-                      <span>{formatDateTime(consent.revokedAt)}</span>
+                      <span>{formatDateTime(consent.revoked_at)}</span>
                     </div>
-                    {consent.revokedReason && (
+                    {consent.revoked_reason && (
                       <div>
                         <span className="text-muted-foreground">Reason:</span>
-                        <p className="mt-1">{consent.revokedReason}</p>
+                        <p className="mt-1">{consent.revoked_reason}</p>
                       </div>
                     )}
                   </>
@@ -158,28 +158,28 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
                 Legal & Compliance
               </h3>
               <div className="space-y-2 text-sm">
-                {consent.ipAddress && (
+                {consent.ip_address && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">IP Address:</span>
-                    <span className="font-mono">{consent.ipAddress}</span>
+                    <span className="font-mono">{consent.ip_address}</span>
                   </div>
                 )}
-                {consent.userAgent && (
+                {consent.user_agent && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">User Agent:</span>
                     <span className="font-mono text-xs truncate max-w-xs">
-                      {consent.userAgent}
+                      {consent.user_agent}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Terms Version:</span>
-                  <span>{consent.termsVersion}</span>
+                  <span>{consent.terms_version}</span>
                 </div>
-                {consent.grantedToEmail && (
+                {consent.granted_to_email && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Contact:</span>
-                    <span>{consent.grantedToEmail}</span>
+                    <span>{consent.granted_to_email}</span>
                   </div>
                 )}
               </div>
@@ -217,7 +217,7 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
       {showRevoke && (
         <ConsentRevokeDialog
           consentId={consentId}
-          consentName={consent.grantedToName}
+          consentName={consent.granted_to_name ?? consent.granted_to}
           open={showRevoke}
           onOpenChange={(open) => {
             setShowRevoke(open);
@@ -229,7 +229,7 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
       {showExtend && (
         <ConsentExtendDialog
           consentId={consentId}
-          currentEndDate={consent.endDate}
+          currentEndDate={consent.end_date}
           open={showExtend}
           onOpenChange={(open) => {
             setShowExtend(open);

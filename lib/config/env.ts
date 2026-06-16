@@ -13,9 +13,6 @@ interface EnvConfig {
   // Database
   databaseUrl: string;
 
-  // Encryption
-  encryptionKey: string;
-
   // Application
   appUrl: string;
   nodeEnv: string;
@@ -57,24 +54,6 @@ class EnvironmentValidator {
       errors.push('DATABASE_URL is not set');
     }
 
-    // Encryption configuration
-    const encryptionKey = process.env.ENCRYPTION_KEY;
-    if (!encryptionKey) {
-      errors.push('ENCRYPTION_KEY is not set');
-    } else {
-      // Validate encryption key format
-      try {
-        const keyBuffer = Buffer.from(encryptionKey, 'base64');
-        if (keyBuffer.length !== 32) {
-          errors.push(
-            `ENCRYPTION_KEY must be 32 bytes (256 bits), got ${keyBuffer.length} bytes`
-          );
-        }
-      } catch {
-        errors.push('ENCRYPTION_KEY is not valid base64');
-      }
-    }
-
     // Application configuration
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!appUrl) {
@@ -95,7 +74,6 @@ class EnvironmentValidator {
       supabaseAnonKey: supabaseAnonKey!,
       supabaseServiceRoleKey: supabaseServiceRoleKey!,
       databaseUrl: databaseUrl!,
-      encryptionKey: encryptionKey!,
       appUrl: appUrl!,
       nodeEnv,
     };

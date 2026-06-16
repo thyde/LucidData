@@ -1,118 +1,71 @@
-/**
- * Consent Repository - Data access layer for consent operations
- */
+import { createClient } from '@/lib/supabase/server'
+import type { Consent, InsertConsent, UpdateConsent } from '@/types/database.types'
 
-import { prisma } from '@/lib/db/prisma';
-import { Consent } from '@prisma/client';
-import { BaseRepository } from './base.repository';
-
-export class ConsentRepository extends BaseRepository<Consent> {
-  protected model = prisma.consent;
-  /**
-   * Find all consents for a user
-   */
-  async findByUserId(userId: string): Promise<Consent[]> {
-    return prisma.consent.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-
-  /**
-   * Find active consents for a user
-   */
-  async findActive(userId: string): Promise<Consent[]> {
-    const now = new Date();
-    return prisma.consent.findMany({
-      where: {
-        userId,
-        revoked: false,
-        OR: [{ endDate: null }, { endDate: { gt: now } }],
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  /**
-   * Find consents for a specific vault entry
-   */
-  async findByVaultDataId(vaultDataId: string): Promise<Consent[]> {
-    return prisma.consent.findMany({
-      where: { vaultDataId },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  // Note: create() and update() are inherited from BaseRepository
-
-  /**
-   * Revoke a consent
-   */
-  async revoke(
-    id: string,
-    reason: string
-  ): Promise<Consent> {
-    return prisma.consent.update({
-      where: { id },
-      data: {
-        revoked: true,
-        revokedAt: new Date(),
-        revokedReason: reason,
-      },
-    });
-  }
-
-  // Note: belongsToUser() is inherited from BaseRepository
-
-  /**
-   * Count active consents for a user
-   */
-  async countActive(userId: string): Promise<number> {
-    const now = new Date();
-    return prisma.consent.count({
-      where: {
-        userId,
-        revoked: false,
-        OR: [{ endDate: null }, { endDate: { gt: now } }],
-      },
-    });
-  }
-
-  /**
-   * Find expired consents
-   */
-  async findExpired(): Promise<Consent[]> {
-    const now = new Date();
-    return prisma.consent.findMany({
-      where: {
-        revoked: false,
-        endDate: {
-          lte: now,
-        },
-      },
-    });
-  }
-
-  /**
-   * Verify if a third party has active consent for vault data
-   */
-  async hasActiveConsent(
-    vaultDataId: string,
-    grantedTo: string
-  ): Promise<boolean> {
-    const now = new Date();
-    const consent = await prisma.consent.findFirst({
-      where: {
-        vaultDataId,
-        grantedTo,
-        revoked: false,
-        OR: [{ endDate: null }, { endDate: { gt: now } }],
-      },
-    });
-    return consent !== null;
-  }
+export async function findConsentsByUserId(userId: string): Promise<Consent[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('consents')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
 }
 
-// Export singleton instance
-export const consentRepository = new ConsentRepository();
+export async function findConsentById(id: string, userId: string): Promise<Consent | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('consents')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single()
+  if (error && error.code !== 'PGRST116') throw error
+  return data
+}
+
+export async function findActiveConsents(userId: string): Promise<Consent[]> {
+  const supabase = await createClient()
+  const now = new Date().toISOString()
+  const { data, error } = await supabase
+    .from('consents')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('revoked', false)
+    .or(`end_date.is.null,end_date.gt.${now}`)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function createConsent(consent: InsertConsent): Promise<Consent> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('consents')
+    .insert(consent)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateConsent(id: string, userId: string, updates: UpdateConsent): Promise<Consent> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('consents')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function revokeConsent(id: string, userId: string, reason: string): Promise<Consent> {
+  return updateConsent(id, userId, {
+    revoked: true,
+    revoked_at: new Date().toISOString(),
+    revoked_reason: reason,
+  })
+}

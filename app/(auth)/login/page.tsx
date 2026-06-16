@@ -5,18 +5,24 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getAuthErrorMessage } from '@/lib/utils/network-errors';
+import { useEncryption } from '@/lib/context/encryption-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { PasskeyLoginButton } from '@/components/auth/passkey-login-button';
+import { VaultUnlockDialog } from '@/components/auth/vault-unlock-dialog';
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { unlock } = useEncryption();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [passkeyKeySalt, setPasskeyKeySalt] = useState<string | null>(null);
+  const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
@@ -54,6 +60,19 @@ export default function LoginPage() {
       if (error) {
         setErrors({ general: getAuthErrorMessage(error) });
         return;
+      }
+
+      // Derive master key from password immediately after login
+      try {
+        const profileRes = await fetch('/api/user/profile');
+        if (profileRes.ok) {
+          const { data: profile } = await profileRes.json() as { data: { key_salt: string | null } };
+          if (profile?.key_salt) {
+            await unlock(password, profile.key_salt);
+          }
+        }
+      } catch {
+        // Non-fatal: user can still navigate, but vault will be locked
       }
 
       const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
@@ -130,6 +149,13 @@ export default function LoginPage() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign in'}
           </Button>
+          <PasskeyLoginButton
+            email={email}
+            onNeedEncryptionPassword={(keySalt) => {
+              setPasskeyKeySalt(keySalt);
+              setShowUnlockDialog(true);
+            }}
+          />
           <p className="text-sm text-center text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Link href="/signup" className="text-primary hover:underline">
@@ -138,6 +164,13 @@ export default function LoginPage() {
           </p>
         </CardFooter>
       </form>
+      {passkeyKeySalt && (
+        <VaultUnlockDialog
+          open={showUnlockDialog}
+          keySalt={passkeyKeySalt}
+          onClose={() => setShowUnlockDialog(false)}
+        />
+      )}
     </Card>
   );
 }

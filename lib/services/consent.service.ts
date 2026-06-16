@@ -1,151 +1,58 @@
-/**
- * Consent Service - Business logic for consent management
- * Handles consent creation, revocation, and verification
- */
+import * as consentRepo from '@/lib/repositories/consent.repository'
+import { createAuditEntry } from '@/lib/services/audit.service'
+import type { Consent, InsertConsent } from '@/types/database.types'
 
-import { consentRepository } from '@/lib/repositories/consent.repository';
-import { vaultRepository } from '@/lib/repositories/vault.repository';
-import { CreateConsentPayload, RevokeConsentPayload } from '@/types';
-import { Consent } from '@prisma/client';
-
-export class ConsentService {
-  /**
-   * Get all consents for a user
-   */
-  async getUserConsents(userId: string): Promise<Consent[]> {
-    return consentRepository.findByUserId(userId);
-  }
-
-  /**
-   * Get active consents for a user
-   */
-  async getActiveConsents(userId: string): Promise<Consent[]> {
-    return consentRepository.findActive(userId);
-  }
-
-  /**
-   * Get a single consent by ID
-   */
-  async getConsentById(id: string, userId: string): Promise<Consent | null> {
-    const consent = await consentRepository.findById(id);
-
-    if (!consent) {
-      return null;
-    }
-
-    // Verify ownership
-    if (consent.userId !== userId) {
-      throw new Error('Unauthorized access to consent');
-    }
-
-    return consent;
-  }
-
-  /**
-   * Create a new consent
-   */
-  async createConsent(
-    userId: string,
-    payload: CreateConsentPayload,
-    requestInfo?: {
-      ipAddress?: string;
-      userAgent?: string;
-    }
-  ): Promise<Consent> {
-    // Verify vault data ownership if provided
-    if (payload.vaultDataId) {
-      const belongsToUser = await vaultRepository.belongsToUser(
-        payload.vaultDataId,
-        userId
-      );
-      if (!belongsToUser) {
-        throw new Error('Invalid vault data reference');
-      }
-    }
-
-    return consentRepository.create({
-      userId,
-      vaultDataId: payload.vaultDataId,
-      grantedTo: payload.grantedTo,
-      grantedToName: payload.grantedToName,
-      grantedToEmail: payload.grantedToEmail,
-      accessLevel: payload.accessLevel,
-      purpose: payload.purpose,
-      endDate: payload.endDate,
-      consentType: payload.consentType || 'explicit',
-      termsVersion: payload.termsVersion || '1.0',
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: requestInfo?.userAgent,
-    });
-  }
-
-  /**
-   * Revoke a consent
-   */
-  async revokeConsent(
-    id: string,
-    userId: string,
-    payload: RevokeConsentPayload
-  ): Promise<Consent> {
-    // Verify ownership
-    const belongsToUser = await consentRepository.belongsToUser(id, userId);
-    if (!belongsToUser) {
-      throw new Error('Unauthorized access to consent');
-    }
-
-    return consentRepository.revoke(id, payload.revokedReason);
-  }
-
-  /**
-   * Verify if a third party has active consent
-   */
-  async verifyConsent(
-    vaultDataId: string,
-    grantedTo: string
-  ): Promise<boolean> {
-    return consentRepository.hasActiveConsent(vaultDataId, grantedTo);
-  }
-
-  /**
-   * Get consent statistics for a user
-   */
-  async getUserStats(userId: string): Promise<{
-    totalConsents: number;
-    activeConsents: number;
-    revokedConsents: number;
-    expiredConsents: number;
-  }> {
-    const allConsents = await consentRepository.findByUserId(userId);
-    const activeCount = await consentRepository.countActive(userId);
-
-    const now = new Date();
-    const revokedCount = allConsents.filter((c) => c.revoked).length;
-    const expiredCount = allConsents.filter(
-      (c) => !c.revoked && c.endDate && c.endDate <= now
-    ).length;
-
-    return {
-      totalConsents: allConsents.length,
-      activeConsents: activeCount,
-      revokedConsents: revokedCount,
-      expiredConsents: expiredCount,
-    };
-  }
-
-  /**
-   * Auto-expire consents (to be called by cron job)
-   */
-  async processExpiredConsents(): Promise<number> {
-    const expired = await consentRepository.findExpired();
-
-    // In a real implementation, we might want to:
-    // 1. Notify users of expired consents
-    // 2. Trigger audit log entries
-    // 3. Clean up related data
-
-    return expired.length;
-  }
+export interface CreateConsentPayload {
+  vault_data_id?: string
+  granted_to: string
+  granted_to_name?: string
+  granted_to_email?: string
+  access_level: 'read' | 'export' | 'verify'
+  purpose: string
+  end_date?: string
+  consent_type?: 'explicit' | 'implied'
+  ip_address?: string
+  user_agent?: string
+  terms_version?: string
 }
 
-// Export singleton instance
-export const consentService = new ConsentService();
+export async function createConsent(userId: string, payload: CreateConsentPayload): Promise<Consent> {
+  const consent = await consentRepo.createConsent({ user_id: userId, ...payload } as InsertConsent)
+  await createAuditEntry({
+    userId,
+    eventType: 'consent_granted',
+    action: `Granted ${payload.access_level} access to ${payload.granted_to_name ?? payload.granted_to}`,
+    consentId: consent.id,
+    vaultDataId: payload.vault_data_id,
+  })
+  return consent
+}
+
+export async function getUserConsents(userId: string): Promise<Consent[]> {
+  return consentRepo.findConsentsByUserId(userId)
+}
+
+export async function getConsentById(id: string, userId: string): Promise<Consent | null> {
+  return consentRepo.findConsentById(id, userId)
+}
+
+export async function revokeConsent(id: string, userId: string, reason: string): Promise<Consent> {
+  const consent = await consentRepo.revokeConsent(id, userId, reason)
+  await createAuditEntry({
+    userId,
+    eventType: 'consent_revoked',
+    action: `Revoked consent for ${consent.granted_to_name ?? consent.granted_to}: ${reason}`,
+    consentId: id,
+  })
+  return consent
+}
+
+export async function extendConsent(id: string, userId: string, newEndDate: string): Promise<Consent> {
+  return consentRepo.updateConsent(id, userId, { end_date: newEndDate })
+}
+
+export function getConsentStatus(consent: Consent): 'active' | 'revoked' | 'expired' {
+  if (consent.revoked) return 'revoked'
+  if (consent.end_date && new Date(consent.end_date) < new Date()) return 'expired'
+  return 'active'
+}

@@ -51,7 +51,7 @@ export function VaultList({ onEntryClick }: VaultListProps) {
     if (sortBy === 'date') {
       result = [...result].sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
     } else if (sortBy === 'label') {
       result = [...result].sort((a, b) => a.label.localeCompare(b.label));
@@ -191,9 +191,9 @@ export function VaultList({ onEntryClick }: VaultListProps) {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Created: {formatDate(entry.createdAt)}
+                  Created: {formatDate(entry.created_at)}
                 </p>
-                {isExpired(entry.expiresAt) && (
+                {isExpired(entry.expires_at) && (
                   <Badge variant="destructive" className="mt-2">
                     Expired
                   </Badge>

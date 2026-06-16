@@ -1,40 +1,41 @@
-import { Consent } from '@prisma/client';
+import { Consent } from '@/types/database.types';
 
 /**
  * Mock consent entry for testing (active consent)
  */
 export const mockConsent: Consent = {
   id: 'consent-123',
-  userId: 'user-123',
-  vaultDataId: 'vault-123',
-  grantedTo: 'org-12345',
-  grantedToName: 'Acme Healthcare',
-  grantedToEmail: 'contact@acme.com',
-  accessLevel: 'read',
+  user_id: 'user-123',
+  vault_data_id: 'vault-123',
+  granted_to: 'org-12345',
+  granted_to_name: 'Acme Healthcare',
+  granted_to_email: 'contact@acme.com',
+  access_level: 'read',
   purpose: 'For medical records verification and compliance purposes',
-  startDate: new Date('2026-01-01T00:00:00.000Z'),
-  endDate: new Date('2026-12-31T23:59:59.000Z'),
+  start_date: '2026-01-01T00:00:00.000Z',
+  end_date: '2026-12-31T23:59:59.000Z',
   revoked: false,
-  revokedAt: null,
-  revokedReason: null,
-  ipAddress: '192.168.1.1',
-  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  termsVersion: '1.0',
-  createdAt: new Date('2026-01-01T00:00:00.000Z'),
-  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  revoked_at: null,
+  revoked_reason: null,
+  consent_type: 'explicit',
+  ip_address: '192.168.1.1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  terms_version: '1.0',
+  created_at: '2026-01-01T00:00:00.000Z',
+  updated_at: '2026-01-01T00:00:00.000Z',
 };
 
 /**
- * Mock consent with expired endDate
+ * Mock consent with expired end_date
  */
 export const mockExpiredConsent: Consent = {
   ...mockConsent,
   id: 'consent-expired',
-  grantedToName: 'Old Data Corp',
-  grantedTo: 'org-expired',
-  endDate: new Date('2023-12-31T23:59:59.000Z'), // Already expired
-  createdAt: new Date('2023-01-01T00:00:00.000Z'),
-  updatedAt: new Date('2023-01-01T00:00:00.000Z'),
+  granted_to_name: 'Old Data Corp',
+  granted_to: 'org-expired',
+  end_date: '2023-12-31T23:59:59.000Z',
+  created_at: '2023-01-01T00:00:00.000Z',
+  updated_at: '2023-01-01T00:00:00.000Z',
 };
 
 /**
@@ -43,13 +44,13 @@ export const mockExpiredConsent: Consent = {
 export const mockRevokedConsent: Consent = {
   ...mockConsent,
   id: 'consent-revoked',
-  grantedToName: 'Cancelled Services Inc',
-  grantedTo: 'org-revoked',
+  granted_to_name: 'Cancelled Services Inc',
+  granted_to: 'org-revoked',
   revoked: true,
-  revokedAt: new Date('2026-06-15T10:30:00.000Z'),
-  revokedReason: 'Service no longer needed',
-  createdAt: new Date('2026-01-01T00:00:00.000Z'),
-  updatedAt: new Date('2026-06-15T10:30:00.000Z'),
+  revoked_at: '2026-06-15T10:30:00.000Z',
+  revoked_reason: 'Service no longer needed',
+  created_at: '2026-01-01T00:00:00.000Z',
+  updated_at: '2026-06-15T10:30:00.000Z',
 };
 
 /**
@@ -58,11 +59,11 @@ export const mockRevokedConsent: Consent = {
 export const mockIndefiniteConsent: Consent = {
   ...mockConsent,
   id: 'consent-indefinite',
-  grantedToName: 'Indefinite Systems',
-  grantedTo: 'org-indefinite',
-  endDate: null,
-  createdAt: new Date('2026-02-01T00:00:00.000Z'),
-  updatedAt: new Date('2026-02-01T00:00:00.000Z'),
+  granted_to_name: 'Indefinite Systems',
+  granted_to: 'org-indefinite',
+  end_date: null,
+  created_at: '2026-02-01T00:00:00.000Z',
+  updated_at: '2026-02-01T00:00:00.000Z',
 };
 
 /**
@@ -71,12 +72,12 @@ export const mockIndefiniteConsent: Consent = {
 export const mockGeneralConsent: Consent = {
   ...mockConsent,
   id: 'consent-general',
-  vaultDataId: null,
-  grantedToName: 'General Access Co',
-  grantedTo: 'org-general',
+  vault_data_id: null,
+  granted_to_name: 'General Access Co',
+  granted_to: 'org-general',
   purpose: 'General data access for analytics and reporting purposes',
-  createdAt: new Date('2026-03-01T00:00:00.000Z'),
-  updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+  created_at: '2026-03-01T00:00:00.000Z',
+  updated_at: '2026-03-01T00:00:00.000Z',
 };
 
 /**
@@ -103,7 +104,6 @@ export function createMockConsent(
 
 /**
  * Create a consent that expires soon (within specified days)
- * Useful for testing expiration warnings
  */
 export function createExpiringSoonConsent(daysUntilExpiry: number = 5): Consent {
   const expiryDate = new Date();
@@ -111,9 +111,9 @@ export function createExpiringSoonConsent(daysUntilExpiry: number = 5): Consent 
 
   return createMockConsent({
     id: `consent-expiring-${daysUntilExpiry}`,
-    grantedToName: 'Expiring Soon Corp',
-    grantedTo: 'org-expiring',
-    endDate: expiryDate,
+    granted_to_name: 'Expiring Soon Corp',
+    granted_to: 'org-expiring',
+    end_date: expiryDate.toISOString(),
     revoked: false,
   });
 }
@@ -123,13 +123,13 @@ export function createExpiringSoonConsent(daysUntilExpiry: number = 5): Consent 
  */
 export function createActiveConsent(overrides: Partial<Consent> = {}): Consent {
   const futureDate = new Date();
-  futureDate.setMonth(futureDate.getMonth() + 6); // 6 months in future
+  futureDate.setMonth(futureDate.getMonth() + 6);
 
   return createMockConsent({
-    endDate: futureDate,
+    end_date: futureDate.toISOString(),
     revoked: false,
-    revokedAt: null,
-    revokedReason: null,
+    revoked_at: null,
+    revoked_reason: null,
     ...overrides,
   });
 }
@@ -144,11 +144,11 @@ export function createMockConsentList(
   return Array.from({ length: count }, (_, i) => ({
     ...mockConsent,
     id: `consent-${i + 1}`,
-    userId,
-    grantedToName: `Organization ${i + 1}`,
-    grantedTo: `org-${i + 1}`,
+    user_id: userId,
+    granted_to_name: `Organization ${i + 1}`,
+    granted_to: `org-${i + 1}`,
     purpose: `Purpose for organization ${i + 1} access`,
-    createdAt: new Date(`2026-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`),
-    updatedAt: new Date(`2026-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`),
+    created_at: `2026-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`,
+    updated_at: `2026-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`,
   }));
 }

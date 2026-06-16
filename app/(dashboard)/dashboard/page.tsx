@@ -2,7 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/server';
-import { prisma } from '@/lib/db/prisma';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -15,17 +14,14 @@ export default async function DashboardPage() {
 
   if (user) {
     try {
-      vaultCount = await prisma.vaultData.count({
-        where: { userId: user.id },
-      });
-
-      consentCount = await prisma.consent.count({
-        where: { userId: user.id, revoked: false },
-      });
-
-      auditCount = await prisma.auditLog.count({
-        where: { userId: user.id },
-      });
+      const [vaultResult, consentResult, auditResult] = await Promise.all([
+        supabase.from('vault_data').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('consents').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('revoked', false),
+        supabase.from('audit_logs').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+      ]);
+      vaultCount = vaultResult.count ?? 0;
+      consentCount = consentResult.count ?? 0;
+      auditCount = auditResult.count ?? 0;
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     }

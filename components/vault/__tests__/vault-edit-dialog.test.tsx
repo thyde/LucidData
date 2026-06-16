@@ -21,18 +21,16 @@ import { useToast } from '@/lib/hooks/use-toast';
 
 const mockEntry = {
   id: 'vault-123',
-  userId: 'user-123',
+  user_id: 'user-123',
   label: 'Medical Records',
   description: 'My health information',
-  category: 'health' as const,
-  dataType: 'json' as const,
+  category: 'health',
   data: { bloodType: 'A+', allergies: ['peanuts'] },
   tags: ['medical', 'important'],
-  schemaType: 'MedicalRecord',
-  schemaVersion: '1.0',
-  expiresAt: null,
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-01'),
+  schema_type: 'MedicalRecord',
+  expires_at: null,
+  created_at: '2024-01-01T00:00:00.000Z',
+  updated_at: '2024-01-01T00:00:00.000Z',
 };
 
 describe('VaultEditDialog', () => {

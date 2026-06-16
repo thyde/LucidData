@@ -88,14 +88,13 @@ export function ConsentCreateDialog({
 
   const onSubmit = (values: FormValues) => {
     const payload = {
-      vaultDataId: values.vaultDataId || undefined,
-      grantedTo: values.grantedTo,
-      grantedToName: values.grantedToName,
-      grantedToEmail: values.grantedToEmail || undefined,
-      accessLevel: values.accessLevel,
+      vault_data_id: values.vaultDataId || undefined,
+      granted_to: values.grantedTo,
+      granted_to_name: values.grantedToName,
+      granted_to_email: values.grantedToEmail || undefined,
+      access_level: values.accessLevel,
       purpose: values.purpose,
-      endDate: values.endDate ? new Date(values.endDate) : undefined,
-      termsVersion: values.termsVersion,
+      end_date: values.endDate ? new Date(values.endDate).toISOString() : undefined,
     };
 
     mutate(payload, {
