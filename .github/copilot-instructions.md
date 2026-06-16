@@ -2,43 +2,39 @@
 
 ## Project Overview
 
-**LucidData** is a privacy-first personal data bank MVP that empowers users to own, control, and share their data on their terms. Built with Next.js 15, Prisma, and Supabase Auth, it emphasizes user data sovereignty, transparency through immutable audit trails, and data portability through open standards.
+**LucidData** is a privacy-first personal data bank MVP that lets users own, control, and share their data on their terms. It is built with Next.js 15 (App Router, React 19), Supabase (Postgres, Auth, Realtime), and client-side encryption using the Web Crypto API. The app emphasizes user data sovereignty, an immutable audit trail, and data portability through open formats.
 
 **Core Philosophy:**
 - Treat user data as property, not product
 - Transparency through comprehensive audit logging
 - Granular consent management with time-bound permissions
-- End-to-end encryption with user-controlled keys (future)
-- Data portability via open standards (JSON-LD, VerifiableCredential, FHIR)
+- End-to-end encryption with user-controlled keys (keys are derived in the browser; the server never sees plaintext or keys)
+- Data portability via open formats (JSON-LD, verifiable credentials)
 
-**Current State:** MVP with infrastructure and security utilities production-ready. API routes currently use mock data; ready for database integration.
+**Current State:** Active MVP. Vault, consent, consent requests, audit log, verifiable credentials, and passkey sign-in are implemented end to end through server actions backed by Supabase. There is no Prisma layer and no server-held master key.
 
 ---
 
 ## 📚 Documentation Map
 
-### Critical Patterns (Always Reference Before Implementing)
-- **[Security Patterns](.github/copilot/critical/security-patterns.md)** - Encryption, authentication, audit logging (Phase 2)
-- **[API Route Patterns](.github/copilot/critical/api-patterns.md)** - Standard structure, validation, error handling (Phase 2)
-- **[Database Schema](.github/copilot/critical/database-schema.md)** - Prisma models, relationships (Phase 2)
+This file is self-contained: the patterns below live in its own sections. The older `.github/copilot/` sub-docs were removed because they described the retired Prisma and server-side-encryption design.
 
-### Common Patterns (Frequently Referenced)
-- **[Component Patterns](.github/copilot/common/component-patterns.md)** - Server/Client components, shadcn/ui, layouts (Phase 3)
-- **[Code Examples](.github/copilot/common/code-examples.md)** - Complete CRUD flows for vault, consent (Phase 3)
-- **[Validation Patterns](.github/copilot/common/validation-patterns.md)** - Zod schemas and usage (Phase 3)
+### In this document
+- **[Core Security Patterns](#core-security-patterns)** - Client-side encryption, audit hash chains, Supabase auth
+- **[Server Action & Data-Access Patterns](#server-action--data-access-patterns)** - The action, service, and repository layering
+- **[Database Schema](#database-schema)** - Tables and where the schema is defined
+- **[Component Structure & Patterns](#component-structure--patterns)** - Server vs Client components, shadcn/ui, layouts
+- **[Coding Conventions](#coding-conventions)** - Naming, imports, file organization
 
-### Reference Documentation (Occasionally Referenced)
-- **[Coding Conventions](.github/copilot/reference/coding-conventions.md)** - Naming, imports, file organization (Phase 3)
-- **[Tech Stack Reference](.github/copilot/reference/tech-stack.md)** - Libraries, versions, configuration (Phase 3)
-- **[Development Workflow](QUICKSTART.md)** - Daily commands, troubleshooting
-- **[Initial Setup](SETUP.md)** - One-time configuration, service URLs, architecture
-- **[Project Overview](README.md)** - Vision, roadmap, high-level architecture
+### Project docs
+- **[README.md](README.md)** - Vision, roadmap, high-level architecture
+- **[SETUP.md](SETUP.md)** - One-time configuration, service URLs, architecture
+- **[QUICKSTART.md](QUICKSTART.md)** - Daily commands and troubleshooting
 
 **How to use this map:**
-1. Check Core Security Patterns (below) for critical rules that apply to ALL features
-2. Read relevant pattern file from Critical Patterns before implementing features
-3. Use Common Patterns for templates and examples
-4. Reference other docs as needed for setup, commands, or conventions
+1. Check Core Security Patterns for rules that apply to ALL features.
+2. Read the relevant in-document section before implementing a feature.
+3. Reference README, SETUP, and QUICKSTART for setup, commands, and conventions.
 
 ---
 
@@ -46,11 +42,11 @@
 
 **These rules apply to ALL features. Failure to follow results in security vulnerabilities.**
 
-### Encryption (AES-256-GCM)
-- **Always encrypt** vault data before storing using `lib/crypto/encryption.ts`
-- **Never log** decrypted data in errors, logs, or responses
-- **Use `getMasterKey()`** only - never access `process.env.ENCRYPTION_KEY` directly
-- **Store IV format:** `"hexIv:hexAuthTag"` in the `iv` field (colon-separated hex strings)
+### Encryption (client-side, Web Crypto API)
+- **Encrypt vault data in the browser** before it reaches the server. Use `lib/crypto/client-crypto.ts` for AES-GCM and `lib/crypto/key-derivation.ts` for the PBKDF2 master key.
+- **Use envelope encryption:** encrypt data with a per-entry DEK, wrap the DEK with the user's master key, and send only `client_ciphertext`, `encrypted_dek`, and `dek_salt`.
+- **Never send plaintext, the master key, or the password to the server.** There is no server-side `ENCRYPTION_KEY` or `getMasterKey()`.
+- **Server-held keys exist only for issuer signing:** issuer Ed25519 private keys are AES-256-GCM-wrapped with `ISSUER_KEY_SECRET` (see `lib/crypto/credential-signing.ts`).
 
 ### Audit Logging (Hash Chains)
 - **Create audit log** for ALL vault/consent operations (create, read, update, delete, grant, revoke)
@@ -59,12 +55,22 @@
 - **Never modify** existing audit log entries (immutable by design)
 
 ### Authentication (Supabase)
-- **Always validate** user with `lib/supabase/server.ts` in API routes
-- **Always check** `user` exists before proceeding (never assume authentication)
-- **Filter all queries** by `userId` - never trust client-provided IDs
-- **Use correct Supabase client:** server for API routes, client for Client Components
+- **Resolve the user from the session** with `lib/supabase/server.ts` inside every server action and route handler; never accept a user id from the client.
+- **Always check** `user` exists before proceeding (never assume authentication).
+- **Filter all queries** by the authenticated `userId` in the repository layer.
+- **Use the correct Supabase client:** `server.ts` in server code, `client.ts` in Client Components.
 
-**For detailed code examples, see:** [Security Patterns documentation](.github/copilot/critical/security-patterns.md) (Phase 2)
+**Detailed code examples** live below under Common Patterns & Examples.
+
+---
+
+## User-Facing Copy
+
+Use the **humanizer** skill ([.github/skills/humanizer/SKILL.md](.github/skills/humanizer/SKILL.md)) to validate and update any user-readable text before committing it. This covers README and docs, UI labels, button text, empty states, error and toast messages, onboarding copy, and email or notification text.
+
+- Run it on new or edited copy to strip AI-writing tells: em dashes, emoji in headings, Title Case headings, promotional and rule-of-three phrasing, and filler.
+- Keep the neutral, plain voice that fits product and reference text; do not add personality or first person to UI strings.
+- When copy describes a feature, confirm it matches the current implementation (Supabase plus client-side encryption), not the old Prisma or server-encryption model.
 
 ---
 
@@ -77,163 +83,62 @@
 - **TypeScript 5** with strict mode enabled
 - **Tailwind CSS 3.4.1** for styling
 
-### Database & ORM
-- **PostgreSQL** via Supabase
-- **Prisma 6.19.1** (downgraded from 7.x for stability) - Use `npx dotenv -e .env.local -- npx prisma <command>`
+### Database
+- **Postgres via Supabase.** Schema is managed with SQL migrations in `supabase/migrations/`; there is no ORM.
+- **Local stack:** `npx supabase start` (applies migrations). Types: `npx supabase gen types` into `types/database.types.ts`.
+- **Data access** goes through `lib/repositories/` and `lib/services/`, never raw SQL in components.
 
 ### Authentication
-- **Supabase Auth** (`@supabase/supabase-js ^2.89.0`, `@supabase/ssr ^0.8.0`)
-- Server-side session management with cookies
-- Use `@/lib/supabase/server` (await `createClient()`) in API routes and Server Components
-- Use `@/lib/supabase/client` in Client Components
+- **Supabase Auth** (`@supabase/supabase-js`, `@supabase/ssr`) with cookie-based sessions.
+- **Passkeys** via `@simplewebauthn/browser` and `@simplewebauthn/server` (WebAuthn).
+- Use `@/lib/supabase/server` (await `createClient()`) in server actions, route handlers, and Server Components.
+- Use `@/lib/supabase/client` in Client Components.
 
 ### UI & Components
 - **shadcn/ui** with Radix UI primitives, **Lucide React 0.562.0** icons
 - Use `cn()` utility for className merging (`clsx` + `tailwind-merge`)
 
 ### Forms & Validation
-- **React Hook Form 7.70.0** with **Zod 4.3.5** - All inputs MUST be validated
-- Use `.parse()` in API routes (throws), `.safeParse()` in forms (returns result)
+- **React Hook Form** with **Zod** (schemas in `lib/validations/`). All inputs MUST be validated.
+- Use `.parse()` in server actions and services (throws), `.safeParse()` in forms (returns a result).
+
+### Data Fetching
+- **TanStack Query** for client-side fetching and cache invalidation; hooks live in `lib/hooks/` (`useVault`, `useConsent`, `useAudit`).
 
 ### Security
-- Node.js native `crypto` with custom **AES-256-GCM** encryption, **SHA-256** hashing
-- Utilities: `lib/crypto/encryption.ts`, `lib/crypto/hashing.ts`
+- **Client-side:** Web Crypto API for PBKDF2 key derivation and AES-GCM vault encryption (`lib/crypto/key-derivation.ts`, `lib/crypto/client-crypto.ts`).
+- **Server-side:** Node `crypto` for SHA-256 audit hash chains (`lib/crypto/hashing.ts`) and AES-256-GCM wrapping of issuer keys plus Ed25519 credential signing (`lib/crypto/credential-signing.ts`, `lib/crypto/credential-verify.ts`).
 
 ---
 
 ## Database Schema
 
-### User (`users`)
-```prisma
-model User {
-  id                String   @id @default(uuid())
-  email             String   @unique
-  encryptionKeyHash String?  // For future user-controlled encryption
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  vaultData    VaultData[]
-  consents     Consent[]
-  auditLogs    AuditLog[]
-  exportRequests ExportRequest[]
-}
-```
-**Note:** Synced with Supabase Auth users
+The schema lives in SQL migrations under `supabase/migrations/`, and the generated TypeScript types in `types/database.types.ts` (regenerate with `npx supabase gen types`). Treat those two as the source of truth; there is no Prisma schema.
 
-### VaultData (`vault_data`)
-```prisma
-model VaultData {
-  id            String   @id @default(uuid())
-  userId        String
-  encryptedData String   // AES-256-GCM encrypted JSON
-  iv            String   // Format: "iv:authTag" (hex strings)
-  keyId         String   @default("master-key-1")
-  label         String
-  category      VaultCategory // personal, health, financial, credentials, other
-  tags          String[]
-  schemaType    String?  // e.g., "Person", "MedicalRecord"
-  schemaVersion String?  // For JSON-LD/FHIR portability
-  expiresAt     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  consents  Consent[]
-  auditLogs AuditLog[]
-}
-```
-**Encryption:** Field-level encryption on `encryptedData`. Metadata (`label`, `category`, `tags`) unencrypted for queryability.
+Core tables (snake_case columns):
+- `users` - synced with Supabase Auth. Holds `key_salt`, used to derive each user's master key in the browser.
+- `vault_data` - encrypted entries. Stores `client_ciphertext`, `encrypted_dek`, and `dek_salt` (all produced in the browser) plus unencrypted metadata (`label`, `category`, `tags`, `schema_type`) for querying.
+- `consents` - grants to a `granted_to` party with `permissions`, `status`, and a `start_date`/`end_date` window for time-bound access.
+- `consent_requests` - access requests an organization sends to a user, which the user approves or denies.
+- `audit_logs` - append-only events with `current_hash`/`previous_hash` forming a tamper-evident chain (see `lib/crypto/hashing.ts`).
+- `passkeys` - WebAuthn credentials for passkey sign-in.
+- `org_members`, `issuer_keys`, `credentials`, `credential_shares` - organization membership, Ed25519 issuer keys (private keys AES-256-GCM-wrapped with `ISSUER_KEY_SECRET`), issued verifiable credentials, and credential sharing.
 
-### Consent (`consents`)
-```prisma
-model Consent {
-  id            String      @id @default(uuid())
-  userId        String
-  vaultDataId   String?
-  grantedTo     String      // Organization/service name
-  purpose       String
-  permissions   Permission[] // read, export, verify
-  status        ConsentStatus // active, revoked, expired
-  startDate     DateTime
-  endDate       DateTime?
-  revokedAt     DateTime?
-  revokedBy     String?
-  revokedReason String?
-  consentText   String
-  termsVersion  String
-  ipAddress     String?
-  userAgent     String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vaultData  VaultData?  @relation(fields: [vaultDataId], references: [id], onDelete: SetNull)
-  auditLogs  AuditLog[]
-}
-```
-**Time-bound permissions:** Use `startDate`, `endDate` for temporal access control.
-
-### AuditLog (`audit_logs`)
-```prisma
-model AuditLog {
-  id            String   @id @default(uuid())
-  userId        String
-  vaultDataId   String?
-  consentId     String?
-  eventType     EventType // data_created, data_accessed, consent_granted, etc.
-  action        String
-  actorId       String
-  actorType     ActorType // user, system, service
-  currentHash   String   // SHA-256 hash of current log entry
-  previousHash  String?  // SHA-256 hash of previous log entry (hash chain)
-  ipAddress     String?
-  userAgent     String?
-  metadata      Json?
-  success       Boolean  @default(true)
-  errorMessage  String?
-  timestamp     DateTime @default(now())
-  
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vaultData VaultData? @relation(fields: [vaultDataId], references: [id], onDelete: SetNull)
-  consent   Consent?   @relation(fields: [consentId], references: [id], onDelete: SetNull)
-}
-```
-**Hash chain:** Each entry's `currentHash` includes `previousHash`, creating tamper-evident trail. Verify integrity with `verifyHashChain()` from `lib/crypto/hashing.ts`.
-
-### ExportRequest (`export_requests`)
-```prisma
-model ExportRequest {
-  id               String        @id @default(uuid())
-  userId           String
-  format           ExportFormat  // json_ld, verifiable_credential, csv
-  status           ExportStatus  // pending, processing, completed, failed
-  includeCategories VaultCategory[]
-  includeAuditLog  Boolean      @default(false)
-  fileUrl          String?
-  expiresAt        DateTime?
-  errorMessage     String?
-  requestedAt      DateTime     @default(now())
-  completedAt      DateTime?
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-```
+**Hash chain:** Each `audit_logs` row's `current_hash` includes the previous row's hash, creating a tamper-evident trail. Verify it with `verifyHashChain()` from `lib/crypto/hashing.ts`, and never modify existing rows; the chain is immutable by design.
 
 ---
 
 ## Security & Encryption Requirements
 
-**For detailed security patterns including encryption, audit logging, and authentication with code examples, see:** [Security Patterns documentation](.github/copilot/critical/security-patterns.md)
-
-Core rules are shown in [Core Security Patterns](#core-security-patterns) above.
+The full rules, with the client-side envelope-encryption flow, are in [Core Security Patterns](#core-security-patterns) above.
 
 ---
 
-## API Route Patterns
+## Server Action & Data-Access Patterns
 
-**For complete API route patterns with code examples, see:** [API Route Patterns documentation](.github/copilot/critical/api-patterns.md)
+Vault, consent, and credential mutations use **server actions** in `lib/actions/`, not REST route handlers. Each action authenticates via the Supabase session, then calls a service that uses a repository. Route handlers under `app/api/` are reserved for auth, org, and webhook-style endpoints.
 
-Key patterns: GET/POST/PATCH/DELETE, authentication, validation, error handling, pagination, filtering
+Key rules: authenticate from the session, validate with Zod, scope every query by the authenticated `userId`, and append an audit-log entry for sensitive operations.
 
 ---
 
@@ -344,9 +249,7 @@ export default async function DashboardLayout({
 
 ## Zod Validation Schemas
 
-**Zod validation patterns are documented in:** [API Route Patterns](.github/copilot/critical/api-patterns.md#zod-validation)
-
-Summary: Use schemas from `lib/validations/`, `.parse()` in API routes, `.safeParse()` in forms.
+Use schemas from `lib/validations/`. Call `.parse()` in server actions and services (throws on invalid input) and `.safeParse()` in forms (returns a result).
 
 ---
 
@@ -358,22 +261,25 @@ Summary: Use schemas from `lib/validations/`, `.parse()` in API routes, `.safePa
 
 ### Quick Reference
 - **Start dev server:** `npm run dev` (http://localhost:3000)
-- **Supabase Studio:** http://127.0.0.1:54323 (database admin)
-- **Prisma commands:** Must use `npx dotenv -e .env.local -- npx prisma <command>`
+- **Local Supabase stack:** `npx supabase start` (applies migrations); Studio at http://127.0.0.1:54323
+- **New migration:** add a SQL file under `supabase/migrations/`, then `npx supabase migration up --local`
+- **Regenerate types:** `npx supabase gen types` into `types/database.types.ts`
+- **Tests:** `npm test` (Vitest), `npm run test:e2e` (Playwright)
 
 ### Critical Environment Variables
-- `ENCRYPTION_KEY` - 256-bit AES key (base64-encoded) - **Never change in production**
-- `DATABASE_URL` - PostgreSQL connection string
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase config
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase client config
+- `SUPABASE_SERVICE_ROLE_KEY` - server-only privileged access
+- `ISSUER_KEY_SECRET` - base64 32-byte key that AES-256-GCM-wraps issuer private keys (needed only for credential issuance)
+- `NEXT_PUBLIC_RP_ID` - WebAuthn relying-party id (`localhost` in dev)
 
-**⚠️ CRITICAL:** Never commit `.env.local` to git. Changing `ENCRYPTION_KEY` makes existing data unreadable.
+**⚠️ CRITICAL:** There is no `ENCRYPTION_KEY`. Vault keys are derived in the browser from the user's password, so the server cannot decrypt vault data. Never commit `.env.local` to git.
 
 ---
 
 ## Coding Conventions
 
 ### Naming Conventions
-- **Files**: kebab-case (`vault-data.ts`, `encryption.ts`)
+- **Files**: kebab-case (`vault-data.ts`, `client-crypto.ts`)
 - **Components**: PascalCase (`VaultPage`, `Button`, `AuditLogTable`)
 - **Functions**: camelCase (`createClient`, `generateKey`, `verifyHashChain`)
 - **Types/Interfaces**: PascalCase (`VaultDataInput`, `User`, `ConsentStatus`)
@@ -384,24 +290,22 @@ Summary: Use schemas from `lib/validations/`, `.parse()` in API routes, `.safePa
 ### File Organization
 ```
 app/
-  (auth)/          # Route group: auth pages
-  (dashboard)/     # Route group: protected pages
-  api/             # API routes
-components/
-  ui/              # shadcn/ui components
-  vault/           # Feature-specific components
-  consent/
-  audit/
+  (auth)/          # Sign-in, register, passkey, signup
+  (dashboard)/     # Vault, consent, audit, credentials, requests, settings
+  (org)/           # Organization and credential-issuer routes
+  api/             # Auth, org, and webhook route handlers
+components/        # ui/ (shadcn) plus feature folders (vault, consent, credentials, org)
 lib/
-  crypto/          # Encryption & hashing utilities
-  db/              # Prisma client & queries
-  supabase/        # Supabase clients
+  actions/         # Server actions ('use server')
+  services/        # Business logic
+  repositories/    # Supabase data access
+  crypto/          # Client-side encryption, key derivation, hashing, credential signing
+  supabase/        # Supabase server/client/middleware/service
+  hooks/           # TanStack Query hooks
   validations/     # Zod schemas
-  hooks/           # Custom React hooks
-prisma/
-  schema.prisma    # Database schema
-  seed.ts          # Seed data
-types/             # Shared TypeScript types
+supabase/
+  migrations/      # SQL migrations (source of truth for schema)
+types/             # TypeScript types (database.types.ts is generated)
 ```
 
 ### Import Order
@@ -416,8 +320,8 @@ import { useForm } from 'react-hook-form';
 
 // 3. Internal utilities (@ alias)
 import { createClient } from '@/lib/supabase/server';
-import { prisma } from '@/lib/db/prisma';
-import { encrypt, decrypt } from '@/lib/crypto/encryption';
+import { getUserVaultData } from '@/lib/services/vault.service';
+import { encryptWithKey, decryptWithKey } from '@/lib/crypto/client-crypto';
 
 // 4. Components (@ alias)
 import { Button } from '@/components/ui/button';
@@ -438,185 +342,53 @@ import type { VaultDataInput } from '@/lib/validations/vault';
 
 ## Common Patterns & Examples
 
-### Complete Vault Data Creation Flow
-```typescript
-// app/api/vault/route.ts
-import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { vaultDataSchema } from '@/lib/validations/vault';
-import { encrypt, getMasterKey } from '@/lib/crypto/encryption';
-import { createAuditHash } from '@/lib/crypto/hashing';
-import { z } from 'zod';
+### Layered architecture
+Vault, consent, and credential operations flow through four layers. Do not touch the database directly from components or route handlers.
 
-export async function POST(request: Request) {
-  try {
-    // 1. Authenticate
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // 2. Validate input
-    const body = await request.json();
-    const validated = vaultDataSchema.parse(body);
-    
-    // 3. Encrypt data
-    const masterKey = getMasterKey();
-    const { encrypted, iv, authTag } = encrypt(
-      JSON.stringify(validated.data),
-      masterKey
-    );
-    
-    // 4. Store in database
-    const vaultEntry = await prisma.vaultData.create({
-      data: {
-        userId: user.id,
-        encryptedData: encrypted,
-        iv: `${iv}:${authTag}`,
-        label: validated.label,
-        category: validated.category,
-        tags: validated.tags,
-        schemaType: validated.schemaType,
-        schemaVersion: validated.schemaVersion,
-        expiresAt: validated.expiresAt,
-      },
-    });
-    
-    // 5. Create audit log with hash chain
-    const previousLog = await prisma.auditLog.findFirst({
-      where: { userId: user.id },
-      orderBy: { timestamp: 'desc' },
-      select: { currentHash: true },
-    });
-    
-    const currentHash = createAuditHash(
-      previousLog?.currentHash ?? null,
-      {
-        userId: user.id,
-        eventType: 'data_created',
-        action: `Created vault entry: ${validated.label}`,
-        actorId: user.id,
-        actorType: 'user',
-        timestamp: new Date(),
-      }
-    );
-    
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        vaultDataId: vaultEntry.id,
-        eventType: 'data_created',
-        action: `Created vault entry: ${validated.label}`,
-        actorId: user.id,
-        actorType: 'user',
-        currentHash,
-        previousHash: previousLog?.currentHash ?? null,
-      },
-    });
-    
-    // 6. Return response
-    return NextResponse.json(vaultEntry, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      );
-    }
-    console.error('Error creating vault entry:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+1. **Server action** (`lib/actions/*.actions.ts`, marked `'use server'`): authenticate the user from the Supabase session, then delegate to a service. Never trust a client-supplied user id.
+2. **Service** (`lib/services/*.service.ts`): business logic, validation, and audit logging.
+3. **Repository** (`lib/repositories/*.repository.ts`): Supabase reads and writes, scoped by `userId`.
+4. **Supabase client** (`lib/supabase/server.ts` in server code, `lib/supabase/client.ts` in Client Components).
+
+### Client-side envelope encryption
+The browser does all vault encryption; the server only stores ciphertext.
+
+1. Derive the master key from the user's password and their `key_salt` with `deriveMasterKey()` (PBKDF2, 600k iterations) from `lib/crypto/key-derivation.ts`.
+2. Generate a per-entry data key (DEK) and encrypt the data with it using `lib/crypto/client-crypto.ts`.
+3. Wrap the DEK with the master key. Send only `client_ciphertext`, `encrypted_dek`, and `dek_salt` to the server.
+
+```typescript
+// Authenticated server action (lib/actions/vault.actions.ts)
+'use server'
+import { createClient } from '@/lib/supabase/server'
+import { createVaultData } from '@/lib/services/vault.service'
+
+export async function createVaultEntryAction(payload: {
+  label: string
+  category?: string
+  tags?: string[]
+  schema_type?: string
+  client_ciphertext: string  // encrypted in the browser
+  encrypted_dek: string      // DEK wrapped with the master key
+  dek_salt: string
+  expires_at?: string
+}) {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error('Unauthorized')
+  return createVaultData(user.id, payload) // service writes ciphertext + audit log
 }
 ```
 
-### Reading & Decrypting Vault Data
-```typescript
-// app/api/vault/[id]/route.ts
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  // Fetch with user ownership check
-  const vaultEntry = await prisma.vaultData.findUnique({
-    where: {
-      id: params.id,
-      userId: user.id, // Security: ensure user owns this data
-    },
-  });
-  
-  if (!vaultEntry) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-  
-  // Decrypt data
-  const [ivHex, authTagHex] = vaultEntry.iv.split(':');
-  const masterKey = getMasterKey();
-  const decrypted = decrypt(
-    vaultEntry.encryptedData,
-    masterKey,
-    ivHex,
-    authTagHex
-  );
-  const data = JSON.parse(decrypted);
-  
-  // Create audit log for data access
-  const previousLog = await prisma.auditLog.findFirst({
-    where: { userId: user.id },
-    orderBy: { timestamp: 'desc' },
-    select: { currentHash: true },
-  });
-  
-  const currentHash = createAuditHash(
-    previousLog?.currentHash ?? null,
-    {
-      userId: user.id,
-      eventType: 'data_accessed',
-      action: `Accessed vault entry: ${vaultEntry.label}`,
-      actorId: user.id,
-      actorType: 'user',
-      timestamp: new Date(),
-    }
-  );
-  
-  await prisma.auditLog.create({
-    data: {
-      userId: user.id,
-      vaultDataId: vaultEntry.id,
-      eventType: 'data_accessed',
-      action: `Accessed vault entry: ${vaultEntry.label}`,
-      actorId: user.id,
-      actorType: 'user',
-      currentHash,
-      previousHash: previousLog?.currentHash ?? null,
-    },
-  });
-  
-  // Return decrypted data with metadata
-  return NextResponse.json({
-    ...vaultEntry,
-    data, // Decrypted data
-  });
-}
-```
+The service appends the audit-log entry with `createAuditHash()` from `lib/crypto/hashing.ts`, passing the previous entry's hash to keep the chain intact. Reads follow the same path: the action authenticates, the service/repository fetches rows scoped by `userId`, and decryption happens in the browser with the user's master key.
 
 ---
 
-## Testing & Demo Data
+## Testing
 
-**For test user credentials and seeded data details, see [SETUP.md](SETUP.md#database-seeding).**
-
-**Quick reference:** Test user: `demo@lucid.dev`, seed with `npx dotenv -e .env.local -- npx prisma db seed`
+- **Unit/component:** Vitest (`npm test`), with MSW mocks and fixtures under `test/`.
+- **End-to-end:** Playwright (`npm run test:e2e`) with specs in `__tests__/e2e/`.
+- Database changes are applied through Supabase migrations, not a Prisma seed.
 
 ---
 
@@ -627,41 +399,35 @@ export async function GET(
 - **[SETUP.md](SETUP.md)** - Initial setup, architecture notes, service URLs, troubleshooting
 - **[QUICKSTART.md](QUICKSTART.md)** - Daily development workflow, commands, common tasks
 
-### Copilot Instructions (Modular)
-- **[Documentation Map](#-documentation-map)** - Navigation to all pattern files (this document)
-- **[Core Security Patterns](#core-security-patterns)** - Critical rules for encryption, audit, auth (this document)
-- **Critical Patterns** - `.github/copilot/critical/` (Phase 2: security-patterns.md, api-patterns.md, database-schema.md)
-- **Common Patterns** - `.github/copilot/common/` (Phase 3: component-patterns.md, code-examples.md, validation-patterns.md)
-- **Reference** - `.github/copilot/reference/` (Phase 3: coding-conventions.md, tech-stack.md)
+### Copilot Instructions
+- **[Documentation Map](#-documentation-map)** - Navigation to the sections of this document
+- **[Core Security Patterns](#core-security-patterns)** - Critical rules for encryption, audit, and auth
 
 ### Code Reference
-- **Prisma Schema** - [prisma/schema.prisma](prisma/schema.prisma) for complete data models
-- **Security Utilities** - [lib/crypto/encryption.ts](lib/crypto/encryption.ts), [lib/crypto/hashing.ts](lib/crypto/hashing.ts)
-- **Validations** - [lib/validations/](lib/validations/) for Zod schemas (vault.ts, consent.ts, user.ts)
+- **Schema** - [supabase/migrations/](supabase/migrations/) and generated [types/database.types.ts](types/database.types.ts)
+- **Crypto** - [lib/crypto/key-derivation.ts](lib/crypto/key-derivation.ts), [lib/crypto/client-crypto.ts](lib/crypto/client-crypto.ts), [lib/crypto/hashing.ts](lib/crypto/hashing.ts), [lib/crypto/credential-signing.ts](lib/crypto/credential-signing.ts)
+- **Actions / services / repositories** - [lib/actions/](lib/actions/), [lib/services/](lib/services/), [lib/repositories/](lib/repositories/)
+- **Validations** - [lib/validations/](lib/validations/) for Zod schemas
 
 ---
 
 ## Important Architectural Notes
 
-1. **Current MVP State**: API routes use mock data. Infrastructure (encryption, hashing, auth, database schema) is production-ready and awaiting integration.
+1. **Current MVP State**: Vault, consent, consent requests, audit log, verifiable credentials, and passkey sign-in work end to end on Supabase via server actions.
 
 2. **Security-First**:
-   - Always encrypt vault data before storing
+   - Encrypt vault data in the browser before it reaches the server
    - Always create audit logs for sensitive operations
-   - Always validate auth before allowing access
-   - Never expose decrypted data in logs or errors
+   - Always resolve the user from the session before allowing access
+   - Never expose plaintext, keys, or passwords in logs or errors
 
 3. **Hash Chain Integrity**: Audit logs form an immutable chain. Any modification breaks the chain and is detectable via `verifyHashChain()`.
 
-4. **User Data Ownership**: All queries must filter by `userId`. Never allow users to access others' data.
+4. **User Data Ownership**: All queries must filter by the authenticated `userId`. Never allow users to access others' data.
 
-5. **Prisma Version**: Using 6.19.1 (downgraded from 7.x) for stability. Standard `schema.prisma` format (no config file needed).
+5. **No ORM**: Data access is Supabase through `lib/repositories/`. The schema is owned by `supabase/migrations/`.
 
-6. **Future Enhancements**:
-   - User-controlled encryption (PBKDF2 utilities ready in `lib/crypto/encryption.ts`)
-   - TanStack Query integration for client-side data fetching
-   - Database query abstraction layer (`lib/db/queries/` currently empty)
-   - Production password hashing (switch from SHA-256 to bcrypt/argon2)
+6. **Issuer Signing**: Organizations sign credentials with Ed25519 keys whose private halves are AES-256-GCM-wrapped at rest with `ISSUER_KEY_SECRET`.
 
 ---
 
@@ -670,16 +436,15 @@ export async function GET(
 When implementing new features:
 
 - [ ] Validate all inputs with Zod schemas
-- [ ] Authenticate user with Supabase in API routes
-- [ ] Encrypt sensitive data with AES-256-GCM before storing
-- [ ] Create audit log with hash chain for sensitive operations
-- [ ] Filter database queries by `userId` for security
+- [ ] Resolve the user from the Supabase session in the server action (never trust a client id)
+- [ ] Encrypt vault data in the browser; send only ciphertext and the wrapped DEK
+- [ ] Create an audit log with hash chain for sensitive operations
+- [ ] Filter every query by the authenticated `userId`
 - [ ] Use Server Components by default, add `'use client'` only when needed
 - [ ] Follow naming conventions (PascalCase components, camelCase functions, kebab-case files)
-- [ ] Handle errors gracefully with appropriate HTTP status codes
+- [ ] Run the humanizer skill over any user-facing copy you add or change
 - [ ] Use `cn()` utility for className merging in components
-- [ ] Return appropriate HTTP status codes (200, 201, 400, 401, 404, 500)
 
 ---
 
-**Last Updated**: January 4, 2026
+**Last Updated**: June 16, 2026

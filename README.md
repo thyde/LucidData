@@ -1,86 +1,91 @@
-# 🧠 Lucid — Personal Data Bank
+# Lucid
 
-**Version:** 0.1 (MVP Phase)
+Personal data bank for storing, encrypting, and licensing access to your own data.
+
+**Version:** 0.1 (MVP)
 **Author:** Terron Hyde
-**License:** MIT (open-source)
-**Status:** In Development
+**License:** MIT
+**Status:** In development
 
 ---
 
-## 🌐 Overview
+## Overview
 
-**Lucid** is a privacy-first **personal data bank** — a secure vault where individuals can store, manage, and license access to their personal data under explicit consent.
+Lucid is a personal data bank. Individuals keep their data in an encrypted vault, then grant or deny specific organizations access to it under explicit, time-bound consent. The data stays the user's property; access is licensed rather than sold outright.
 
-Lucid treats data as **property**, not a **product**.
+Encryption happens in the browser, so the server never sees plaintext data or the keys that protect it.
 
-> Individuals can securely store and license access to their digital data — without ever surrendering ownership.
+### Core philosophy
 
-### Core Philosophy
-
-- **User Sovereignty**: Users remain the sole custodians of their data
-- **Transparency by Default**: Every access and transaction is recorded and auditable
-- **Portability through Open Standards**: Data conforms to universal formats for interoperability
+- **User sovereignty**: the individual holds the keys and decides who sees what.
+- **Transparency**: every access and consent change is written to an append-only audit log.
+- **Portability**: data and credentials use open formats so they can move between systems.
 
 ---
 
-## 🎯 Project Vision
+## Project vision
 
-### The Problem
-The global digital economy runs on personal data — yet individuals who generate it have neither control nor compensation. Current data practices are opaque and exploitative.
+### The problem
+The digital economy runs on personal data, but the people who generate that data usually have little say over how it is used and receive nothing when it is sold.
 
-### The Solution
-Lucid enables a fundamental shift: transforming personal data from a harvested resource into a **governed, portable, and monetizable asset class** under full user control.
+### The approach
+Lucid gives the individual a vault they control and a consent system that decides who can use their data, for what, and for how long. Access can be priced and licensed over time instead of handed over permanently.
 
-### Target Ecosystem
+### Who it is for
 
-**Data Owners (Individuals)**
-- Privacy advocates seeking transparency
-- Professionals needing verifiable credential storage
-- Anyone wanting control over their digital identity
+Individuals who hold data:
+- People who want to see and control how their data is used.
+- Professionals who need to store and present verifiable credentials.
 
-**Data Consumers (Organizations)**
-- Research institutions requiring consented participant data
-- Healthcare providers needing compliant medical records
-- Financial institutions demanding verified data
-- Employers validating credentials
+Organizations that request data:
+- Research institutions that need consented participant data.
+- Healthcare providers that need compliant records.
+- Financial institutions that need verified data.
+- Employers that need to validate credentials.
 
 ---
 
-##  MVP Features
+## MVP features
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **Encrypted Personal Data Vault** | Secure storage with AES-256 encryption, user-controlled keys | ✅ MVP |
-| **Consent-Based Access Control** | Granular permissions defining who can access what data, for how long | ✅ MVP |
-| **Immutable Audit Ledger** | Hash-chained transparency log of all data access events | ✅ MVP |
-| **Data Portability** | Export to open standards (JSON-LD, Verifiable Credentials) | ✅ MVP |
-| **Intuitive User Experience** | Banking metaphor: "Your data. Your bank. Your rules." | ✅ MVP |
+| Encrypted data vault | Client-side encryption with the Web Crypto API. Keys are derived from the user's password with PBKDF2, and data is sealed with AES-GCM in the browser. | Built |
+| Consent-based access control | Granular, time-bound permissions that set who can access which data and for how long. | Built |
+| Consent requests | Organizations request access to a user's data, and the user approves or denies each request. | Built |
+| Immutable audit ledger | Hash-chained log of vault and consent events that can be checked for tampering. | Built |
+| Verifiable credentials | Organizations issue Ed25519-signed credentials. Users hold them in an inbox, verify them, and share them. | Built |
+| Passkey sign-in | WebAuthn passkeys alongside password sign-in. | Built |
+| Installable PWA | Progressive web app with realtime updates over Supabase. | Built |
 
-## Features in active development
+## In progress
 
+| Feature | Description |
+|---------|-------------|
+| Vault data export | Exporting vault entries to open formats such as JSON-LD. Credentials are already portable, but a general vault export is not finished yet. |
 
-## Deferred to Beta
+## Deferred to beta and later
 
-| Feature | Description | Target Phase |
-|---------|-------------|--------------|
-| **Payment Integration** | Stripe Connect for monetization and revenue tracking | Beta |
-| **Multiple Data Schemas** | FHIR (healthcare), Open Banking APIs (financial data) | Beta |
-| **Advanced Verifiable Credentials** | Full W3C VC implementation with DID support | Beta |
-| **Mobile Applications** | Native iOS/Android apps for on-the-go access | Post-Beta |
-| **Buyer Marketplace** | Public marketplace for data consumers to discover and request access | Post-Beta |
+| Feature | Description | Target |
+|---------|-------------|--------|
+| Payment integration | Stripe Connect for licensing payments and revenue tracking. | Beta |
+| Additional data schemas | FHIR for healthcare and Open Banking for financial data. | Beta |
+| DID support | Decentralized identifiers for credential issuers and holders. | Beta |
+| Mobile apps | Native iOS and Android clients. | Post-beta |
+| Buyer marketplace | A place for organizations to discover and request data access. | Post-beta |
 
 
 ---
 
-## ⚙️ Local Setup
+## Local setup
 
 ### Prerequisites
 - Node.js 20+ LTS
-- npm or pnpm
+- npm
 - Git
-- VSCode (recommended)
+- Docker Desktop (the local Supabase stack runs in containers)
+- VS Code (recommended)
 
-### Getting Started
+### Getting started
 
 ```bash
 # 1. Clone the repository
@@ -92,53 +97,54 @@ npm install
 
 # 3. Set up environment variables
 cp .env.example .env.local
-# Edit .env.local with your Supabase credentials
+# Edit .env.local with your Supabase keys and ISSUER_KEY_SECRET
 
-# 4. Initialize database
-npx prisma migrate dev
+# 4. Start the local Supabase stack (this applies the SQL migrations)
+npx supabase start
 
-# 5. Start development server
+# 5. Start the development server
 npm run dev
 
-# 6. Run tests
-npm test
+# 6. Run the tests
+npm test          # unit and component tests (Vitest)
+npm run test:e2e  # end-to-end tests (Playwright)
 ```
 
 ---
 
-## 🏗️ Project Structure
+## Project structure
 
 ```
 lucid-mvp/
 ├── app/                    # Next.js App Router
-│   ├── (auth)/            # Authentication routes
-│   ├── (dashboard)/       # Protected dashboard routes
-│   ├── api/               # API routes
-│   └── layout.tsx         # Root layout
+│   ├── (auth)/            # Sign-in, register, passkey, and signup routes
+│   ├── (dashboard)/       # Vault, consent, audit, credentials, requests, settings
+│   ├── (org)/             # Organization and credential-issuer routes
+│   └── api/               # Route handlers (auth, org, supabase, user)
 ├── components/            # React components
-│   ├── ui/               # shadcn/ui components
-│   ├── vault/            # Vault-specific components (CRUD dialogs, list view)
-│   └── consent/          # Consent management (5 dialogs with comprehensive tests)
-├── lib/                   # Utilities & configurations
-│   ├── db/               # Database utilities
-│   ├── crypto/           # Encryption utilities
-│   ├── hooks/            # Custom React hooks (useVault, useConsent, useAudit)
-│   ├── repositories/     # Data access layer
-│   ├── services/         # Business logic layer
+│   ├── ui/               # shadcn/ui primitives
+│   ├── vault/            # Vault dialogs, list view, schema form
+│   ├── consent/          # Consent dialogs and list
+│   ├── consent-requests/ # Organization access-request UI
+│   ├── credentials/      # Credential inbox
+│   └── org/              # Issuer setup and credential issuance
+├── lib/                   # Application logic
+│   ├── actions/          # Server actions (vault, consent, audit, credential, issuer)
+│   ├── crypto/           # Client-side encryption, key derivation, credential signing
+│   ├── repositories/     # Data access layer over Supabase
+│   ├── services/         # Business logic
+│   ├── hooks/            # React hooks (useVault, useConsent, useAudit)
+│   ├── supabase/         # Supabase server and browser clients
 │   └── validations/      # Zod schemas
-├── test/                  # Test utilities and fixtures
-│   ├── fixtures/         # Mock data factories
-│   ├── helpers/          # Test helpers
-│   └── utils/            # Test utilities
-│   ├── auth/             # Authentication helpers
-│   └── supabase/         # Supabase client
-├── prisma/               # Database schema & migrations
-├── public/               # Static assets
+├── supabase/              # Local config and SQL migrations
+├── test/                  # Unit and component test setup, fixtures, and mocks
+├── __tests__/e2e/         # Playwright end-to-end tests
+├── public/                # Static assets and PWA manifest
 └── types/                # TypeScript type definitions
 ```
 
 
-## 🔗 Service URLs
+## Service URLs
 
 | Service | URL | Purpose |
 |---------|-----|---------|

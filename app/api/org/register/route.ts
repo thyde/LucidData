@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { addOrgMember } from '@/lib/middleware/withOrgMember'
 import { generateApiKey } from '@/lib/utils/api-key'
 import { z } from 'zod'
 
@@ -7,6 +9,7 @@ const RegisterSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
   website: z.string().url().optional(),
+  org_type: z.enum(['issuer', 'verifier', 'both']).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -16,14 +19,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid input', details: result.error.flatten() }, { status: 400 })
   }
 
-  const { name, email, website } = result.data
+  const { name, email, website, org_type } = result.data
   const { key, hash } = generateApiKey()
 
   const supabase = createServiceClient()
   const { data: org, error } = await supabase
     .from('organizations')
-    .insert({ name, email, website, api_key_hash: hash })
-    .select('id, name, email, created_at')
+    .insert({ name, email, website, api_key_hash: hash, org_type: org_type ?? 'verifier' })
+    .select('id, name, email, org_type, created_at')
     .single()
 
   if (error) {
@@ -31,6 +34,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'An organization with this email already exists' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // If a signed-in user created this org from the portal, make them the owner so
+  // they can manage it without the API key.
+  const sessionClient = await createClient()
+  const { data: { user } } = await sessionClient.auth.getUser()
+  if (user) {
+    await addOrgMember(org.id, user.id, 'owner')
   }
 
   // Return the API key ONCE — it is never stored in plaintext again

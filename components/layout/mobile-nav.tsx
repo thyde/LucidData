@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/vault', label: 'Vault' },
+  { href: '/credentials', label: 'Credentials' },
   { href: '/consent', label: 'Consents' },
   { href: '/audit', label: 'Audit Log' },
   { href: '/requests', label: 'Requests' },

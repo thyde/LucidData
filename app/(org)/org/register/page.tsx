@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,7 +13,7 @@ interface OrgRegistration {
 }
 
 export default function OrgRegisterPage() {
-  const [form, setForm] = useState({ name: '', email: '', website: '' })
+  const [form, setForm] = useState({ name: '', email: '', website: '', org_type: 'verifier' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<OrgRegistration | null>(null)
@@ -67,6 +68,9 @@ export default function OrgRegisterPage() {
             <li>GET /api/org/consent-requests — list your sent requests</li>
           </ul>
         </div>
+        <Button asChild className="w-full">
+          <Link href="/org">Go to organization portal</Link>
+        </Button>
       </div>
     )
   }
@@ -91,6 +95,20 @@ export default function OrgRegisterPage() {
         <div className="space-y-2">
           <Label htmlFor="website">Website (optional)</Label>
           <Input id="website" type="url" value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} placeholder="https://acme.com" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="org_type">Organization type</Label>
+          <select
+            id="org_type"
+            aria-label="Organization type"
+            value={form.org_type}
+            onChange={e => setForm(f => ({ ...f, org_type: e.target.value }))}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="verifier">Verifier — verify credentials others hold</option>
+            <option value="issuer">Issuer — issue credentials (e.g. diplomas)</option>
+            <option value="both">Both — issue and verify</option>
+          </select>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">

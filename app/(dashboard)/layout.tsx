@@ -41,6 +41,12 @@ export default async function DashboardLayout({
                 Vault
               </Link>
               <Link
+                href="/credentials"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Credentials
+              </Link>
+              <Link
                 href="/consent"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
