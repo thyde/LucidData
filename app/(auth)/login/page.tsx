@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PasskeyLoginButton } from '@/components/auth/passkey-login-button';
 import { VaultUnlockDialog } from '@/components/auth/vault-unlock-dialog';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { unlock } = useEncryption();
@@ -172,5 +172,27 @@ export default function LoginPage() {
         />
       )}
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+            <CardDescription className="text-center">
+              Enter your credentials to access your vault
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-center text-muted-foreground">Loading...</p>
+          </CardContent>
+        </Card>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
