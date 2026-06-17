@@ -176,6 +176,7 @@ export interface Database {
           website: string | null
           api_key_hash: string
           org_type: 'issuer' | 'verifier' | 'both'
+          data_buyer: boolean
           domain: string | null
           domain_verification_token: string | null
           verified_at: string | null
@@ -189,6 +190,7 @@ export interface Database {
           website?: string | null
           api_key_hash: string
           org_type?: 'issuer' | 'verifier' | 'both'
+          data_buyer?: boolean
           domain?: string | null
           domain_verification_token?: string | null
           verified_at?: string | null
@@ -199,6 +201,7 @@ export interface Database {
           website?: string | null
           api_key_hash?: string
           org_type?: 'issuer' | 'verifier' | 'both'
+          data_buyer?: boolean
           domain?: string | null
           domain_verification_token?: string | null
           verified_at?: string | null
@@ -458,6 +461,210 @@ export interface Database {
         }
         Relationships: []
       }
+      data_pools: {
+        Row: {
+          id: string
+          buyer_org_id: string
+          name: string
+          description: string | null
+          category: string
+          requested_fields: string[]
+          pricing_model: 'snapshot' | 'subscription' | 'filtered'
+          price_cents: number
+          price_per_record_cents: number
+          filters: Json | null
+          status: 'open' | 'closed'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          buyer_org_id: string
+          name: string
+          description?: string | null
+          category?: string
+          requested_fields?: string[]
+          pricing_model?: 'snapshot' | 'subscription' | 'filtered'
+          price_cents?: number
+          price_per_record_cents?: number
+          filters?: Json | null
+          status?: 'open' | 'closed'
+        }
+        Update: {
+          name?: string
+          description?: string | null
+          category?: string
+          requested_fields?: string[]
+          pricing_model?: 'snapshot' | 'subscription' | 'filtered'
+          price_cents?: number
+          price_per_record_cents?: number
+          filters?: Json | null
+          status?: 'open' | 'closed'
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pool_contributions: {
+        Row: {
+          id: string
+          pool_id: string
+          user_id: string
+          vault_data_id: string | null
+          anonymized_payload: Json
+          category: string
+          payout_cents: number
+          status: 'active' | 'withdrawn'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          pool_id: string
+          user_id: string
+          vault_data_id?: string | null
+          anonymized_payload: Json
+          category?: string
+          payout_cents?: number
+          status?: 'active' | 'withdrawn'
+        }
+        Update: {
+          anonymized_payload?: Json
+          payout_cents?: number
+          status?: 'active' | 'withdrawn'
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      data_orders: {
+        Row: {
+          id: string
+          pool_id: string
+          buyer_org_id: string
+          order_type: 'snapshot' | 'subscription'
+          record_count: number
+          total_cents: number
+          status: 'paid' | 'refunded' | 'canceled'
+          current_period_end: string | null
+          export_token: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          pool_id: string
+          buyer_org_id: string
+          order_type?: 'snapshot' | 'subscription'
+          record_count?: number
+          total_cents?: number
+          status?: 'paid' | 'refunded' | 'canceled'
+          current_period_end?: string | null
+          export_token: string
+        }
+        Update: {
+          record_count?: number
+          total_cents?: number
+          status?: 'paid' | 'refunded' | 'canceled'
+          current_period_end?: string | null
+        }
+        Relationships: []
+      }
+      vault_field_monetization: {
+        Row: {
+          id: string
+          vault_data_id: string
+          user_id: string
+          field_key: string
+          category: string
+          opted_in: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          vault_data_id: string
+          user_id: string
+          field_key: string
+          category?: string
+          opted_in?: boolean
+        }
+        Update: {
+          category?: string
+          opted_in?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sale_preferences: {
+        Row: {
+          user_id: string
+          allowed_purposes: string[]
+          blocked_buyer_orgs: string[]
+          min_price_cents: number
+          auto_optin: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          allowed_purposes?: string[]
+          blocked_buyer_orgs?: string[]
+          min_price_cents?: number
+          auto_optin?: boolean
+        }
+        Update: {
+          allowed_purposes?: string[]
+          blocked_buyer_orgs?: string[]
+          min_price_cents?: number
+          auto_optin?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      offers: {
+        Row: {
+          id: string
+          buyer_org_id: string
+          title: string
+          description: string | null
+          incentive: string
+          target_category: string
+          status: 'active' | 'closed'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          buyer_org_id: string
+          title: string
+          description?: string | null
+          incentive: string
+          target_category?: string
+          status?: 'active' | 'closed'
+        }
+        Update: {
+          title?: string
+          description?: string | null
+          incentive?: string
+          target_category?: string
+          status?: 'active' | 'closed'
+        }
+        Relationships: []
+      }
+      offer_claims: {
+        Row: {
+          id: string
+          offer_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          offer_id: string
+          user_id: string
+        }
+        Update: {
+          offer_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
@@ -482,3 +689,22 @@ export type UpdateVaultData = Database['public']['Tables']['vault_data']['Update
 export type InsertConsent = Database['public']['Tables']['consents']['Insert']
 export type UpdateConsent = Database['public']['Tables']['consents']['Update']
 export type InsertAuditLog = Database['public']['Tables']['audit_logs']['Insert']
+
+export type DataPool = Database['public']['Tables']['data_pools']['Row']
+export type InsertDataPool = Database['public']['Tables']['data_pools']['Insert']
+export type UpdateDataPool = Database['public']['Tables']['data_pools']['Update']
+export type PoolContribution = Database['public']['Tables']['pool_contributions']['Row']
+export type InsertPoolContribution = Database['public']['Tables']['pool_contributions']['Insert']
+export type UpdatePoolContribution = Database['public']['Tables']['pool_contributions']['Update']
+export type DataOrder = Database['public']['Tables']['data_orders']['Row']
+export type InsertDataOrder = Database['public']['Tables']['data_orders']['Insert']
+export type VaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Row']
+export type InsertVaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Insert']
+export type UpdateVaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Update']
+export type SalePreferences = Database['public']['Tables']['sale_preferences']['Row']
+export type InsertSalePreferences = Database['public']['Tables']['sale_preferences']['Insert']
+export type UpdateSalePreferences = Database['public']['Tables']['sale_preferences']['Update']
+export type Offer = Database['public']['Tables']['offers']['Row']
+export type InsertOffer = Database['public']['Tables']['offers']['Insert']
+export type OfferClaim = Database['public']['Tables']['offer_claims']['Row']
+export type InsertOfferClaim = Database['public']['Tables']['offer_claims']['Insert']

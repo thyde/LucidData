@@ -104,7 +104,7 @@ export function createUseList<TData, TFilters = void>(
 /**
  * Generic detail query hook
  */
-export function createUseEntry<TData>(config: QueryHooksConfig<TData>) {
+export function createUseEntry<TData, TFilters = void>(config: QueryHooksConfig<TData, TFilters>) {
   const queryKeys = createQueryKeys(config.entityName);
 
   return function useEntry(
@@ -160,7 +160,7 @@ export function createQueryHooks<TData, TFilters = void>(
 ) {
   const queryKeys = createQueryKeys<TFilters>(config.entityName);
   const useList = createUseList<TData, TFilters>(config);
-  const useEntry = createUseEntry<TData>(config);
+  const useEntry = createUseEntry<TData, TFilters>(config);
 
   return {
     useList,

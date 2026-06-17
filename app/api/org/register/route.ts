@@ -10,6 +10,7 @@ const RegisterSchema = z.object({
   email: z.string().email(),
   website: z.string().url().optional(),
   org_type: z.enum(['issuer', 'verifier', 'both']).optional(),
+  data_buyer: z.boolean().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -19,13 +20,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid input', details: result.error.flatten() }, { status: 400 })
   }
 
-  const { name, email, website, org_type } = result.data
+  const { name, email, website, org_type, data_buyer } = result.data
   const { key, hash } = generateApiKey()
 
   const supabase = createServiceClient()
   const { data: org, error } = await supabase
     .from('organizations')
-    .insert({ name, email, website, api_key_hash: hash, org_type: org_type ?? 'verifier' })
+    .insert({ name, email, website, api_key_hash: hash, org_type: org_type ?? 'verifier', data_buyer: data_buyer ?? false })
     .select('id, name, email, org_type, created_at')
     .single()
 
@@ -48,6 +49,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     organization: org,
     api_key: key,
-    message: 'Save this API key — it will not be shown again.',
+    message: 'Save this API key now. It will not be shown again.',
   }, { status: 201 })
 }

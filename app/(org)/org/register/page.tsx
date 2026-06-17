@@ -13,7 +13,7 @@ interface OrgRegistration {
 }
 
 export default function OrgRegisterPage() {
-  const [form, setForm] = useState({ name: '', email: '', website: '', org_type: 'verifier' })
+  const [form, setForm] = useState({ name: '', email: '', website: '', org_type: 'verifier', data_buyer: false })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<OrgRegistration | null>(null)
@@ -26,7 +26,7 @@ export default function OrgRegisterPage() {
       const res = await fetch('/api/org/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, website: form.website || undefined }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -49,7 +49,7 @@ export default function OrgRegisterPage() {
           <p className="text-muted-foreground mt-1">Welcome, {result.organization.name}</p>
         </div>
         <div className="border border-yellow-300 rounded-lg p-6 bg-yellow-50 space-y-3">
-          <p className="font-semibold text-yellow-900">Your API key — save this now</p>
+          <p className="font-semibold text-yellow-900">Your API key, save it now</p>
           <p className="text-sm text-yellow-800">This key will never be shown again. Store it securely.</p>
           <code className="block bg-white border rounded p-3 text-sm font-mono break-all select-all">
             {result.api_key}
@@ -63,9 +63,9 @@ export default function OrgRegisterPage() {
           </code>
           <p className="mt-3">Available endpoints:</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>POST /api/org/consent-request — request user consent</li>
-            <li>GET /api/org/verify-consent?user_email= — verify active consent</li>
-            <li>GET /api/org/consent-requests — list your sent requests</li>
+            <li>POST /api/org/consent-request to request user consent</li>
+            <li>GET /api/org/verify-consent?user_email= to verify active consent</li>
+            <li>GET /api/org/consent-requests to list your sent requests</li>
           </ul>
         </div>
         <Button asChild className="w-full">
@@ -105,11 +105,25 @@ export default function OrgRegisterPage() {
             onChange={e => setForm(f => ({ ...f, org_type: e.target.value }))}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <option value="verifier">Verifier — verify credentials others hold</option>
-            <option value="issuer">Issuer — issue credentials (e.g. diplomas)</option>
-            <option value="both">Both — issue and verify</option>
+            <option value="verifier">Verifier: verify credentials others hold</option>
+            <option value="issuer">Issuer: issue credentials (e.g. diplomas)</option>
+            <option value="both">Both: issue and verify</option>
           </select>
         </div>
+        <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+          <input
+            type="checkbox"
+            checked={form.data_buyer}
+            onChange={e => setForm(f => ({ ...f, data_buyer: e.target.checked }))}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-medium">Enable bulk data purchasing</span>
+            <span className="block text-muted-foreground">
+              Create data pools and buy consented, anonymized datasets from individuals.
+            </span>
+          </span>
+        </label>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? 'Registering...' : 'Register and get API key'}

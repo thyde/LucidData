@@ -51,7 +51,20 @@ export async function getOrCreateSubscription(organizationId: string): Promise<O
     .insert({ organization_id: organizationId, plan: 'free' })
     .select('*')
     .single()
-  if (error) throw error
+  if (error) {
+    // Concurrent first-load race (e.g. RSC prefetch + navigation): another request
+    // already inserted the row, so re-read it instead of failing.
+    if ((error as { code?: string }).code === '23505') {
+      const { data: row, error: refetchError } = await service
+        .from('org_subscriptions')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .single()
+      if (refetchError) throw refetchError
+      return row as OrgSubscription
+    }
+    throw error
+  }
   return data as OrgSubscription
 }
 

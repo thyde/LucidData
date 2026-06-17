@@ -42,6 +42,9 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/signup') &&
     !request.nextUrl.pathname.startsWith('/forgot-password') &&
     !request.nextUrl.pathname.startsWith('/verify') &&
+    !request.nextUrl.pathname.startsWith('/for-individuals') &&
+    !request.nextUrl.pathname.startsWith('/for-business') &&
+    !request.nextUrl.pathname.startsWith('/pricing') &&
     !request.nextUrl.pathname.startsWith('/api/auth') &&
     !request.nextUrl.pathname.startsWith('/api/supabase') &&
     !request.nextUrl.pathname.startsWith('/api/org') &&

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useVaultEntry, useUpdateVault } from '@/lib/hooks/useVault';
@@ -57,10 +57,10 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
   const { mutate, isPending } = useUpdateVault();
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
       label: '',
-      category: '',
+      category: '' as FormValues['category'],
       description: '',
       tags: [],
       data: '',
@@ -76,7 +76,7 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
     if (entry) {
       form.reset({
         label: entry.label,
-        category: entry.category,
+        category: entry.category as FormValues['category'],
         description: entry.description || '',
         tags: entry.tags || [],
         data: JSON.stringify(entry.data, null, 2),

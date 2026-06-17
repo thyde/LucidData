@@ -25,7 +25,7 @@ export const GET = withOrgAuth(async (req, { orgId }) => {
   }
 
   const now = new Date().toISOString()
-  let query = supabase
+  const query = supabase
     .from('consents')
     .select('id, access_level, end_date, vault_data_id')
     .eq('user_id', user.id)

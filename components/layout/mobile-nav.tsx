@@ -16,10 +16,12 @@ import { cn } from '@/lib/utils';
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/vault', label: 'Vault' },
+  { href: '/marketplace', label: 'Marketplace' },
   { href: '/credentials', label: 'Credentials' },
   { href: '/consent', label: 'Consents' },
   { href: '/audit', label: 'Audit Log' },
   { href: '/requests', label: 'Requests' },
+  { href: '/learn', label: 'Learn' },
 ];
 
 export function MobileNav() {

@@ -145,8 +145,10 @@ export async function getCredentialsForUser(
 }
 
 /**
- * Assign an unclaimed credential (matched by email) to a user. Returns the
- * updated row, or null if it was not found / already claimed by someone else.
+ * Claim a credential for a user. Credentials are either pre-assigned to a known
+ * user at issuance (subject_user_id set, but not yet claimed) or addressed only
+ * by email (subject_user_id null). Both are handled here. Returns the updated
+ * row, or null if it was not found, already claimed, or belongs to someone else.
  */
 export async function claimCredential(
   credentialId: string,
@@ -154,16 +156,31 @@ export async function claimCredential(
   email: string
 ): Promise<IssuedCredential | null> {
   const service = createServiceClient()
-  const { data, error } = await service
+  const now = new Date().toISOString()
+
+  // Case 1: credential was pre-assigned to this user at issuance, not yet claimed.
+  const preAssigned = await service
     .from('issued_credentials')
-    .update({ subject_user_id: userId, claimed_at: new Date().toISOString() })
+    .update({ claimed_at: now })
+    .eq('id', credentialId)
+    .eq('subject_user_id', userId)
+    .is('claimed_at', null)
+    .select('*')
+    .maybeSingle()
+  if (preAssigned.error) throw preAssigned.error
+  if (preAssigned.data) return preAssigned.data as IssuedCredential
+
+  // Case 2: unassigned credential addressed to this user's email.
+  const byEmail = await service
+    .from('issued_credentials')
+    .update({ subject_user_id: userId, claimed_at: now })
     .eq('id', credentialId)
     .is('subject_user_id', null)
     .ilike('subject_email', email)
     .select('*')
     .maybeSingle()
-  if (error) throw error
-  return (data as IssuedCredential | null) ?? null
+  if (byEmail.error) throw byEmail.error
+  return (byEmail.data as IssuedCredential | null) ?? null
 }
 
 /** Link a vault entry (the user's encrypted copy) back to the credential. */

@@ -68,6 +68,26 @@ export default async function OrgDetailPage({
         </div>
       )}
 
+      {organization.data_buyer && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-medium">Data marketplace</h2>
+          <div className="flex items-center justify-between rounded-lg border bg-background p-5">
+            <div>
+              <p className="font-medium">Buy consented, anonymized data</p>
+              <p className="text-sm text-muted-foreground">
+                Create data pools and purchase datasets from individuals who opt in.
+              </p>
+            </div>
+            <Link
+              href={`/org/${orgId}/data`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Open buyer portal →
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         <h2 className="text-lg font-medium">Plan &amp; usage</h2>
         <div className="border rounded-lg p-5 bg-background">

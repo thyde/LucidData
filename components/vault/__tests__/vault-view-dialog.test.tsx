@@ -147,7 +147,7 @@ describe('VaultViewDialog', () => {
     it('displays formatted data JSON', () => {
       render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      expect(screen.getByText(/bloodType/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/bloodType/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/A\+/)).toBeInTheDocument();
       expect(screen.getByText(/peanuts/i)).toBeInTheDocument();
     });
@@ -179,7 +179,7 @@ describe('VaultViewDialog', () => {
     it('formats JSON data with proper indentation', () => {
       render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      const dataDisplay = screen.getByText(/bloodType/i).closest('pre, code, div');
+      const dataDisplay = screen.getAllByText(/bloodType/i)[0].closest('pre, code, div');
       expect(dataDisplay).toBeInTheDocument();
     });
 

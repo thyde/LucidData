@@ -47,7 +47,7 @@ const formSchema = z.object({
     (val) => !val || val === '' || new Date(val) > new Date(),
     { message: 'End date must be in the future' }
   ),
-  termsVersion: z.string().default('1.0'),
+  termsVersion: z.string(),
 });
 
 type FormValues = z.infer<typeof formSchema>;

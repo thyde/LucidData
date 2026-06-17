@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreateVault } from '@/lib/hooks/useVault';
@@ -48,10 +48,10 @@ export function VaultCreateDialog() {
   const { mutate, isPending } = useCreateVault();
 
   const form = useForm<MetaFormValues>({
-    resolver: zodResolver(metaFormSchema),
+    resolver: zodResolver(metaFormSchema) as Resolver<MetaFormValues>,
     defaultValues: {
       label: '',
-      category: '',
+      category: '' as MetaFormValues['category'],
       description: '',
       tags: [],
       dataType: 'json',

@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConsentCreateDialog } from '@/components/consent/consent-create-dialog';
 import { VaultDataDisplay } from './vault-data-display';
+import { FieldMonetizationToggle } from './field-monetization-toggle';
 import { Share2 } from 'lucide-react';
 
 interface VaultViewDialogProps {
@@ -107,7 +108,7 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
           {isLocked && (
             <div className="p-4 space-y-2">
               <p className="text-muted-foreground font-medium">
-                Vault locked — please sign in again to view this entry.
+                Vault locked. Please sign in again to view this entry.
               </p>
               <Button variant="outline" onClick={() => onOpenChange(false)} className="mt-2">
                 Close
@@ -193,6 +194,24 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   )}
                 </div>
 
+                {/* Monetization */}
+                {!entry.decryptionError &&
+                  entry.data &&
+                  typeof entry.data === 'object' &&
+                  Object.keys(entry.data).length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                        Sell your data
+                      </h3>
+                      <FieldMonetizationToggle
+                        vaultDataId={entry.id}
+                        category={entry.category}
+                        fields={Object.keys(entry.data as Record<string, unknown>)}
+                      />
+                    </div>
+                  )}
+
+
                 {/* Expiration */}
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Expires At</h3>
@@ -230,7 +249,7 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                         Active consents: <span className="font-medium text-foreground">{consents.length}</span>
                       </p>
                       <p className="mt-1">
-                        Shared with: {consents.map(c => c.grantedToName).join(', ')}
+                        Shared with: {consents.map(c => c.granted_to_name).join(', ')}
                       </p>
                     </div>
                   ) : (
