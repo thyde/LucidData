@@ -50,6 +50,7 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/api/supabase') &&
     !request.nextUrl.pathname.startsWith('/api/org') &&
     !request.nextUrl.pathname.startsWith('/api/issuers') &&
+    !request.nextUrl.pathname.startsWith('/api/stripe') &&
     request.nextUrl.pathname !== '/'
   ) {
     // Redirect to login if accessing protected route, preserve original path

@@ -8,6 +8,8 @@ import { IssuerSetup } from '@/components/org/issuer-setup'
 import { IssueCredential } from '@/components/org/issue-credential'
 import { VerifyTool } from '@/components/org/verify-tool'
 import { RequestCredentials } from '@/components/org/request-credentials'
+import { PlanBilling } from '@/components/org/plan-billing'
+import { isStripeConfigured } from '@/lib/stripe/client'
 
 export default async function OrgDetailPage({
   params,
@@ -29,6 +31,7 @@ export default async function OrgDetailPage({
   const overview = isIssuer ? await getIssuerOverviewAction(orgId) : null
   const issued = overview?.domainVerified ? await listIssuedCredentialsAction(orgId) : []
   const usage = await getBillingOverviewAction(orgId)
+  const stripeEnabled = isStripeConfigured()
 
   return (
     <div className="space-y-8">
@@ -92,30 +95,12 @@ export default async function OrgDetailPage({
 
       <div className="space-y-4">
         <h2 className="text-lg font-medium">Plan &amp; usage</h2>
-        <div className="border rounded-lg p-5 bg-background">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium capitalize">{usage.plan} plan</p>
-              <p className="text-sm text-muted-foreground">This month&apos;s usage</p>
-            </div>
-            <span className="text-xs text-muted-foreground">Stripe checkout coming soon</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Credentials issued</p>
-              <p className="font-medium">
-                {usage.issuedThisMonth}
-                {usage.issuanceLimit < Number.MAX_SAFE_INTEGER && (
-                  <span className="text-muted-foreground"> / {usage.issuanceLimit}</span>
-                )}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Verifications</p>
-              <p className="font-medium">{usage.verifiedThisMonth}</p>
-            </div>
-          </div>
-        </div>
+        <PlanBilling
+          orgId={orgId}
+          usage={usage}
+          canManageBilling={role === 'owner'}
+          stripeEnabled={stripeEnabled}
+        />
       </div>
     </div>
   )
