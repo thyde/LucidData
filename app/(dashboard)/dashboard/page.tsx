@@ -207,7 +207,6 @@ export default async function DashboardPage() {
             <OffersList offers={offers} claimedOfferIds={claimedOfferIds} />
           </CardContent>
         </Card>
-      </div>
 
         <Card>
           <CardHeader>
