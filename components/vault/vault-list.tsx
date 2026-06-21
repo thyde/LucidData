@@ -26,6 +26,7 @@ export function VaultList({ onEntryClick }: VaultListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'label' | 'category'>('date');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
 
@@ -47,6 +48,11 @@ export function VaultList({ onEntryClick }: VaultListProps) {
       );
     }
 
+    // Tag filter
+    if (selectedTag) {
+      result = result.filter((entry) => entry.tags?.includes(selectedTag));
+    }
+
     // Sort
     if (sortBy === 'date') {
       result = [...result].sort(
@@ -60,7 +66,13 @@ export function VaultList({ onEntryClick }: VaultListProps) {
     }
 
     return result;
-  }, [data, categoryFilter, searchTerm, sortBy]);
+  }, [data, categoryFilter, searchTerm, selectedTag, sortBy]);
+
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    (data || []).forEach((entry) => entry.tags?.forEach((tag) => tags.add(tag)));
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  }, [data]);
 
   return (
     <div className="space-y-6">
@@ -123,6 +135,37 @@ export function VaultList({ onEntryClick }: VaultListProps) {
         </select>
       </div>
 
+      {/* Tag chips */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {selectedTag && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => setSelectedTag(null)}
+            >
+              Clear tag ×
+            </Button>
+          )}
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              aria-label={selectedTag === tag ? `Remove tag filter: ${tag}` : `Filter by tag: ${tag}`}
+              onClick={() => setSelectedTag((current) => (current === tag ? null : tag))}
+            >
+              <Badge
+                variant={selectedTag === tag ? 'default' : 'outline'}
+                className="cursor-pointer text-xs"
+              >
+                {tag}
+              </Badge>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* List Content */}
       {isLoading && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -147,13 +190,13 @@ export function VaultList({ onEntryClick }: VaultListProps) {
         </div>
       )}
 
-      {!isLoading && !error && filteredEntries.length === 0 && !searchTerm && !categoryFilter && (
+      {!isLoading && !error && filteredEntries.length === 0 && !searchTerm && !categoryFilter && !selectedTag && (
         <div className="text-center py-12 text-muted-foreground" data-testid="empty-state">
           <p>No vault entries yet. Create your first entry!</p>
         </div>
       )}
 
-      {!isLoading && !error && filteredEntries.length === 0 && (searchTerm || categoryFilter) && (
+      {!isLoading && !error && filteredEntries.length === 0 && (searchTerm || categoryFilter || selectedTag) && (
         <div className="text-center py-12 text-muted-foreground">
           <p>No entries match your filters</p>
         </div>
@@ -184,9 +227,22 @@ export function VaultList({ onEntryClick }: VaultListProps) {
                 {entry.tags && entry.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {entry.tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
+                      <button
+                        key={tag}
+                        type="button"
+                        aria-label={`Filter by tag ${tag}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTag((current) => (current === tag ? null : tag));
+                        }}
+                      >
+                        <Badge
+                          variant={selectedTag === tag ? 'default' : 'outline'}
+                          className="cursor-pointer text-xs"
+                        >
+                          {tag}
+                        </Badge>
+                      </button>
                     ))}
                   </div>
                 )}

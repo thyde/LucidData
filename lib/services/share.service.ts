@@ -22,7 +22,11 @@ export async function createShare(
   userId: string,
   credentialId: string,
   disclosedClaims: string[],
-  options: { expiresAt?: string | null; verifierEmail?: string | null } = {}
+  options: {
+    expiresAt?: string | null
+    verifierEmail?: string | null
+    credentialRequestId?: string | null
+  } = {}
 ): Promise<CreatedShare> {
   const service = createServiceClient()
 
@@ -45,6 +49,7 @@ export async function createShare(
       token_hash: hashToken(token),
       disclosed_claims: disclosedClaims,
       verifier_email: options.verifierEmail ?? null,
+      credential_request_id: options.credentialRequestId ?? null,
       expires_at: options.expiresAt ?? null,
     })
     .select('*')

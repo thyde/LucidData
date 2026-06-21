@@ -89,3 +89,22 @@ export async function decryptVaultEntry(
   // Decrypt the data with DEK
   return decryptWithKey(dek, client_ciphertext)
 }
+
+// Re-wrap an entry's DEK from an old master key to a new one. Only the DEK envelope
+// changes (encrypted_dek + dek_salt); client_ciphertext is untouched. Used by
+// change-password and recovery flows.
+export async function rewrapDek(
+  oldMasterKey: CryptoKey,
+  newMasterKey: CryptoKey,
+  encrypted_dek: string,
+  dek_salt: string
+): Promise<{ encrypted_dek: string; dek_salt: string }> {
+  const oldIv = new Uint8Array(base64ToArrayBuffer(dek_salt))
+  const rawDek = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: oldIv }, oldMasterKey, base64ToArrayBuffer(encrypted_dek))
+  const newIv = crypto.getRandomValues(new Uint8Array(12))
+  const reEncrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: newIv }, newMasterKey, rawDek)
+  return {
+    encrypted_dek: arrayBufferToBase64(reEncrypted),
+    dek_salt: arrayBufferToBase64(newIv.buffer),
+  }
+}

@@ -116,3 +116,49 @@ export async function getDataMarket(userId: string): Promise<CategoryCount[]> {
     .map(([category, count]) => ({ category, count }))
     .sort((a, b) => b.count - a.count)
 }
+
+export interface ConsentActivity {
+  active: number
+  expiringSoon: number
+  revoked: number
+}
+
+/** Lifecycle snapshot of the access grants a user has made (active / expiring / revoked). */
+export async function getConsentActivity(userId: string): Promise<ConsentActivity> {
+  const service = createServiceClient()
+  const now = new Date()
+  const in30 = new Date(now)
+  in30.setUTCDate(now.getUTCDate() + 30)
+  const nowIso = now.toISOString()
+  const in30Iso = in30.toISOString()
+
+  const [activeRes, expiringRes, revokedRes] = await Promise.all([
+    service
+      .from('consents')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('revoked', false),
+    service
+      .from('consents')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('revoked', false)
+      .not('end_date', 'is', null)
+      .gte('end_date', nowIso)
+      .lte('end_date', in30Iso),
+    service
+      .from('consents')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('revoked', true),
+  ])
+  if (activeRes.error) throw activeRes.error
+  if (expiringRes.error) throw expiringRes.error
+  if (revokedRes.error) throw revokedRes.error
+
+  return {
+    active: activeRes.count ?? 0,
+    expiringSoon: expiringRes.count ?? 0,
+    revoked: revokedRes.count ?? 0,
+  }
+}

@@ -2,12 +2,24 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Download, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { downloadJson } from '@/lib/crypto/vault-export';
 import { useAuditLogs } from '@/lib/hooks/useAudit';
 
 export default function AuditPage() {
   const { data, isLoading, error, refetch } = useAuditLogs();
 
   const logs = data?.logs ?? [];
+  const chainValid = data?.chainValid ?? null;
+
+  function handleExport() {
+    downloadJson('lucid-audit-log.json', {
+      exportedAt: new Date().toISOString(),
+      chainValid,
+      entries: logs,
+    });
+  }
 
   if (isLoading) {
     return (
@@ -53,12 +65,40 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Audit Log</h1>
-        <p className="text-muted-foreground mt-1">
-          Complete history of data access and modifications
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Audit Log</h1>
+          <p className="text-muted-foreground mt-1">
+            Complete history of data access and modifications
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <ShieldCheck className="h-4 w-4" />
+            Verify integrity
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={logs.length === 0}>
+            <Download className="h-4 w-4" />
+            Export log
+          </Button>
+        </div>
       </div>
+
+      {chainValid !== null && logs.length > 0 && (
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-md border p-3 text-sm',
+            chainValid
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          )}
+        >
+          {chainValid ? <ShieldCheck className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}
+          {chainValid
+            ? 'Integrity verified. The hash chain is intact and shows no signs of tampering.'
+            : 'Tampering detected. The audit hash chain does not verify.'}
+        </div>
+      )}
 
       <Card>
         <CardHeader>

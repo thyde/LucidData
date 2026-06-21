@@ -8,6 +8,8 @@ import {
   listOrgPools,
   createPoolForOrg,
   closePool,
+  getMarketSupply,
+  type MarketSupplyRow,
 } from '@/lib/services/marketplace.service'
 import { createPoolSchema } from '@/lib/validations/marketplace'
 import type { DataPool } from '@/types/database.types'
@@ -41,6 +43,11 @@ export async function getOpenPoolAction(id: string): Promise<DataPool | null> {
 export async function getOrgPoolsAction(orgId: string): Promise<DataPool[]> {
   await requireOrgMembership(orgId)
   return listOrgPools(orgId)
+}
+
+export async function getMarketSupplyAction(orgId: string): Promise<MarketSupplyRow[]> {
+  await requireDataBuyer(orgId)
+  return getMarketSupply()
 }
 
 export async function createPoolAction(orgId: string, input: unknown): Promise<DataPool> {

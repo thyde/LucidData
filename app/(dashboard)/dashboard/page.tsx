@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
-import { getDataScore, getDataTracker, getDataMarket } from '@/lib/services/data-insights.service'
+import { getDataScore, getDataTracker, getDataMarket, getConsentActivity } from '@/lib/services/data-insights.service'
+import { getAccountSecurity } from '@/lib/services/account.service'
 import { getEarnings } from '@/lib/services/contribution.service'
 import { listActiveOffers, listMyClaims } from '@/lib/services/offer.service'
 import { DataTrackerChart } from '@/components/dashboard/data-tracker-chart'
@@ -11,6 +12,7 @@ import { RevenueDonut } from '@/components/dashboard/revenue-donut'
 import { DataMarketDonut } from '@/components/dashboard/data-market-donut'
 import { OffersList } from '@/components/dashboard/offers-list'
 import { LearnCenter } from '@/components/dashboard/learn-center'
+import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard'
 import { formatCents } from '@/components/dashboard/chart-theme'
 
 export default async function DashboardPage() {
@@ -23,7 +25,7 @@ export default async function DashboardPage() {
     return null
   }
 
-  const [vaultResult, consentResult, score, tracker, market, earnings, offers, claims] =
+  const [vaultResult, consentResult, score, tracker, market, earnings, offers, claims, consentActivity, security] =
     await Promise.all([
       supabase
         .from('vault_data')
@@ -40,6 +42,8 @@ export default async function DashboardPage() {
       getEarnings(user.id),
       listActiveOffers(),
       listMyClaims(user.id),
+      getConsentActivity(user.id),
+      getAccountSecurity(user.id),
     ])
 
   const vaultCount = vaultResult.count ?? 0
@@ -49,6 +53,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {security && !security.onboarding_completed && (
+        <OnboardingWizard recoveryConfigured={!!security.recovery_codes_generated_at} />
+      )}
       <div>
         <h1 className="text-3xl font-bold">Welcome back</h1>
         <p className="mt-1 text-muted-foreground">Your personal data bank at a glance</p>
@@ -165,6 +172,30 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
+      {/* Consent activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Consent activity</CardTitle>
+          <CardDescription>Time-bound access you have granted</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div className="text-2xl font-bold">{consentActivity.active}</div>
+              <div className="text-xs text-muted-foreground">Active</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{consentActivity.expiringSoon}</div>
+              <div className="text-xs text-muted-foreground">Expiring within 30 days</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{consentActivity.revoked}</div>
+              <div className="text-xs text-muted-foreground">Revoked</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Offers + learn */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -176,6 +207,7 @@ export default async function DashboardPage() {
             <OffersList offers={offers} claimedOfferIds={claimedOfferIds} />
           </CardContent>
         </Card>
+      </div>
 
         <Card>
           <CardHeader>

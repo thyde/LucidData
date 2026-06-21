@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withOrgAuth } from '@/lib/middleware/withOrgAuth'
 import { createServiceClient } from '@/lib/supabase/service'
+import { createNotification } from '@/lib/services/notification.service'
 import { z } from 'zod'
 
 const ConsentRequestSchema = z.object({
@@ -55,6 +56,16 @@ export const POST = withOrgAuth(async (req, { orgId, orgName }) => {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  await createNotification({
+    userId: user.id,
+    type: 'consent_request',
+    title: 'New data access request',
+    message: `${orgName} requested ${access_level} access${data_category ? ` to your ${data_category} data` : ''}.`,
+    relatedEntityId: request.id,
+    relatedEntityType: 'consent_request',
+    email: user_email,
+  })
 
   return NextResponse.json({
     request,

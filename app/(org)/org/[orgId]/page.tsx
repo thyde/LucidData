@@ -7,6 +7,7 @@ import { getBillingOverviewAction } from '@/lib/actions/billing.actions'
 import { IssuerSetup } from '@/components/org/issuer-setup'
 import { IssueCredential } from '@/components/org/issue-credential'
 import { VerifyTool } from '@/components/org/verify-tool'
+import { RequestCredentials } from '@/components/org/request-credentials'
 
 export default async function OrgDetailPage({
   params,
@@ -62,8 +63,9 @@ export default async function OrgDetailPage({
       )}
 
       {isVerifier && (
-        <div className="space-y-4">
+        <div className="space-y-8">
           <h2 className="text-lg font-medium">Verifier tools</h2>
+          <RequestCredentials orgId={orgId} />
           <VerifyTool />
         </div>
       )}

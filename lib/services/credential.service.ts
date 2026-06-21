@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { signCredentialForOrg, getIssuerPublicKey } from '@/lib/services/issuer-key.service'
 import { verifyCredentialSignature } from '@/lib/crypto/credential-verify'
 import { recordUsage } from '@/lib/services/billing.service'
+import { createNotification } from '@/lib/services/notification.service'
 import type { IssuedCredential, Json } from '@/types/database.types'
 
 export const CREDENTIAL_CONTEXT = 'https://luciddata.app/credentials/v1'
@@ -93,6 +94,17 @@ export async function issueCredential(
     .single()
   if (error) throw error
   await recordUsage(issuer.id, 'credential_issued', { credentialId: id, schemaType: input.schemaType }).catch(() => {})
+  if (existingUser?.id) {
+    await createNotification({
+      userId: existingUser.id,
+      type: 'credential_issued',
+      title: 'New credential received',
+      message: `${issuer.name} issued you a credential: ${input.label}.`,
+      relatedEntityId: id,
+      relatedEntityType: 'issued_credential',
+      email: subjectEmail,
+    }).catch(() => {})
+  }
   return data as IssuedCredential
 }
 

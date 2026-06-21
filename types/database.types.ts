@@ -10,6 +10,11 @@ export interface Database {
           display_name: string | null
           key_salt: string | null
           key_hint: string | null
+          wrapped_master_key: string | null
+          recovery_code_salt: string | null
+          recovery_codes_generated_at: string | null
+          onboarding_completed: boolean
+          email_notifications_enabled: boolean
           created_at: string
           updated_at: string
         }
@@ -19,6 +24,11 @@ export interface Database {
           display_name?: string | null
           key_salt?: string | null
           key_hint?: string | null
+          wrapped_master_key?: string | null
+          recovery_code_salt?: string | null
+          recovery_codes_generated_at?: string | null
+          onboarding_completed?: boolean
+          email_notifications_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -27,7 +37,43 @@ export interface Database {
           display_name?: string | null
           key_salt?: string | null
           key_hint?: string | null
+          wrapped_master_key?: string | null
+          recovery_code_salt?: string | null
+          recovery_codes_generated_at?: string | null
+          onboarding_completed?: boolean
+          email_notifications_enabled?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string
+          message: string
+          related_entity_id: string | null
+          related_entity_type: string | null
+          read: boolean
+          read_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title: string
+          message: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          read?: boolean
+          read_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          read?: boolean
+          read_at?: string | null
         }
         Relationships: []
       }
@@ -240,6 +286,39 @@ export interface Database {
         }
         Relationships: []
       }
+      credential_requests: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          subject_email: string
+          purpose: string
+          requested_schema_types: string[]
+          message: string | null
+          requested_at: string
+          expires_at: string | null
+          status: 'pending' | 'fulfilled' | 'denied' | 'expired'
+          response_note: string | null
+          responded_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          user_id: string
+          subject_email: string
+          purpose: string
+          requested_schema_types?: string[]
+          message?: string | null
+          expires_at?: string | null
+          status?: 'pending' | 'fulfilled' | 'denied' | 'expired'
+        }
+        Update: {
+          status?: 'pending' | 'fulfilled' | 'denied' | 'expired'
+          response_note?: string | null
+          responded_at?: string | null
+        }
+        Relationships: []
+      }
       passkeys: {
         Row: {
           id: string
@@ -375,6 +454,7 @@ export interface Database {
           token_hash: string
           disclosed_claims: string[]
           verifier_email: string | null
+          credential_request_id: string | null
           expires_at: string | null
           revoked: boolean
           revoked_at: string | null
@@ -389,6 +469,7 @@ export interface Database {
           token_hash: string
           disclosed_claims?: string[]
           verifier_email?: string | null
+          credential_request_id?: string | null
           expires_at?: string | null
           revoked?: boolean
           revoked_at?: string | null
@@ -399,6 +480,7 @@ export interface Database {
         Update: {
           disclosed_claims?: string[]
           verifier_email?: string | null
+          credential_request_id?: string | null
           expires_at?: string | null
           revoked?: boolean
           revoked_at?: string | null
@@ -682,6 +764,10 @@ export type OrgMember = Database['public']['Tables']['org_members']['Row']
 export type IssuerKey = Database['public']['Tables']['issuer_keys']['Row']
 export type IssuedCredential = Database['public']['Tables']['issued_credentials']['Row']
 export type CredentialShare = Database['public']['Tables']['credential_shares']['Row']
+export type CredentialRequest = Database['public']['Tables']['credential_requests']['Row']
+export type InsertCredentialRequest = Database['public']['Tables']['credential_requests']['Insert']
+export type Notification = Database['public']['Tables']['notifications']['Row']
+export type InsertNotification = Database['public']['Tables']['notifications']['Insert']
 export type OrgSubscription = Database['public']['Tables']['org_subscriptions']['Row']
 export type UsageEvent = Database['public']['Tables']['usage_events']['Row']
 export type InsertVaultData = Database['public']['Tables']['vault_data']['Insert']

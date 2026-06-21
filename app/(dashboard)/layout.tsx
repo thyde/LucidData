@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { SignOutButton } from '@/components/auth/sign-out-button';
 import { MobileNav } from '@/components/layout/mobile-nav';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 export default async function DashboardLayout({
   children,
@@ -73,6 +74,7 @@ export default async function DashboardLayout({
             </nav>
           </div>
           <div className="flex items-center space-x-4">
+            <NotificationBell />
             <span className="text-sm text-muted-foreground">{user.email}</span>
             <SignOutButton className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" />
           </div>

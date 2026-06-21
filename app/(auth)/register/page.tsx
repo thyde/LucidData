@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display';
+import { setupRecoveryFromPassword } from '@/lib/account/account-crypto';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,6 +22,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
@@ -103,6 +107,15 @@ export default function RegisterPage() {
         // Non-fatal: vault will be locked but user is still registered
       }
 
+      // Set up a recovery code so a future password reset can restore the vault.
+      try {
+        const code = await setupRecoveryFromPassword(password, keySalt);
+        setRecoveryCode(code);
+        return; // Hold on the recovery-code dialog until the user acknowledges it.
+      } catch {
+        // Non-fatal: the user can generate a recovery code later in settings.
+      }
+
       router.push('/dashboard');
       router.refresh();
     } catch (error) {
@@ -114,6 +127,7 @@ export default function RegisterPage() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
@@ -188,5 +202,27 @@ export default function RegisterPage() {
         </CardFooter>
       </form>
     </Card>
+    <Dialog open={!!recoveryCode} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle>Save your recovery code</DialogTitle>
+          <DialogDescription>
+            This is the only way to recover your vault if you forget your password. Store it
+            somewhere safe. It is shown once.
+          </DialogDescription>
+        </DialogHeader>
+        {recoveryCode && <RecoveryCodeDisplay code={recoveryCode} />}
+        <Button
+          className="w-full"
+          onClick={() => {
+            router.push('/dashboard');
+            router.refresh();
+          }}
+        >
+          Continue to dashboard
+        </Button>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

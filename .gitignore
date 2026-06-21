@@ -58,6 +58,9 @@ nul
 *.temp
 .aider*
 
+# editor / local tooling
+.vscode/
+
 # PWA
 public/sw.js
 public/workbox-*.js

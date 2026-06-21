@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
-import { listOrgPools } from '@/lib/services/marketplace.service'
+import { listOrgPools, getMarketSupply } from '@/lib/services/marketplace.service'
 import { listOrders } from '@/lib/services/data-order.service'
 import { listOrgOffers } from '@/lib/services/offer.service'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,6 +10,7 @@ import { CreatePoolDialog } from '@/components/buyer/create-pool-dialog'
 import { CreateOfferDialog } from '@/components/buyer/create-offer-dialog'
 import { DatasetBrowser } from '@/components/buyer/dataset-browser'
 import { OrdersList } from '@/components/buyer/orders-list'
+import { SupplyDiscovery } from '@/components/buyer/supply-discovery'
 import { categoryLabel } from '@/components/dashboard/chart-theme'
 
 export default async function BuyerPortalPage({
@@ -30,10 +31,11 @@ export default async function BuyerPortalPage({
     notFound()
   }
 
-  const [pools, orders, offers] = await Promise.all([
+  const [pools, orders, offers, supply] = await Promise.all([
     listOrgPools(orgId),
     listOrders(orgId),
     listOrgOffers(orgId),
+    getMarketSupply(),
   ])
 
   return (
@@ -58,6 +60,16 @@ export default async function BuyerPortalPage({
           </div>
         </div>
       </div>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-medium">Available supply</h2>
+          <p className="text-sm text-muted-foreground">
+            Anonymized counts of opted-in data by category. Use these to target a new pool or offer.
+          </p>
+        </div>
+        <SupplyDiscovery rows={supply} />
+      </section>
 
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Your data pools</h2>
