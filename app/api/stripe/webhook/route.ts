@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { syncSubscription } from '@/lib/services/stripe-billing.service'
+import { markDataOrderPaid, markDataOrderCanceled } from '@/lib/services/data-order.service'
 
 // Stripe signature verification needs the raw request body and Node APIs.
 export const runtime = 'nodejs'
@@ -34,13 +35,22 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        if (session.subscription) {
+        if (session.mode === 'subscription' && session.subscription) {
           const subscriptionId =
             typeof session.subscription === 'string'
               ? session.subscription
               : session.subscription.id
           const subscription = await getStripe().subscriptions.retrieve(subscriptionId)
           await syncSubscription(subscription)
+        } else if (session.metadata?.kind === 'data_order') {
+          await markDataOrderPaid(session)
+        }
+        break
+      }
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session
+        if (session.metadata?.kind === 'data_order') {
+          await markDataOrderCanceled(session)
         }
         break
       }

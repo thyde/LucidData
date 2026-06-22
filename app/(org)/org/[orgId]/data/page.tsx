@@ -15,10 +15,13 @@ import { categoryLabel } from '@/components/dashboard/chart-theme'
 
 export default async function BuyerPortalPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orgId: string }>
+  searchParams: Promise<{ order?: string }>
 }) {
   const { orgId } = await params
+  const { order: orderStatus } = await searchParams
 
   let membership
   try {
@@ -60,6 +63,17 @@ export default async function BuyerPortalPage({
           </div>
         </div>
       </div>
+
+      {orderStatus === 'success' && (
+        <div className="rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+          Payment received. Your dataset will be ready in Purchases below in a moment.
+        </div>
+      )}
+      {orderStatus === 'cancelled' && (
+        <div className="rounded-md border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          Checkout cancelled. No charge was made and the order was not completed.
+        </div>
+      )}
 
       <section className="space-y-4">
         <div>

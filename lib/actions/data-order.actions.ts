@@ -3,10 +3,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
 import {
-  purchasePool,
+  startPoolPurchase,
   listOrders,
   getExport,
-  type PurchaseResult,
+  type StartPurchaseResult,
   type DatasetExport,
 } from '@/lib/services/data-order.service'
 import { purchasePoolSchema } from '@/lib/validations/marketplace'
@@ -27,11 +27,14 @@ async function requireDataBuyer(orgId: string) {
   return membership
 }
 
-export async function purchasePoolAction(orgId: string, input: unknown): Promise<PurchaseResult> {
+export async function purchasePoolAction(
+  orgId: string,
+  input: unknown
+): Promise<StartPurchaseResult> {
   const userId = await getAuthenticatedUserId()
   await requireDataBuyer(orgId)
   const parsed = purchasePoolSchema.parse(input)
-  return purchasePool(orgId, userId, parsed)
+  return startPoolPurchase(orgId, userId, parsed)
 }
 
 export async function getOrdersAction(orgId: string): Promise<DataOrder[]> {

@@ -625,9 +625,11 @@ export interface Database {
           order_type: 'snapshot' | 'subscription'
           record_count: number
           total_cents: number
-          status: 'paid' | 'refunded' | 'canceled'
+          status: 'pending' | 'paid' | 'refunded' | 'canceled' | 'payment_failed'
           current_period_end: string | null
           export_token: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
           created_at: string
         }
         Insert: {
@@ -637,15 +639,19 @@ export interface Database {
           order_type?: 'snapshot' | 'subscription'
           record_count?: number
           total_cents?: number
-          status?: 'paid' | 'refunded' | 'canceled'
+          status?: 'pending' | 'paid' | 'refunded' | 'canceled' | 'payment_failed'
           current_period_end?: string | null
           export_token: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
         }
         Update: {
           record_count?: number
           total_cents?: number
-          status?: 'paid' | 'refunded' | 'canceled'
+          status?: 'pending' | 'paid' | 'refunded' | 'canceled' | 'payment_failed'
           current_period_end?: string | null
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
         }
         Relationships: []
       }
@@ -784,6 +790,7 @@ export type InsertPoolContribution = Database['public']['Tables']['pool_contribu
 export type UpdatePoolContribution = Database['public']['Tables']['pool_contributions']['Update']
 export type DataOrder = Database['public']['Tables']['data_orders']['Row']
 export type InsertDataOrder = Database['public']['Tables']['data_orders']['Insert']
+export type UpdateDataOrder = Database['public']['Tables']['data_orders']['Update']
 export type VaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Row']
 export type InsertVaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Insert']
 export type UpdateVaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Update']

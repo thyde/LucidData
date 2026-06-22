@@ -36,6 +36,10 @@ export function DatasetBrowser({ orgId, pools }: { orgId: string; pools: DataPoo
     startTransition(async () => {
       try {
         const result = await purchasePoolAction(orgId, { pool_id: pool.id, order_type: orderType })
+        if (result.kind === 'checkout') {
+          window.location.href = result.url
+          return
+        }
         toast({
           title: 'Purchase complete',
           description: `${result.recordCount} record(s) · ${formatCents(result.totalCents)}. Download it from Orders.`,
