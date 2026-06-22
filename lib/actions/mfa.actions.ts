@@ -6,6 +6,8 @@ import {
   redeemBackupCode,
   countRemainingBackupCodes,
 } from '@/lib/services/mfa.service'
+import { createAuditEntry } from '@/lib/services/audit.service'
+import { notifySecurityEvent } from '@/lib/services/security-notification.service'
 
 async function getAuthedUserId(): Promise<string> {
   const supabase = await createClient()
@@ -17,10 +19,40 @@ async function getAuthedUserId(): Promise<string> {
   return user.id
 }
 
-/** Generate (or regenerate) the signed-in user's two-factor backup codes. */
+/**
+ * Finish TOTP enrollment after the client has verified the first code: issue the
+ * initial backup codes and record that two-factor was turned on. Returns the
+ * one-time backup codes to display.
+ */
+export async function completeTwoFactorEnrollmentAction(): Promise<{ codes: string[] }> {
+  const userId = await getAuthedUserId()
+  const codes = await generateBackupCodes(userId)
+  await createAuditEntry({
+    userId,
+    eventType: 'two_factor_enabled',
+    action: 'Enabled two-factor authentication',
+  })
+  await notifySecurityEvent(userId, 'two_factor_enabled')
+  return { codes }
+}
+
+/** Regenerate the signed-in user's two-factor backup codes, replacing the old set. */
 export async function generateBackupCodesAction(): Promise<{ codes: string[] }> {
   const userId = await getAuthedUserId()
-  return { codes: await generateBackupCodes(userId) }
+  const codes = await generateBackupCodes(userId)
+  await notifySecurityEvent(userId, 'backup_codes_generated')
+  return { codes }
+}
+
+/** Record that the signed-in user turned off two-factor authentication. */
+export async function recordTwoFactorDisabledAction(): Promise<void> {
+  const userId = await getAuthedUserId()
+  await createAuditEntry({
+    userId,
+    eventType: 'two_factor_disabled',
+    action: 'Disabled two-factor authentication',
+  })
+  await notifySecurityEvent(userId, 'two_factor_disabled')
 }
 
 /**

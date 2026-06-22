@@ -47,3 +47,17 @@ export async function getEmailNotificationsEnabled(userId: string): Promise<bool
   if (error) throw error
   return data?.email_notifications_enabled ?? true
 }
+
+// Read a user's email for notification delivery. Notifications are often created
+// for a different user than the actor, so this uses the service role. Returns
+// null if the user has no row.
+export async function getUserEmail(userId: string): Promise<string | null> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('users')
+    .select('email')
+    .eq('id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return (data?.email as string | undefined) ?? null
+}

@@ -27,6 +27,8 @@ function deepLinkPathForEntity(relatedEntityType?: string | null): string {
       return '/credentials'
     case 'consent':
       return '/consent'
+    case 'security':
+      return '/settings'
     default:
       return '/dashboard'
   }

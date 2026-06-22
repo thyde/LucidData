@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import * as mfaRepo from '@/lib/repositories/mfa.repository'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { notifySecurityEvent } from '@/lib/services/security-notification.service'
 
 const BACKUP_CODE_COUNT = 10
 
@@ -55,6 +56,7 @@ export async function redeemBackupCode(userId: string, code: string): Promise<bo
     action: 'Used a backup code to disable two-factor authentication',
     metadata: {},
   })
+  await notifySecurityEvent(userId, 'backup_code_used')
   return true
 }
 

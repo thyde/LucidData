@@ -10,6 +10,8 @@ import { createClient } from '@/lib/supabase/client'
 import {
   generateBackupCodesAction,
   getBackupCodesStatusAction,
+  completeTwoFactorEnrollmentAction,
+  recordTwoFactorDisabledAction,
 } from '@/lib/actions/mfa.actions'
 
 type Mode = 'idle' | 'enroll' | 'disable'
@@ -88,7 +90,7 @@ export function TwoFactorSetup() {
         code: code.trim(),
       })
       if (verify.error) throw verify.error
-      const { codes } = await generateBackupCodesAction()
+      const { codes } = await completeTwoFactorEnrollmentAction()
       setBackupCodes(codes)
       toast({ title: 'Two-factor authentication enabled' })
       setMode('idle')
@@ -137,6 +139,7 @@ export function TwoFactorSetup() {
       if (verify.error) throw verify.error
       const { error: unErr } = await supabase.auth.mfa.unenroll({ factorId: factor.id })
       if (unErr) throw unErr
+      await recordTwoFactorDisabledAction().catch(() => {})
       toast({ title: 'Two-factor authentication disabled' })
       setMode('idle')
       setCode('')

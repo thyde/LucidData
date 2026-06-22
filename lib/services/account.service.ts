@@ -2,6 +2,7 @@ import * as userRepo from '@/lib/repositories/user.repository'
 import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { createServiceClient } from '@/lib/supabase/service'
+import { notifySecurityEvent } from '@/lib/services/security-notification.service'
 
 export interface AccountSecurity {
   key_salt: string | null
@@ -41,6 +42,7 @@ export async function setRecoveryEscrow(
     eventType: 'recovery_codes_generated',
     action: 'Generated a vault recovery code',
   })
+  await notifySecurityEvent(userId, 'recovery_code_generated')
 }
 
 // Persist re-wrapped DEK envelopes for every entry, then write a single summary
@@ -66,6 +68,10 @@ export async function rewrapVaultEntries(
     eventType: reason === 'password_change' ? 'password_changed' : 'vault_recovered',
     action,
   })
+  await notifySecurityEvent(
+    userId,
+    reason === 'password_change' ? 'password_changed' : 'vault_recovered'
+  )
 }
 
 export async function recordDataExport(userId: string, count: number): Promise<void> {
