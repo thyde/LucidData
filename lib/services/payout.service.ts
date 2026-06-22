@@ -1,8 +1,13 @@
 import type Stripe from 'stripe'
 import * as payoutRepo from '@/lib/repositories/payout.repository'
 import * as contributionRepo from '@/lib/repositories/contribution.repository'
+import * as poolRepo from '@/lib/repositories/pool.repository'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import {
+  notifyDataSold,
+  notifyPayoutPaid,
+} from '@/lib/services/marketplace-notification.service'
 import type { DataOrder, Payout, PayoutAccount } from '@/types/database.types'
 
 function appUrl(): string {
@@ -88,6 +93,9 @@ export async function recordOrderPayouts(order: DataOrder): Promise<void> {
   const existing = await payoutRepo.findPayoutsByOrder(order.id)
   if (existing.length > 0) return // idempotent across webhook redeliveries
 
+  const pool = await poolRepo.findPoolById(order.pool_id)
+  const poolName = pool?.name ?? 'a data pool'
+
   const contributions = await contributionRepo.findActiveContributionsByPool(order.pool_id)
   const userIds = new Set<string>()
   for (const c of contributions) {
@@ -99,6 +107,11 @@ export async function recordOrderPayouts(order: DataOrder): Promise<void> {
       pool_id: order.pool_id,
       amount_cents: c.payout_cents,
       status: 'pending',
+    })
+    await notifyDataSold(c.user_id, {
+      poolName,
+      amountCents: c.payout_cents,
+      orderId: order.id,
     })
     userIds.add(c.user_id)
   }
@@ -117,6 +130,7 @@ export async function processPendingPayouts(userId: string): Promise<void> {
   if (!account || !account.payouts_enabled) return
 
   const pending = await payoutRepo.findPendingPayouts(userId)
+  const poolNames = new Map<string, string>()
   for (const payout of pending) {
     try {
       const transfer = await getStripe().transfers.create({
@@ -134,6 +148,17 @@ export async function processPendingPayouts(userId: string): Promise<void> {
         eventType: 'payout_sent',
         action: `Received a payout of $${(payout.amount_cents / 100).toFixed(2)}`,
         metadata: { payout_id: payout.id, amount_cents: payout.amount_cents },
+      })
+      let poolName = poolNames.get(payout.pool_id)
+      if (poolName === undefined) {
+        const pool = await poolRepo.findPoolById(payout.pool_id)
+        poolName = pool?.name ?? 'a data pool'
+        poolNames.set(payout.pool_id, poolName)
+      }
+      await notifyPayoutPaid(userId, {
+        poolName,
+        amountCents: payout.amount_cents,
+        payoutId: payout.id,
       })
     } catch (e) {
       // Leave the payout 'pending' so a transient issue (settling balance, capability

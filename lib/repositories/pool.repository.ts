@@ -54,6 +54,19 @@ export async function findPoolByOrg(id: string, orgId: string): Promise<DataPool
   return data
 }
 
+// A pool by id regardless of status or owning org. For internal flows that only
+// hold a pool_id (e.g. payout notifications), not for buyer/contributor reads.
+export async function findPoolById(id: string): Promise<DataPool | null> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('data_pools')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
 export async function createPool(pool: InsertDataPool): Promise<DataPool> {
   const service = createServiceClient()
   const { data, error } = await service.from('data_pools').insert(pool).select('*').single()
