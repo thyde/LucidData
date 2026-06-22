@@ -5,6 +5,7 @@ import { useVaultList } from '@/lib/hooks/useVault';
 import { VaultViewDialog } from './vault-view-dialog';
 import { VaultEditDialog } from './vault-edit-dialog';
 import { VaultCreateDialog } from './vault-create-dialog';
+import { VaultImportDialog } from './vault-import-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -84,7 +85,10 @@ export function VaultList({ onEntryClick }: VaultListProps) {
             {filteredEntries.length} entries
           </p>
         </div>
-        <VaultCreateDialog />
+        <div className="flex gap-2">
+          <VaultImportDialog />
+          <VaultCreateDialog />
+        </div>
       </div>
 
       {/* Filters */}
