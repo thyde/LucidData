@@ -56,22 +56,25 @@ Organizations that request data:
 | Verifiable credentials | Organizations issue Ed25519-signed credentials. Users hold them in an inbox, verify them, and share them. | Built |
 | Passkey sign-in | WebAuthn passkeys alongside password sign-in. | Built |
 | Installable PWA | Progressive web app with realtime updates over Supabase. | Built |
+| Two-factor authentication | TOTP authenticator-app second factor, enforced at sign-in, with one-time backup codes for recovery. | Built |
+| Data marketplace | Individuals contribute anonymized data to buyer-defined pools and earn when it sells; buyers create pools and offers. | Built |
+| Payments and payouts | Stripe Checkout for organization subscriptions and dataset purchases, and Stripe Connect payouts to contributors. | Built |
+| Vault data export | Export vault entries to open formats (JSON-LD). Entries are decrypted in the browser before download. | Built |
+| Account recovery and notifications | Recovery-code vault escrow, password change with re-encryption, and realtime in-app notifications with optional email. | Built |
 
 ## In progress
 
 | Feature | Description |
 |---------|-------------|
-| Vault data export | Exporting vault entries to open formats such as JSON-LD. Credentials are already portable, but a general vault export is not finished yet. |
+| Production rollout | Applying the latest migrations to the hosted database and enabling MFA and Stripe in the hosted project so payments, payouts, and 2FA are live in production. |
 
 ## Deferred to beta and later
 
 | Feature | Description | Target |
 |---------|-------------|--------|
-| Payment integration | Stripe Connect for licensing payments and revenue tracking. | Beta |
 | Additional data schemas | FHIR for healthcare and Open Banking for financial data. | Beta |
 | DID support | Decentralized identifiers for credential issuers and holders. | Beta |
 | Mobile apps | Native iOS and Android clients. | Post-beta |
-| Buyer marketplace | A place for organizations to discover and request data access. | Post-beta |
 
 
 ---
