@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ShieldCheck, Vault, Handshake, Sparkles } from 'lucide-react'
@@ -23,6 +23,14 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
   const [open, setOpen] = useState(true)
   const [step, setStep] = useState(0)
   const [finishing, setFinishing] = useState(false)
+
+  // Mark onboarding as seen as soon as the wizard appears, so it never shows again
+  // even if the user leaves the dashboard without using a dismiss control (e.g. by
+  // clicking a nav link). Best-effort; finish() persists again (idempotent) on an
+  // explicit Skip / Get started / close.
+  useEffect(() => {
+    completeOnboardingAction().catch(() => {})
+  }, [])
 
   const steps: Step[] = [
     {
