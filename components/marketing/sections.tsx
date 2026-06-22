@@ -25,7 +25,7 @@ export function Hero() {
           The personal data bank
         </p>
         <h1 className="mx-auto max-w-4xl text-4xl font-bold tracking-tight md:text-6xl">
-          You manage my money. <span className="text-primary">Why not my data?</span>
+          Banks manage your money. <span className="text-primary">Who manages your data?</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
           The $200B data market runs on your information, yet you never see a cent or know where
