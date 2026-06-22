@@ -59,6 +59,36 @@ export const EducationSchema = z.object({
 })
 export type Education = z.infer<typeof EducationSchema>
 
+// --- Fitness Activity (a single workout, e.g. from Strava) ---
+export const FitnessActivitySchema = z.object({
+  name: z.string().min(1),
+  sport_type: z.enum(['Run', 'Ride', 'Walk', 'Hike', 'Swim', 'Workout', 'WeightTraining', 'Yoga', 'Other']),
+  start_date: z.string().min(1),
+  distance_km: z.number().optional(),
+  duration_min: z.number().optional(),
+  elevation_gain_m: z.number().optional(),
+  average_heartrate: z.number().optional(),
+  max_heartrate: z.number().optional(),
+  calories: z.number().optional(),
+  average_speed_kmh: z.number().optional(),
+  source: z.string().optional(),
+})
+export type FitnessActivity = z.infer<typeof FitnessActivitySchema>
+
+// --- Daily Fitness Summary (a day of activity, e.g. from Fitbit) ---
+export const FitnessDailySchema = z.object({
+  date: z.string().min(1),
+  steps: z.number().optional(),
+  distance_km: z.number().optional(),
+  calories_out: z.number().optional(),
+  floors: z.number().optional(),
+  active_minutes: z.number().optional(),
+  resting_heart_rate: z.number().optional(),
+  sleep_minutes: z.number().optional(),
+  source: z.string().optional(),
+})
+export type FitnessDaily = z.infer<typeof FitnessDailySchema>
+
 // --- Schema registry ---
 export const VAULT_SCHEMA_TYPES = {
   custom: { label: 'Custom (JSON)', description: 'Free-form JSON data', category: 'personal' },
@@ -67,6 +97,8 @@ export const VAULT_SCHEMA_TYPES = {
   identity: { label: 'Identity Document', description: 'ID and passport info', category: 'credentials' },
   employment: { label: 'Employment Record', description: 'Work history entry', category: 'credentials' },
   education: { label: 'Education Record', description: 'Academic credentials', category: 'credentials' },
+  fitness_activity: { label: 'Fitness Activity', description: 'A workout or activity (e.g. from Strava)', category: 'health' },
+  fitness_daily: { label: 'Daily Fitness Summary', description: 'A day of steps, calories, and activity (e.g. from Fitbit)', category: 'health' },
 } as const
 
 export type VaultSchemaType = keyof typeof VAULT_SCHEMA_TYPES
@@ -77,4 +109,6 @@ export const SCHEMA_VALIDATORS: Record<string, z.ZodSchema> = {
   identity: IdentitySchema,
   employment: EmploymentSchema,
   education: EducationSchema,
+  fitness_activity: FitnessActivitySchema,
+  fitness_daily: FitnessDailySchema,
 }
