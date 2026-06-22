@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { listOpenPools } from '@/lib/services/marketplace.service'
 import { listMyContributions, getEarnings } from '@/lib/services/contribution.service'
 import { getSalePreferences } from '@/lib/services/monetization.service'
+import { getPayoutOverview } from '@/lib/services/payout.service'
 import { PoolList } from '@/components/marketplace/pool-list'
 import { MyContributions } from '@/components/marketplace/my-contributions'
+import { PayoutsPanel } from '@/components/marketplace/payouts-panel'
 import { SalePreferencesForm } from '@/components/marketplace/sale-preferences-form'
 import { DataValueGuide } from '@/components/marketplace/data-value-guide'
 import { findVaultByUserId } from '@/lib/repositories/vault.repository'
@@ -18,12 +20,13 @@ export default async function MarketplacePage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [pools, contributions, earnings, prefs, vault] = await Promise.all([
+  const [pools, contributions, earnings, prefs, vault, payoutOverview] = await Promise.all([
     listOpenPools(),
     listMyContributions(user.id),
     getEarnings(user.id),
     getSalePreferences(user.id),
     findVaultByUserId(user.id),
+    getPayoutOverview(user.id),
   ])
   const yourCategories = Array.from(new Set(vault.map((v) => v.category)))
 
@@ -56,6 +59,8 @@ export default async function MarketplacePage() {
           </CardHeader>
         </Card>
       </div>
+
+      <PayoutsPanel overview={payoutOverview} />
 
       <DataValueGuide yourCategories={yourCategories} />
 

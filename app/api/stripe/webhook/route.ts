@@ -3,6 +3,7 @@ import type Stripe from 'stripe'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { syncSubscription } from '@/lib/services/stripe-billing.service'
 import { markDataOrderPaid, markDataOrderCanceled } from '@/lib/services/data-order.service'
+import { syncConnectAccount } from '@/lib/services/payout.service'
 
 // Stripe signature verification needs the raw request body and Node APIs.
 export const runtime = 'nodejs'
@@ -52,6 +53,10 @@ export async function POST(req: NextRequest) {
         if (session.metadata?.kind === 'data_order') {
           await markDataOrderCanceled(session)
         }
+        break
+      }
+      case 'account.updated': {
+        await syncConnectAccount(event.data.object as Stripe.Account)
         break
       }
       case 'customer.subscription.created':

@@ -655,6 +655,59 @@ export interface Database {
         }
         Relationships: []
       }
+      payout_accounts: {
+        Row: {
+          user_id: string
+          stripe_account_id: string
+          details_submitted: boolean
+          payouts_enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          stripe_account_id: string
+          details_submitted?: boolean
+          payouts_enabled?: boolean
+        }
+        Update: {
+          stripe_account_id?: string
+          details_submitted?: boolean
+          payouts_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payouts: {
+        Row: {
+          id: string
+          user_id: string
+          contribution_id: string | null
+          data_order_id: string | null
+          pool_id: string | null
+          amount_cents: number
+          status: 'pending' | 'paid' | 'failed'
+          stripe_transfer_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          contribution_id?: string | null
+          data_order_id?: string | null
+          pool_id?: string | null
+          amount_cents: number
+          status?: 'pending' | 'paid' | 'failed'
+          stripe_transfer_id?: string | null
+        }
+        Update: {
+          status?: 'pending' | 'paid' | 'failed'
+          stripe_transfer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vault_field_monetization: {
         Row: {
           id: string
@@ -791,6 +844,12 @@ export type UpdatePoolContribution = Database['public']['Tables']['pool_contribu
 export type DataOrder = Database['public']['Tables']['data_orders']['Row']
 export type InsertDataOrder = Database['public']['Tables']['data_orders']['Insert']
 export type UpdateDataOrder = Database['public']['Tables']['data_orders']['Update']
+export type PayoutAccount = Database['public']['Tables']['payout_accounts']['Row']
+export type InsertPayoutAccount = Database['public']['Tables']['payout_accounts']['Insert']
+export type UpdatePayoutAccount = Database['public']['Tables']['payout_accounts']['Update']
+export type Payout = Database['public']['Tables']['payouts']['Row']
+export type InsertPayout = Database['public']['Tables']['payouts']['Insert']
+export type UpdatePayout = Database['public']['Tables']['payouts']['Update']
 export type VaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Row']
 export type InsertVaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Insert']
 export type UpdateVaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Update']

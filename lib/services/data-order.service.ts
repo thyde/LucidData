@@ -5,6 +5,7 @@ import * as contributionRepo from '@/lib/repositories/contribution.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
+import { recordOrderPayouts } from '@/lib/services/payout.service'
 import type { DataOrder } from '@/types/database.types'
 import type { PurchasePoolInput } from '@/lib/validations/marketplace'
 
@@ -127,7 +128,7 @@ export async function markDataOrderPaid(session: Stripe.Checkout.Session): Promi
 
   const paymentIntentId =
     typeof session.payment_intent === 'string' ? session.payment_intent : null
-  await orderRepo.updateOrder(orderId, {
+  const paidOrder = await orderRepo.updateOrder(orderId, {
     status: 'paid',
     stripe_payment_intent_id: paymentIntentId,
   })
@@ -142,6 +143,11 @@ export async function markDataOrderPaid(session: Stripe.Checkout.Session): Promi
       metadata: { pool_id: order.pool_id, order_id: orderId, total_cents: order.total_cents },
     })
   }
+
+  // Queue contributor payouts for this purchase (best-effort; webhook stays 200).
+  await recordOrderPayouts(paidOrder).catch((e) =>
+    console.error('recordOrderPayouts failed for order', orderId, e)
+  )
 }
 
 /** Webhook: cancel a pending data order whose Checkout session expired. */
