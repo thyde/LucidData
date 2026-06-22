@@ -28,6 +28,7 @@ import {
 import { VAULT_SCHEMA_TYPES, type VaultSchemaType } from '@/lib/schemas/vault-schemas';
 import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields';
 import { SchemaForm } from './schema-form';
+import { KeyValueBuilder } from './key-value-builder';
 
 // Form schema for the non-data fields (label, category, description, tags, expiresAt)
 const metaFormSchema = vaultDataSchema.omit({ data: true, expiresAt: true }).extend({
@@ -44,6 +45,8 @@ export function VaultCreateDialog() {
   const [schemaType, setSchemaType] = useState<VaultSchemaType>('custom');
   const [schemaData, setSchemaData] = useState<Record<string, unknown>>({});
   const [customJson, setCustomJson] = useState('{}');
+  const [customMode, setCustomMode] = useState<'fields' | 'json'>('fields');
+  const [customBuilderKey, setCustomBuilderKey] = useState(0);
   const [jsonError, setJsonError] = useState<string | null>(null);
   const { mutate, isPending } = useCreateVault();
 
@@ -65,9 +68,35 @@ export function VaultCreateDialog() {
     setSchemaType(type);
     setSchemaData({});
     setCustomJson('{}');
+    setCustomMode('fields');
+    setCustomBuilderKey((k) => k + 1);
     setJsonError(null);
     form.setValue('category', VAULT_SCHEMA_TYPES[type].category);
     form.setValue('schemaType', type === 'custom' ? '' : type);
+  };
+
+  // Switch the custom editor between the field builder and raw JSON, carrying the
+  // current data across so nothing is lost.
+  const toggleCustomMode = () => {
+    if (customMode === 'fields') {
+      setCustomJson(JSON.stringify(schemaData ?? {}, null, 2));
+      setJsonError(null);
+      setCustomMode('json');
+    } else {
+      try {
+        const parsed = JSON.parse(customJson || '{}');
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          setJsonError('Enter a JSON object, for example {"key": "value"}');
+          return;
+        }
+        setSchemaData(parsed as Record<string, unknown>);
+        setJsonError(null);
+        setCustomBuilderKey((k) => k + 1);
+        setCustomMode('fields');
+      } catch {
+        setJsonError('Invalid JSON');
+      }
+    }
   };
 
   const onSubmit = (values: MetaFormValues) => {
@@ -75,7 +104,7 @@ export function VaultCreateDialog() {
 
     if (schemaType !== 'custom') {
       parsedData = schemaData;
-    } else {
+    } else if (customMode === 'json') {
       try {
         parsedData = JSON.parse(customJson);
         setJsonError(null);
@@ -83,6 +112,8 @@ export function VaultCreateDialog() {
         setJsonError('Invalid JSON');
         return;
       }
+    } else {
+      parsedData = schemaData;
     }
 
     const payload = {
@@ -103,6 +134,8 @@ export function VaultCreateDialog() {
         setSchemaType('custom');
         setSchemaData({});
         setCustomJson('{}');
+        setCustomMode('fields');
+        setCustomBuilderKey((k) => k + 1);
         setJsonError(null);
         setOpen(false);
       },
@@ -179,15 +212,31 @@ export function VaultCreateDialog() {
               label="Tags"
             />
 
-            {/* Dynamic data form or JSON textarea */}
+            {/* Dynamic data form, custom field builder, or raw JSON */}
             <div className="space-y-2">
-              <Label>
-                {schemaType !== 'custom' ? 'Entry data' : 'Data (JSON)'}
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label>{schemaType !== 'custom' ? 'Entry data' : 'Data'}</Label>
+                {schemaType === 'custom' && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleCustomMode}
+                  >
+                    {customMode === 'fields' ? 'Edit as JSON' : 'Use fields'}
+                  </Button>
+                )}
+              </div>
               {schemaType !== 'custom' && SCHEMA_FORM_FIELDS[schemaType] ? (
                 <SchemaForm
                   fields={SCHEMA_FORM_FIELDS[schemaType]}
                   value={schemaData}
+                  onChange={setSchemaData}
+                />
+              ) : customMode === 'fields' ? (
+                <KeyValueBuilder
+                  key={customBuilderKey}
+                  initialValue={schemaData}
                   onChange={setSchemaData}
                 />
               ) : (

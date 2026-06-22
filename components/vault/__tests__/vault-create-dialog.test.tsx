@@ -84,7 +84,7 @@ describe('VaultCreateDialog', () => {
 
       expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: /data/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add field/i })).toBeInTheDocument();
     });
   });
 
@@ -134,11 +134,12 @@ describe('VaultCreateDialog', () => {
       expect(screen.getByLabelText(/tags/i)).toBeInTheDocument();
     });
 
-    it('renders data textarea for JSON input', async () => {
+    it('exposes a raw JSON editor via the advanced toggle', async () => {
       const user = userEvent.setup();
       render(<VaultCreateDialog />);
 
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
+      await user.click(screen.getByRole('button', { name: /edit as json/i }));
 
       const dataInput = screen.getByRole('textbox', { name: /data/i });
       expect(dataInput).toBeInTheDocument();
@@ -242,7 +243,10 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test Label');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      await user.type(screen.getByRole('textbox', { name: /data/i }), 'invalid json');
+      await user.click(screen.getByRole('button', { name: /edit as json/i }));
+      const jsonInput = screen.getByRole('textbox', { name: /data/i });
+      await user.clear(jsonInput);
+      await user.type(jsonInput, 'oops(');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {
