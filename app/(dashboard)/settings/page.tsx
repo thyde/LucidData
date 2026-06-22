@@ -4,6 +4,7 @@ import { RecoveryCodesSection } from '@/components/settings/recovery-codes-secti
 import { ChangePasswordForm } from '@/components/settings/change-password-form'
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog'
 import { NotificationPreferences } from '@/components/settings/notification-preferences'
+import { TwoFactorSetup } from '@/components/settings/two-factor-setup'
 import { getAccountSecurity } from '@/lib/services/account.service'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -63,6 +64,15 @@ export default async function SettingsPage() {
         )}
 
         <RegisterPasskeyButton />
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium">Two-factor authentication</h2>
+        <p className="text-sm text-muted-foreground">
+          Add a second step at sign-in using an authenticator app, so a password alone is not enough
+          to access your account.
+        </p>
+        <TwoFactorSetup />
       </section>
 
       <section className="space-y-4">

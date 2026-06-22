@@ -19,6 +19,11 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+    redirect('/two-factor');
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">

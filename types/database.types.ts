@@ -708,6 +708,25 @@ export interface Database {
         }
         Relationships: []
       }
+      mfa_backup_codes: {
+        Row: {
+          id: string
+          user_id: string
+          code_hash: string
+          used_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          code_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       vault_field_monetization: {
         Row: {
           id: string
@@ -850,6 +869,8 @@ export type UpdatePayoutAccount = Database['public']['Tables']['payout_accounts'
 export type Payout = Database['public']['Tables']['payouts']['Row']
 export type InsertPayout = Database['public']['Tables']['payouts']['Insert']
 export type UpdatePayout = Database['public']['Tables']['payouts']['Update']
+export type MfaBackupCode = Database['public']['Tables']['mfa_backup_codes']['Row']
+export type InsertMfaBackupCode = Database['public']['Tables']['mfa_backup_codes']['Insert']
 export type VaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Row']
 export type InsertVaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Insert']
 export type UpdateVaultFieldMonetization = Database['public']['Tables']['vault_field_monetization']['Update']

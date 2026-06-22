@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PasskeyLoginButton } from '@/components/auth/passkey-login-button';
 import { VaultUnlockDialog } from '@/components/auth/vault-unlock-dialog';
+import { MfaChallenge } from '@/components/auth/mfa-challenge';
 
 function LoginForm() {
   const router = useRouter();
@@ -23,6 +24,8 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [passkeyKeySalt, setPasskeyKeySalt] = useState<string | null>(null);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
@@ -75,7 +78,13 @@ function LoginForm() {
         // Non-fatal: user can still navigate, but vault will be locked
       }
 
-      const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
+      // If the account has 2FA enrolled, require the challenge before continuing.
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
+        setMfaRequired(true);
+        return;
+      }
+
       router.push(redirectTo);
       router.refresh();
     } catch (error) {
@@ -85,6 +94,27 @@ function LoginForm() {
       setLoading(false);
     }
   };
+
+  if (mfaRequired) {
+    return (
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Two-factor authentication</CardTitle>
+          <CardDescription className="text-center">
+            Enter the 6-digit code from your authenticator app
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MfaChallenge
+            onVerified={() => {
+              router.push(redirectTo);
+              router.refresh();
+            }}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

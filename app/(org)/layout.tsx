@@ -11,6 +11,11 @@ export default async function OrgLayout({ children }: { children: ReactNode }) {
     redirect('/login?redirectedFrom=/org')
   }
 
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+    redirect('/two-factor?redirectedFrom=/org')
+  }
+
   return (
     <div className="min-h-screen bg-muted/20">
       <header className="border-b bg-background px-6 py-4">
