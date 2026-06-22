@@ -3,6 +3,8 @@
 // the clear. Each parser turns a file's text into a list of plain record objects,
 // one per vault entry.
 
+import type { FormField } from '@/lib/schemas/form-fields'
+
 export type ImportFormat = 'json' | 'csv'
 
 export interface ParsedImport {
@@ -135,4 +137,59 @@ export function labelForRecord(
   const candidate = record.label ?? record.name ?? record.title ?? record.id
   const text = candidate == null ? '' : String(candidate).trim()
   return text || fallback
+}
+
+// --- Optional column mapping to a known schema type ---
+
+// Maps a target schema field key to the source record key it pulls from (or '' to
+// skip that field).
+export type FieldMapping = Record<string, string>
+
+function normalizeKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+// Guess a sensible mapping by matching each schema field's key or label to a source
+// column with the same normalized name. Unmatched fields are left unmapped.
+export function autoGuessMapping(fields: FormField[], sourceKeys: string[]): FieldMapping {
+  const normalizedSources = sourceKeys.map((key) => ({ key, norm: normalizeKey(key) }))
+  const mapping: FieldMapping = {}
+  for (const field of fields) {
+    const targets = [normalizeKey(field.name), normalizeKey(field.label)]
+    const match = normalizedSources.find((s) => targets.includes(s.norm))
+    mapping[field.name] = match ? match.key : ''
+  }
+  return mapping
+}
+
+// Build a schema-shaped record from a source record using the mapping. Values are
+// coerced to the target field's type (lists split on commas/newlines, numbers
+// parsed, checkboxes from truthy text). Unmapped or empty fields are skipped.
+export function applyFieldMapping(
+  record: Record<string, unknown>,
+  fields: FormField[],
+  mapping: FieldMapping
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const field of fields) {
+    const sourceKey = mapping[field.name]
+    if (!sourceKey) continue
+    const raw = record[sourceKey]
+    if (raw === undefined || raw === null || raw === '') continue
+
+    if (field.type === 'multi-text') {
+      out[field.name] = String(raw)
+        .split(/[,\n]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    } else if (field.type === 'number') {
+      const n = Number(raw)
+      out[field.name] = Number.isNaN(n) ? raw : n
+    } else if (field.type === 'checkbox') {
+      out[field.name] = raw === true || /^(true|yes|1)$/i.test(String(raw))
+    } else {
+      out[field.name] = String(raw)
+    }
+  }
+  return out
 }

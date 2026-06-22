@@ -5,7 +5,11 @@ import {
   parseCsvRows,
   parseImportFile,
   labelForRecord,
+  autoGuessMapping,
+  applyFieldMapping,
+  type FieldMapping,
 } from '@/lib/vault/import-parsers'
+import type { FormField } from '@/lib/schemas/form-fields'
 
 describe('parseJsonImport', () => {
   it('turns an array into one record per element', () => {
@@ -93,5 +97,51 @@ describe('labelForRecord', () => {
 
   it('falls back when no name-like field is present', () => {
     expect(labelForRecord({ amount: 10 }, 'Entry 5')).toBe('Entry 5')
+  })
+})
+
+const mappingFields: FormField[] = [
+  { name: 'bank_name', label: 'Bank name', type: 'text' },
+  { name: 'income_range', label: 'Income range', type: 'select', options: [] },
+  { name: 'allergies', label: 'Allergies', type: 'multi-text' },
+  { name: 'graduation_year', label: 'Graduation year', type: 'number' },
+  { name: 'is_current', label: 'Currently employed here', type: 'checkbox' },
+]
+
+describe('autoGuessMapping', () => {
+  it('matches source columns by normalized name or label', () => {
+    const mapping = autoGuessMapping(mappingFields, ['Bank Name', 'income_range', 'unrelated'])
+    expect(mapping.bank_name).toBe('Bank Name')
+    expect(mapping.income_range).toBe('income_range')
+    expect(mapping.allergies).toBe('')
+  })
+})
+
+describe('applyFieldMapping', () => {
+  const mapping: FieldMapping = {
+    bank_name: 'Bank',
+    allergies: 'Allergies',
+    graduation_year: 'Year',
+    is_current: 'Active',
+    income_range: '',
+  }
+
+  it('coerces values to field types and skips unmapped fields', () => {
+    const out = applyFieldMapping(
+      { Bank: 'Acme', Allergies: 'peanuts, shellfish', Year: '2024', Active: 'yes' },
+      mappingFields,
+      mapping
+    )
+    expect(out).toEqual({
+      bank_name: 'Acme',
+      allergies: ['peanuts', 'shellfish'],
+      graduation_year: 2024,
+      is_current: true,
+    })
+  })
+
+  it('skips fields whose source value is empty', () => {
+    const out = applyFieldMapping({ Bank: '', Year: '' }, mappingFields, mapping)
+    expect(out).toEqual({})
   })
 })
