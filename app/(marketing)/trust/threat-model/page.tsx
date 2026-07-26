@@ -47,7 +47,7 @@ export default function ThreatModelPage() {
         <p>
           <a
             href={`mailto:${VULNERABILITY_DISCLOSURE.email}`}
-            className="font-medium text-primary hover:underline"
+            className="font-medium text-primary underline"
           >
             {VULNERABILITY_DISCLOSURE.email}
           </a>

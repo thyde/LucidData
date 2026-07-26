@@ -23,6 +23,7 @@ const FOOTER_GROUPS = [
     links: [
       { href: '/trust', label: 'Trust centre' },
       { href: '/trust/threat-model', label: 'Threat model' },
+      { href: '/trust/accessibility', label: 'Accessibility' },
     ],
   },
 ]

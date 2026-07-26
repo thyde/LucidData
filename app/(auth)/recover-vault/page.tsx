@@ -140,7 +140,7 @@ export default function RecoverVaultPage() {
             Open the password reset link from your email on this device to continue. If you arrived
             here directly, request a new link.
           </div>
-          <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+          <Link href="/forgot-password" className="text-sm text-primary underline">
             Request a reset link
           </Link>
         </CardContent>

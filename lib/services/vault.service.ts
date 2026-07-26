@@ -1,6 +1,7 @@
 import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertRecoveryReadyForFirstWrite } from '@/lib/services/recovery-factor.service'
+import { parseProvenance } from '@/lib/validations/provenance'
 import type { VaultData, InsertVaultData, UpdateVaultData } from '@/types/database.types'
 
 export interface CreateVaultPayload {
@@ -13,6 +14,11 @@ export interface CreateVaultPayload {
   encrypted_dek: string
   dek_salt: string
   expires_at?: string
+  // LD-202 provenance. Unencrypted metadata, so it is validated rather than
+  // trusted: identifiers only, never a label the provider wrote.
+  source_provider?: string
+  source_record_id?: string
+  source_captured_at?: string
 }
 
 export interface UpdateVaultPayload {
@@ -33,7 +39,18 @@ export async function createVaultData(userId: string, payload: CreateVaultPayloa
   // are unaffected.
   await assertRecoveryReadyForFirstWrite(userId)
 
-  const entry = await vaultRepo.createVaultEntry({ user_id: userId, ...payload } as InsertVaultData)
+  // LD-202: throws before anything is written if provenance carries content.
+  const provenance = parseProvenance({
+    source_provider: payload.source_provider,
+    source_record_id: payload.source_record_id,
+    source_captured_at: payload.source_captured_at,
+  })
+
+  const entry = await vaultRepo.createVaultEntry({
+    user_id: userId,
+    ...payload,
+    ...provenance,
+  } as InsertVaultData)
   await createAuditEntry({
     userId,
     eventType: 'data_created',

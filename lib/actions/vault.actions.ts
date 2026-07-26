@@ -31,6 +31,10 @@ export async function createVaultEntryAction(payload: {
   encrypted_dek: string
   dek_salt: string
   expires_at?: string
+  // LD-202 provenance for an imported entry. Validated in the service.
+  source_provider?: string
+  source_record_id?: string
+  source_captured_at?: string
 }): Promise<VaultData> {
   const userId = await getAuthenticatedUserId()
   return createVaultData(userId, payload)

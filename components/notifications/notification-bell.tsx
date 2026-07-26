@@ -68,11 +68,25 @@ export function NotificationBell() {
     queryClient.invalidateQueries({ queryKey: ['notifications'] })
   }
 
+  // LD-108: the panel closes on a backdrop click, which a keyboard user never
+  // performs. Escape is the equivalent, and without it the only way out was to
+  // tab past every notification.
+  useEffect(() => {
+    if (!open) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
+
   return (
     <div className="relative">
       <button
         type="button"
         aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`}
+        aria-expanded={open}
+        aria-controls="notification-panel"
         onClick={() => setOpen((o) => !o)}
         className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
       >
@@ -86,15 +100,26 @@ export function NotificationBell() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-80 rounded-md border bg-background shadow-lg">
+          {/* LD-108: a dismiss backdrop is pointer affordance only. Hidden from
+              assistive technology, because Escape already closes the panel. */}
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 z-40"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            id="notification-panel"
+            role="region"
+            aria-label="Notifications"
+            className="absolute right-0 z-50 mt-2 w-80 rounded-md border bg-background shadow-lg"
+          >
             <div className="flex items-center justify-between border-b px-4 py-2">
               <span className="text-sm font-medium">Notifications</span>
               {unread > 0 && (
                 <button
                   type="button"
                   onClick={handleMarkAll}
-                  className="text-xs text-primary hover:underline"
+                  className="text-xs text-primary underline"
                 >
                   Mark all read
                 </button>

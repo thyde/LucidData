@@ -150,7 +150,7 @@ function LoginForm() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+              <Link href="/forgot-password" className="text-sm text-primary underline">
                 Forgot password?
               </Link>
             </div>
@@ -193,7 +193,7 @@ function LoginForm() {
           />
           <p className="text-sm text-center text-muted-foreground">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-primary hover:underline">
+            <Link href="/signup" className="text-primary underline">
               Sign up
             </Link>
           </p>

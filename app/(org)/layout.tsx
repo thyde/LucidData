@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SignOutButton } from '@/components/auth/sign-out-button'
+import { SkipLink } from '@/components/layout/skip-link'
 
 export default async function OrgLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient()
@@ -18,6 +19,7 @@ export default async function OrgLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-muted/20">
+      <SkipLink />
       <header className="border-b bg-background px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
           <Link href="/org" className="flex items-center gap-3">
@@ -27,7 +29,7 @@ export default async function OrgLayout({ children }: { children: ReactNode }) {
           <SignOutButton className="text-sm text-muted-foreground hover:text-foreground" />
         </div>
       </header>
-      <main className="max-w-3xl mx-auto py-12 px-6">
+      <main id="main" className="max-w-3xl mx-auto py-12 px-6">
         {children}
       </main>
     </div>

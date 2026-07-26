@@ -91,7 +91,7 @@ export function ConsentReceipts({ consentId }: { consentId: string }) {
                   href={`/verify/receipt/${receipt.id}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm text-primary hover:underline"
+                  className="text-sm text-primary underline"
                 >
                   Verify
                 </a>

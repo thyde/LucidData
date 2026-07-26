@@ -78,8 +78,23 @@ describe('ConsentRevokeDialog', () => {
       render(<ConsentRevokeDialog {...defaultProps} />);
 
       expect(screen.getByText(/you are about to revoke consent for/i)).toBeInTheDocument();
-      expect(screen.getByText(/acme healthcare/i)).toBeInTheDocument();
+      // The name appears in the header and again in the retained-copy notice.
+      expect(screen.getAllByText(/acme healthcare/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/immediately terminate their access/i)).toBeInTheDocument();
+    });
+
+    // LD-202: revocation stops future access but cannot reach into a
+    // recipient's systems. Saying otherwise would be a promise we cannot keep.
+    it('states plainly that already-delivered copies are not recalled', () => {
+      render(<ConsentRevokeDialog {...defaultProps} />);
+
+      expect(
+        screen.getByText(/what revoking does and does not do/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/we cannot recall them/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/copies already delivered stay with/i)
+      ).toBeInTheDocument();
     });
 
     it('renders reason textarea', () => {

@@ -98,6 +98,11 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
             label: sealedLabel ?? record.label,
             category: record.category,
             schema_type: record.schema_type,
+            // LD-202 provenance. Identifiers only, so it can sit outside the
+            // envelope and still answer "where did this come from".
+            ...(record.provider ? { source_provider: record.provider } : {}),
+            ...(record.provider ? { source_record_id: record.provider_record_id } : {}),
+            ...(record.captured_at ? { source_captured_at: record.captured_at } : {}),
             ...encrypted,
           })
           drained.push(record.id)

@@ -2,7 +2,7 @@
 
 Research date: 2026-07-25
 Last delivery update: 2026-07-26
-Status: active. **Phase 1 is delivered. Phase 2 is eight specs in.**
+Status: active. **Phase 1 is delivered. Phase 2 is ten specs in.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Owner: product
@@ -567,11 +567,11 @@ Implementation.
 - Publish a conformance statement with known limitations rather than a blanket claim.
 
 Acceptance criteria.
-- [ ] Primary flows are operable by keyboard alone.
-- [ ] Primary flows pass automated accessibility checks in CI, and violations fail the build.
-- [ ] Form controls have programmatic names, and errors are announced.
-- [ ] Colour is never the sole carrier of meaning, which matters for consent and verification states.
-- [ ] An accessibility statement is published with known limitations.
+- [x] Primary flows are operable by keyboard alone.
+- [x] Primary flows pass automated accessibility checks in CI, and violations fail the build.
+- [x] Form controls have programmatic names, and errors are announced.
+- [x] Colour is never the sole carrier of meaning, which matters for consent and verification states.
+- [x] An accessibility statement is published with known limitations.
 
 Tests. Automated accessibility assertions per primary flow. A keyboard-only traversal test of the
 unlock and consent paths.
@@ -715,11 +715,11 @@ Implementation.
 - Add retained-copy copy to the consent revoke dialog.
 
 Acceptance criteria.
-- [ ] Each connected source shows status, last successful sync, and last error.
-- [ ] A broken source is visually distinct and offers reconnect.
-- [ ] Imported entries display their provider and capture time.
-- [ ] Revoking consent states that already-delivered copies are not recalled.
-- [ ] Provenance fields never contain record content.
+- [x] Each connected source shows status, last successful sync, and last error.
+- [x] A broken source is visually distinct and offers reconnect.
+- [x] Imported entries display their provider and capture time.
+- [x] Revoking consent states that already-delivered copies are not recalled.
+- [x] Provenance fields never contain record content.
 
 Tests. Unit tests for freshness formatting. A test that provenance fields reject content-bearing values. A component test for the error state.
 
@@ -2020,7 +2020,7 @@ If sub-daily payout retries become necessary, the options are a Pro plan or a sc
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
-Status: eight of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
+Status: ten of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
 
 - LD-107 assurance and procurement pack (delivered)
 - LD-602 organization developer surface (delivered in part)
@@ -2089,7 +2089,11 @@ Notes on LD-602 that affect later work.
 
 | LD-201 connector framework with zero-knowledge ingestion | Delivered 2026-07-26 | `lib/crypto/ingestion-keys.ts` is an ECDH P-256 sealed box: the browser mints a keypair, publishes the public half, and wraps the private half with the master key. `lib/services/connector.service.ts` runs on the LD-601 scheduler, fetches from Strava or Fitbit, normalizes with the existing pure functions, and seals each record to that public key. It writes ciphertext it cannot read, and it refuses to run at all when no ingestion key has been published rather than storing anything readable. `lib/hooks/usePendingIngest.ts` opens the queue after unlock and re-encrypts through the normal vault envelope. OAuth state is HMAC-signed, expires in ten minutes, and is checked against both the session user and the route's provider. Provider tokens are wrapped with `CONNECTOR_TOKEN_SECRET` and refreshed before expiry, and the trust centre discloses that custody. | Only the two fitness providers the repository already had metadata for. Financial connectors stay out while CFPB 1033 is stayed, and health platforms are LD-204. Disconnect revokes upstream for Strava only, because Fitbit has no equivalent endpoint. |
 
-### 6.5 A defect found while building Phase 2
+| LD-202 source health and field provenance | Delivered 2026-07-26 | `vault_data` gains `source_provider`, `source_record_id`, and `source_captured_at`. They sit outside the encryption envelope, so both `lib/validations/provenance.ts` and a pair of database CHECK constraints hold them to identifiers rather than labels: a lowercase slug and an opaque provider key, no whitespace and no sentence punctuation. A partial unique index on the three-column tuple stops the same provider record landing twice, which `pending_ingest` guarded for the queue but nothing guarded for the vault. `lib/utils/freshness.ts` gives a source four states rather than two, so a connector that quietly stopped reads as out of date instead of connected. `components/settings/source-health.tsx` shows status, relative last sync, imported record count, the span the import actually covers, the provider's own error text, and a reconnect action, with a broken source marked visually distinct. Coverage comes from one `SECURITY DEFINER` function that reads three metadata columns and never touches ciphertext. The vault view dialog names the source and the capture time and says the source keeps its own copy, and the consent revoke dialog now states plainly that already-delivered copies are not recalled. | Nothing in scope. Backfill depth is reported from what was actually imported rather than requested, because the connectors do not yet take a range parameter. |
+
+| LD-108 accessibility conformance | Delivered 2026-07-26 | `__tests__/e2e/accessibility/accessibility.spec.ts` runs axe-core against ten public and nine authenticated routes on every run, tagged `wcag2a` through `wcag22aa`, and fails on serious and critical violations with the rule and the offending selector in the message. It also drives sign in with the keyboard alone, proves the vault dialog is reachable and closes with Escape, and asserts that a validation error is linked to its control through `aria-describedby`. Every layout gained `components/layout/skip-link.tsx` and a named `main#main`, including the auth layout, which had no main landmark at all. The scan found and closed four real defects: the pricing badge and the home page call to action both failed AA contrast, and the sign-in and registration links failed "links must be distinguishable without relying on colour" because they were underlined only on hover. `/trust/accessibility` publishes the statement itself, and `lib/constants/__tests__/accessibility.test.ts` reads the layouts to check that the measures it claims are the measures that exist. | No manual screen reader testing and no third-party audit, both stated on the page rather than glossed over. Chart SVGs, custom-schema JSON display, and the memory-only vault key timeout are published as named limitations with a criterion each. |
+
+### 6.5 Defects found while building Phase 2
 
 `supabase/migrations/20260726160000_api_role_grants.sql`.
 
@@ -2103,9 +2107,13 @@ Two things follow. Any migration that adds a table meant to be service-role only
 
 A second, smaller instance of the same class turned up while building LD-503. `REVOKE EXECUTE ... FROM PUBLIC` on a new function removes the default grant from **every** role, `service_role` included, so a function meant to be service-role only needs an explicit `GRANT EXECUTE ... TO service_role` immediately afterwards. Without it the failure appears at runtime as a permission error rather than at deploy time. Treat revoke-then-grant as a single idiom.
 
+A third turned up in LD-201's own code while building LD-202. `disconnectSource` offers to delete the entries a provider imported, and it did that by filtering `vault_data.source_provider`, a column that did not exist until LD-202 added it. Nothing failed at build time because the Supabase client types a `.eq()` column as a string, and nothing failed in the tests because the option defaults to false. It would have failed the first time a person chose to delete their imported data, which is the worst moment for it to fail. The lesson is narrow but worth keeping: a query written against a column a later spec is going to add is a runtime error with no compile-time signal, so either add the column in the same change or leave the branch unwritten.
+
+Four more came from LD-108's automated scan, all on pages that had been read by eye more than once. The "Most popular" badge on the pricing table used a five percent primary tint behind primary-coloured text and missed AA contrast. The home page call to action used muted grey on a tinted panel, which sits at 4.6:1 on white and drops below the threshold once the background is tinted. The sign-in and registration cross-links were underlined only on hover, so within a paragraph they were distinguishable by colour alone. None of these is subtle once a tool points at it, and none of them was noticed without one. That is the argument for the scan running on every change rather than as a periodic review.
+
 ### 6.6 What is left in Phase 2
 
-Seven specs remain. This is the order to take them in and what each one now depends on, given what has already landed.
+Two specs remain, and both belong to the browser extension. This is the order to take them in and what each one now depends on, given what has already landed.
 
 **1. LD-503 buyer evaluation surface.** Delivered 2026-07-26. Kept here because the reasoning still applies to anything that quotes a price or a volume: call `prepareRelease`, do not estimate.
 
@@ -2113,13 +2121,13 @@ Seven specs remain. This is the order to take them in and what each one now depe
 
 **3. LD-201 connector framework.** Delivered 2026-07-26. Two things it proved worth recording. The build gates worked exactly as intended: adding `lib/crypto/ingestion-keys.ts` failed the suite until the trust centre disclosed it, and `data_sources` and `pending_ingest` failed until the deletion manifest covered them. And the LD-501 classification caught a leak in my own first draft, where the queue row carried the provider's free-text activity name in the clear. It is classified as an identifier for good reason, so the label is now sealed with the payload and the queue row shows a neutral placeholder.
 
-**4. LD-202 source health and provenance.** Follows LD-201 directly and should reuse the same `data_sources` rows rather than adding a parallel notion of a source.
+**4. LD-202 source health and provenance.** Delivered 2026-07-26. It closed a latent defect on the way: `disconnectSource` already filtered `vault_data.source_provider` when asked to delete imported entries, and that column did not exist, so the option would have failed at runtime on first use. Two rules worth carrying forward. Unencrypted metadata needs a shape narrow enough that content cannot fit through it, enforced in the database as well as in Zod, because the schema is the only thing standing between a convenience field and a leak. And reading the clock during render is now a lint error, so relative-time components take `now` as a prop from a caller that read it in an effect.
 
 **5. LD-206 tracker transparency and browsing insight.** The remaining half of the "a new user gets something useful before contributing" criterion. It is worth checking whether the insight can be delivered without the extension first, because LD-205 is a separate build target.
 
 **6. LD-205 extension foundation.** A browser extension is a new artifact with its own build, review, and release process, not another route in this application. Treat it as such when estimating.
 
-**7. LD-108 accessibility conformance.** Deferrable, and the specification says so, but the e2e suite already asserts named landmarks, single page headings, and keyboard-dismissable menus, so the starting position is better than zero.
+**7. LD-108 accessibility conformance.** Delivered 2026-07-26. Two findings worth carrying. Automated scanning is genuinely worth the setup cost: it found four real contrast and link-distinguishability defects on pages that had been reviewed by eye more than once, which is exactly the class of problem people do not catch by looking. And the honest version of an accessibility statement is more useful than a passing one, so the page names what has not been tested rather than implying the automated pass covers the standard.
 
 Two smaller pieces of unfinished work sit outside that list and should be picked up with whichever spec touches them next.
 
@@ -2423,7 +2431,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
-| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503, LD-604, LD-201 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus four found during the work |
+| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503, LD-604, LD-201, LD-202, LD-108 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus nine found during the work |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

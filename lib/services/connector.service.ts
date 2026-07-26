@@ -61,6 +61,19 @@ export interface ConnectedSource {
   lastSyncedAt: string | null
   lastError: string | null
   createdAt: string
+  // LD-202 what this source has actually delivered, which "last synced" alone
+  // does not say. A backfill covering six months and a sync holding only
+  // yesterday look identical without it.
+  recordCount: number
+  firstCapturedAt: string | null
+  lastCapturedAt: string | null
+}
+
+interface CoverageRow {
+  provider: string
+  record_count: number
+  first_captured_at: string | null
+  last_captured_at: string | null
 }
 
 export async function listSources(userId: string): Promise<ConnectedSource[]> {
@@ -72,18 +85,33 @@ export async function listSources(userId: string): Promise<ConnectedSource[]> {
     .order('created_at')
   if (error) throw error
 
-  return (data ?? []).map((source) => ({
-    id: source.id as string,
-    provider: source.provider as string,
-    label:
-      FITNESS_CONNECTORS[source.provider as FitnessProvider]?.label ??
-      (source.provider as string),
-    status: source.status as string,
-    scopes: (source.scopes as string[]) ?? [],
-    lastSyncedAt: (source.last_synced_at as string | null) ?? null,
-    lastError: (source.last_error as string | null) ?? null,
-    createdAt: source.created_at as string,
-  }))
+  // Metadata only. The function reads three provenance columns and counts
+  // rows; it never touches ciphertext. A failure here degrades the panel
+  // rather than hiding the sources.
+  const coverage = new Map<string, CoverageRow>()
+  const { data: rows } = await service.rpc('vault_source_coverage', { p_user_id: userId })
+  for (const row of (rows ?? []) as CoverageRow[]) {
+    coverage.set(row.provider, row)
+  }
+
+  return (data ?? []).map((source) => {
+    const stats = coverage.get(source.provider as string)
+    return {
+      id: source.id as string,
+      provider: source.provider as string,
+      label:
+        FITNESS_CONNECTORS[source.provider as FitnessProvider]?.label ??
+        (source.provider as string),
+      status: source.status as string,
+      scopes: (source.scopes as string[]) ?? [],
+      lastSyncedAt: (source.last_synced_at as string | null) ?? null,
+      lastError: (source.last_error as string | null) ?? null,
+      createdAt: source.created_at as string,
+      recordCount: Number(stats?.record_count ?? 0),
+      firstCapturedAt: stats?.first_captured_at ?? null,
+      lastCapturedAt: stats?.last_captured_at ?? null,
+    }
+  })
 }
 
 /**

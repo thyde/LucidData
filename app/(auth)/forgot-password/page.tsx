@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
             If an account exists for {email}, a reset link is on its way. Open it on this device,
             then enter your recovery code to restore your encrypted vault.
           </div>
-          <Link href="/login" className="text-sm text-primary hover:underline">
+          <Link href="/login" className="text-sm text-primary underline">
             Back to sign in
           </Link>
         </CardContent>
@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
             </Button>
             <p className="text-sm text-center text-muted-foreground">
               Remembered it?{' '}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href="/login" className="text-primary underline">
                 Sign in
               </Link>
             </p>

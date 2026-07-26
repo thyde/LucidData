@@ -205,7 +205,10 @@ export function CtaSection() {
       <div className="container mx-auto px-4 py-20">
         <div className="rounded-2xl border bg-primary/5 px-6 py-14 text-center">
           <h2 className="text-3xl font-bold tracking-tight">If you don&apos;t own your data, someone else profits from it.</h2>
-          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+          {/* LD-108: muted grey sits at 4.6:1 on white and drops below AA on
+              this tinted panel. Dimmed foreground keeps the hierarchy and the
+              contrast. */}
+          <p className="mx-auto mt-3 max-w-xl text-foreground/80">
             Join LucidData and put yourself back in charge.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

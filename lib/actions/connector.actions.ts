@@ -109,18 +109,35 @@ export async function disconnectSourceAction(input: unknown): Promise<void> {
   revalidatePath('/settings')
 }
 
+/**
+ * A queued record, with the provider resolved.
+ *
+ * LD-202 needs the provider slug on the vault entry, and the queue row only
+ * carries a source id. Resolving it here keeps the join server-side rather
+ * than making the browser fetch the source list to write one field.
+ */
+export interface PendingIngestRecord extends PendingIngest {
+  provider: string
+}
+
 /** Sealed records waiting for this person to open them. */
-export async function listPendingIngestAction(): Promise<PendingIngest[]> {
+export async function listPendingIngestAction(): Promise<PendingIngestRecord[]> {
   const userId = await getAuthenticatedUserId()
   const service = createServiceClient()
   const { data, error } = await service
     .from('pending_ingest')
-    .select('*')
+    .select('*, data_sources(provider)')
     .eq('user_id', userId)
     .order('created_at')
     .limit(200)
   if (error) throw error
-  return (data ?? []) as PendingIngest[]
+
+  return (data ?? []).map((row) => {
+    const { data_sources: source, ...rest } = row as PendingIngest & {
+      data_sources?: { provider?: string } | null
+    }
+    return { ...rest, provider: source?.provider ?? '' } as PendingIngestRecord
+  })
 }
 
 /**

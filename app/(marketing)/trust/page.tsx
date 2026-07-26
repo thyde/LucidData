@@ -294,7 +294,7 @@ export default function TrustPage() {
         <p>
           <a
             href={`mailto:${VULNERABILITY_DISCLOSURE.email}`}
-            className="font-medium text-primary hover:underline"
+            className="font-medium text-primary underline"
           >
             {VULNERABILITY_DISCLOSURE.email}
           </a>
@@ -308,7 +308,7 @@ export default function TrustPage() {
         </p>
         <Link
           href="/trust/threat-model"
-          className="mt-4 inline-block font-medium text-primary hover:underline"
+          className="mt-4 inline-block font-medium text-primary underline"
         >
           Read the threat model
         </Link>
@@ -323,9 +323,24 @@ export default function TrustPage() {
         </p>
         <Link
           href="/trust/assurance"
-          className="mt-4 inline-block font-medium text-primary hover:underline"
+          className="mt-4 inline-block font-medium text-primary underline"
         >
           Read the assurance pack
+        </Link>
+      </section>
+
+      <section className="mt-6 rounded-lg border bg-muted/30 p-6">
+        <h2 className="text-xl font-semibold">Accessibility</h2>
+        <p className="mt-2 text-muted-foreground">
+          How the product conforms to WCAG 2.2 Level AA, how that was evaluated, and every
+          limitation we know about. The product handles health, financial, and legal records,
+          which is exactly the data the people most likely to be excluded depend on.
+        </p>
+        <Link
+          href="/trust/accessibility"
+          className="mt-4 inline-block font-medium text-primary underline"
+        >
+          Read the accessibility statement
         </Link>
       </section>
     </div>

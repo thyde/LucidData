@@ -3,9 +3,9 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/lib/hooks/use-toast'
 import { usePendingIngest } from '@/lib/hooks/usePendingIngest'
+import { SourceHealth } from '@/components/settings/source-health'
 import {
   disconnectSourceAction,
   listConnectorsAction,
@@ -27,6 +27,9 @@ export function ConnectedSources() {
   const [available, setAvailable] = useState<{ id: string; label: string }[]>([])
   const [connected, setConnected] = useState<ConnectedSource[]>([])
   const [loaded, setLoaded] = useState(false)
+  // Read once when the list loads, not during render. Freshness is relative to
+  // a moment, and that moment has to be the same for every row.
+  const [now, setNow] = useState(0)
   const drain = usePendingIngest()
 
   useEffect(() => {
@@ -36,6 +39,7 @@ export function ConnectedSources() {
         if (!active) return
         setAvailable(result.available)
         setConnected(result.connected)
+        setNow(Date.now())
         setLoaded(true)
       })
       .catch(() => setLoaded(true))
@@ -89,49 +93,13 @@ export function ConnectedSources() {
       {connected.length > 0 && (
         <ul className="divide-y rounded-md border">
           {connected.map((source) => (
-            <li key={source.id} className="space-y-2 px-4 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">{source.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {source.lastSyncedAt
-                      ? `Last synced ${new Date(source.lastSyncedAt).toLocaleString()}`
-                      : 'Not synced yet'}
-                  </p>
-                </div>
-                <Badge variant={source.status === 'connected' ? 'default' : 'destructive'}>
-                  {source.status}
-                </Badge>
-              </div>
-
-              {source.lastError && (
-                <p className="text-sm text-destructive">{source.lastError}</p>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                {source.status === 'error' && (
-                  <Button size="sm" variant="outline" asChild>
-                    <a href={`/api/connectors/${source.provider}/authorize`}>Reconnect</a>
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isPending}
-                  onClick={() => disconnect(source, false)}
-                >
-                  Disconnect
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={isPending}
-                  onClick={() => disconnect(source, true)}
-                >
-                  Disconnect and delete imported entries
-                </Button>
-              </div>
-            </li>
+            <SourceHealth
+              key={source.id}
+              source={source}
+              now={now}
+              disabled={isPending}
+              onDisconnect={(deleteImported) => disconnect(source, deleteImported)}
+            />
           ))}
         </ul>
       )}

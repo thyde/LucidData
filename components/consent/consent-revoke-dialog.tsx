@@ -84,6 +84,19 @@ export function ConsentRevokeDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* LD-202: revocation stops future access. It cannot reach into a
+                recipient's systems and delete what they already hold. Saying so
+                here is the difference between an honest control and a promise
+                we cannot keep. */}
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+              <p className="text-sm font-medium">What revoking does and does not do</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Access stops now, and no new data is shared. Copies already delivered stay with{' '}
+                {consentName}. We cannot recall them. To have them erased, ask {consentName}{' '}
+                directly, or file an erasure request from the privacy page.
+              </p>
+            </div>
+
             <FormField
               control={form.control}
               name="revokedReason"

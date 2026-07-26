@@ -97,6 +97,7 @@ export function VaultList({ onEntryClick }: VaultListProps) {
           <Input
             type="text"
             placeholder="Search entries..."
+            aria-label="Search entries"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pr-10"
@@ -105,10 +106,11 @@ export function VaultList({ onEntryClick }: VaultListProps) {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Clear search"
               className="absolute right-0 top-0 h-full px-3"
               onClick={() => setSearchTerm('')}
             >
-              ×
+              <span aria-hidden="true">×</span>
             </Button>
           )}
         </div>

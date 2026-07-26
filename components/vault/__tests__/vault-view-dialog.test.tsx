@@ -226,6 +226,33 @@ describe('VaultViewDialog', () => {
 
       expect(screen.getByText(/expired/i)).toBeInTheDocument();
     });
+
+    // LD-202: an imported value is only trustworthy if you can see which
+    // source produced it and when.
+    it('shows the provider and capture time for an imported entry', () => {
+      vi.mocked(useVaultEntry).mockReturnValue(
+        createMockQuery({
+          ...mockEntry,
+          source_provider: 'strava',
+          source_record_id: '99',
+          source_captured_at: '2026-07-25T09:30:00.000Z',
+        })
+      );
+
+      render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
+
+      expect(screen.getByText(/imported from strava/i)).toBeInTheDocument();
+      expect(screen.getByText(/recorded/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/the source keeps its own copy of this record/i)
+      ).toBeInTheDocument();
+    });
+
+    it('shows no source section for an entry typed by hand', () => {
+      render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
+
+      expect(screen.queryByText(/imported from/i)).not.toBeInTheDocument();
+    });
   });
 
   // Action Button Tests (5 tests)

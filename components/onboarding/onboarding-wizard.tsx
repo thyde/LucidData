@@ -50,7 +50,7 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
         <p>
           You got a recovery code when you signed up. It is the only way to restore your vault if you
           forget your password, so store it somewhere safe. You can regenerate it anytime in{' '}
-          <Link href="/settings" className="text-primary hover:underline">
+          <Link href="/settings" className="text-primary underline">
             Settings
           </Link>
           .
@@ -59,7 +59,7 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
         <p>
           You do not have a recovery code yet. Without one, resetting your password leaves your
           encrypted data unreadable. Set one up in{' '}
-          <Link href="/settings" className="text-primary hover:underline">
+          <Link href="/settings" className="text-primary underline">
             Settings
           </Link>
           .
@@ -72,7 +72,7 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
       body: (
         <p>
           Store anything in your{' '}
-          <Link href="/vault" className="text-primary hover:underline">
+          <Link href="/vault" className="text-primary underline">
             vault
           </Link>{' '}
           — identity, health, financial records. It is encrypted before it ever leaves your device.
@@ -85,11 +85,11 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
       body: (
         <p>
           Grant time-bound access with{' '}
-          <Link href="/consent" className="text-primary hover:underline">
+          <Link href="/consent" className="text-primary underline">
             consents
           </Link>
           , and choose what to license in the{' '}
-          <Link href="/marketplace" className="text-primary hover:underline">
+          <Link href="/marketplace" className="text-primary underline">
             marketplace
           </Link>
           . Every access is written to your audit log.

@@ -21,7 +21,7 @@ export function LearnCenter() {
           </li>
         ))}
       </ul>
-      <Link href="/learn" className="text-sm font-medium text-primary hover:underline">
+      <Link href="/learn" className="text-sm font-medium text-primary underline">
         Visit the Learning Center
       </Link>
     </div>

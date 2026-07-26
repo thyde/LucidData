@@ -2235,6 +2235,9 @@ export type Database = {
           id: string
           label: string
           schema_type: string
+          source_captured_at: string | null
+          source_provider: string | null
+          source_record_id: string | null
           tags: string[]
           updated_at: string
           user_id: string
@@ -2250,6 +2253,9 @@ export type Database = {
           id?: string
           label: string
           schema_type?: string
+          source_captured_at?: string | null
+          source_provider?: string | null
+          source_record_id?: string | null
           tags?: string[]
           updated_at?: string
           user_id: string
@@ -2265,6 +2271,9 @@ export type Database = {
           id?: string
           label?: string
           schema_type?: string
+          source_captured_at?: string | null
+          source_provider?: string | null
+          source_record_id?: string | null
           tags?: string[]
           updated_at?: string
           user_id?: string
@@ -2518,6 +2527,15 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      vault_source_coverage: {
+        Args: { p_user_id: string }
+        Returns: {
+          first_captured_at: string
+          last_captured_at: string
+          provider: string
+          record_count: number
+        }[]
       }
       withdraw_offer_claim_atomic: {
         Args: { p_claim_id: string }

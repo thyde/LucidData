@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SignOutButton } from '@/components/auth/sign-out-button';
 import { DesktopNav } from '@/components/layout/desktop-nav';
 import { MobileNav } from '@/components/layout/mobile-nav';
+import { SkipLink } from '@/components/layout/skip-link';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { GpcDetector } from '@/components/settings/gpc-detector';
 import { recordUniversalOptOut } from '@/lib/services/privacy-signal.service';
@@ -52,6 +53,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       <GpcDetector />
+      <SkipLink />
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4 md:space-x-8">
@@ -62,11 +64,13 @@ export default async function DashboardLayout({
             <DesktopNav />
           </div>
           <div className="flex items-center space-x-4">
+            {/* LD-108: WCAG 2.2 requires a 24px target. A bare 20px icon with
+                no padding fails it, and these two sit next to each other. */}
             <Link
               href="/org"
               aria-label="Organizations"
               title="Organizations"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Building2 className="h-5 w-5" />
             </Link>
@@ -74,7 +78,7 @@ export default async function DashboardLayout({
               href="/settings"
               aria-label="Settings"
               title="Settings"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Settings className="h-5 w-5" />
             </Link>
@@ -84,7 +88,7 @@ export default async function DashboardLayout({
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-8">{children}</main>
+      <main id="main" className="container mx-auto px-4 py-8">{children}</main>
     </div>
   );
 }

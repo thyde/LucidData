@@ -44,6 +44,22 @@ function formatDate(date: Date | string): string {
   });
 }
 
+function formatDateTime(date: Date | string): string {
+  return new Date(date).toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+// LD-202 provenance holds a slug, not a display name, because it is
+// unencrypted metadata. Titling it here keeps the storage opaque.
+function sourceLabel(provider: string): string {
+  return provider.charAt(0).toUpperCase() + provider.slice(1);
+}
+
 function isExpired(expiresAt: Date | string | null): boolean {
   if (!expiresAt) return false;
   return new Date() > new Date(expiresAt);
@@ -171,6 +187,24 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">Schema Type</h3>
                     <p className="text-sm">{entry.schema_type}</p>
+                  </div>
+                )}
+
+                {/* LD-202 provenance. An imported value is only trustworthy if
+                    you can see which source produced it and when. */}
+                {entry.source_provider && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Source</h3>
+                    <p className="text-sm">
+                      Imported from {sourceLabel(entry.source_provider)}
+                      {entry.source_captured_at
+                        ? `, recorded ${formatDateTime(entry.source_captured_at)}`
+                        : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      The source keeps its own copy of this record. Deleting it here does not
+                      delete it there.
+                    </p>
                   </div>
                 )}
 

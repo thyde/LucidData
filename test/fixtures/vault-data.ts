@@ -15,6 +15,9 @@ export const mockVaultEntry: VaultData = {
   encrypted_dek: 'encrypted-dek-key-value',
   dek_salt: '1234567890abcdef',
   expires_at: null,
+  source_provider: null,
+  source_record_id: null,
+  source_captured_at: null,
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z',
 };

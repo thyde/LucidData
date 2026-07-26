@@ -1,3 +1,5 @@
+// LD-108: without this the auth pages are a landmark-less island. Someone
+// using a screen reader on /login had no main region to jump to.
 export default function AuthLayout({
   children,
 }: {
@@ -5,9 +7,9 @@ export default function AuthLayout({
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md">
+      <main id="main" className="w-full max-w-md">
         {children}
-      </div>
+      </main>
     </div>
   );
 }

@@ -65,7 +65,7 @@ export function PricingTable() {
         >
           <CardHeader>
             {tier.featured && (
-              <span className="mb-2 inline-block w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <span className="mb-2 inline-block w-fit rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
                 Most popular
               </span>
             )}

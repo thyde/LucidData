@@ -134,7 +134,7 @@ export default async function OrgDetailPage({
             </div>
             <Link
               href={`/org/${orgId}/data`}
-              className="text-sm font-medium text-primary hover:underline"
+              className="text-sm font-medium text-primary underline"
             >
               Open buyer portal →
             </Link>
