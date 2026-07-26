@@ -693,6 +693,19 @@ Telemetry. Connect starts and completions, time to first imported record, sync s
 
 Rollout. Ship behind a feature flag. Strava first, Fitbit second. Note that the Fitbit Web API is deprecating in September 2026 in favour of the Google Health API, so treat the Fitbit adapter as short-lived and keep the provider interface stable.
 
+Provider expansion, decided 2026-07-26. The connector framework only fits providers that expose a
+server-to-server API, because the sync worker runs while the person is away. That set is: Garmin
+(Health API, partner approval required), Withings, Oura, Polar, Whoop, Suunto, and Wahoo. Each is a
+`ConnectorDef` entry plus a normalizer, so the marginal cost per provider is small now the framework
+exists. Confirm each provider's current terms before registering, particularly any restriction on
+onward transfer.
+
+Samsung Health, Xiaomi, and anything reaching the phone through Health Connect are **not** candidates
+here. They have no web API and belong to LD-204 stage B. Aggregators such as Terra, Rook, and Vital
+would collapse many providers into one integration, but they would hold provider tokens between the
+person and the provider, which makes them a disclosed subprocessor on the LD-101 trust centre. That
+is a deliberate trade rather than a shortcut, and it has not been taken.
+
 ---
 
 ### LD-202 Source health and field provenance
@@ -773,6 +786,21 @@ Staging. These ship in two independent stages, and the order matters:
 
 Stage A does not depend on the connector work, so it can ship well before stage B. Building stage B
 first would duplicate ingestion logic that LD-201 is already creating.
+
+**Decision, 2026-07-26: stage B targets Health Connect, not individual vendors.** This was checked
+rather than assumed, and the finding is firmer than expected.
+
+- **Samsung Health has no server-to-server API.** The only official third-party access is the Samsung Health Data SDK, which Samsung documents as an Android SDK requiring the Samsung Health app 6.30.2 or later on Android 10 or later, with no emulator support. It reads the on-device store. There is nothing for a web connector to call.
+- **Xiaomi is the same shape.** Its wearables sync into Mi Fitness, with older bands on Zepp Life, and no general public developer API was found.
+- **Google Fit cannot be used at all.** Google deprecated the Fit APIs including the REST API, and closed new developer signups on 1 May 2024. It is not a fallback.
+
+Health Connect is the Android system-level aggregation point and the migration target Google names
+for Fit. Samsung Health, Mi Fitness, and many other apps write into it. That makes one integration
+inside the app worth more than a queue of per-vendor OAuth applications, and it is the reason stage B
+is scoped to Health Connect and HealthKit rather than to named brands.
+
+The practical consequence for sequencing: every Android-side wearable is blocked behind LD-204 stage
+B. Anyone asking why Samsung or Xiaomi is missing should be pointed here rather than at LD-201.
 
 Stories.
 - As a user, I want my health data to arrive automatically, because re-entering it by hand is not realistic.
@@ -2416,6 +2444,13 @@ These need a human decision before the dependent specs can be executed.
 8. Browsing data appetite. LD-207 is the highest-return and highest-risk item here. Decide whether LucidData wants to be in the browsing data market at all before LD-206 ships, because LD-206 builds the collection capability either way and the answer changes what is said to users at that point.
 9. Platform fee level. LD-505 requires a number. A fee high enough to fund the service reduces what contributors earn, and contributor earnings are already modest: at current guidance a person in the financial category earns roughly 1.50 dollars per sale. Decide whether the marketplace is a revenue line or an acquisition feature funded by organization subscriptions, because that answer sets the fee and changes how the product should be described to users.
 10. Verification pricing. Section 7.6 shows per-check fees are worth roughly twelve times more to an individual than pool sales, and the buyer compares them to a manual check rather than to a data feed. Decide the fee, the subject's share, and whether verification is metered separately from the organization subscription. This is the single highest-leverage pricing decision in the document and it should be settled before LD-404 is built, because it changes what that feature is for.
+
+### 8.1 Decisions taken
+
+| Date | Decision | Consequence |
+|---|---|---|
+| 2026-07-26 | Android wearable data arrives through Health Connect, not per-vendor connectors | Samsung Health and Xiaomi have no server-to-server API, and Google Fit is closed to new developers and deprecated. Every Android-side wearable is therefore blocked behind LD-204 stage B, which raises its priority. See the decision note in LD-204 |
+| 2026-07-26 | No connector aggregator | Terra, Rook, and Vital would collapse many providers into one integration but would hold provider tokens between the person and the provider. Rejected for now, and recorded in LD-201 so it is a considered position rather than an oversight |
 
 ## 9. Validation status
 
