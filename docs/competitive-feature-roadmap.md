@@ -2,9 +2,9 @@
 
 Research date: 2026-07-25
 Last delivery update: 2026-07-26
-Status: active. **Phase 1 is delivered.** See [section 6.1](#61-phase-1-delivery-record) for the
-record and [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining
-specs.
+Status: active. **Phase 1 is delivered. Phase 2 is five specs in.**
+Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
+Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Owner: product
 Audience: agentic coding tools and the engineers reviewing their output
 
@@ -1903,7 +1903,6 @@ a two-engineer team's throughput. LD-505 stays here despite being unglamorous, b
 increases marketplace volume makes the current pricing worse.
 
 ### 6.1 Phase 1 delivery record
-
 Verified on 2026-07-26: typecheck clean, lint clean at `--max-warnings=0`, 567 of 567 Vitest tests
 (up from 470), production build green across 45 routes, and 57 of 57 Playwright specs with retries
 disabled. Ten migrations were applied to the local database. **They have not been applied to
@@ -2005,7 +2004,7 @@ Phase 1 introduced hard requirements that will cause user-visible failures if a 
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
-Status: in progress. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record).
+Status: five of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
 
 - LD-107 assurance and procurement pack (delivered)
 - LD-602 organization developer surface (delivered in part)
@@ -2021,6 +2020,8 @@ Status: in progress. Delivery is tracked in [section 6.4](#64-phase-2-delivery-r
 - LD-108 accessibility conformance
 
 Exit criteria: no release can leave the platform without passing a k-anonymity gate, deletion actually deletes, EU and UK rights handling is defensible, an organization can operate at institutional volume, and a new user gets something useful before contributing any data.
+
+Three of those five criteria are met. The k-anonymity gate is in the purchase path, deletion deletes and proves it, and EU and UK rights handling has a case model, a deadline engine, and an appeal path. Institutional volume needs LD-604, and giving a new user something useful before they contribute needs LD-205 and LD-206.
 
 This phase is also over capacity. LD-108 and LD-604 are the most deferrable if it has to be cut.
 
@@ -2077,6 +2078,33 @@ Existing deployments work because they were provisioned before this, which is pr
 The migration grants the privileges explicitly, sets matching default privileges so the next migration does not reintroduce the gap, and re-applies every closure the blanket grant would otherwise have undone. Row level security remains the guardrail; table privileges only decide whether PostgREST can reach RLS at all.
 
 Two things follow. Any migration that adds a table meant to be service-role only must add its own `REVOKE ALL ... FROM anon, authenticated`, because the default privileges now grant DML to new tables. And `npx supabase db reset --local` is worth running before a release, since it is the only thing that would have caught this.
+
+### 6.6 What is left in Phase 2
+
+Seven specs remain. This is the order to take them in and what each one now depends on, given what has already landed.
+
+**1. LD-503 buyer evaluation surface.** Promoted from its original position, because LD-501 created the need. Full-domain generalization rarely refuses once there are at least k records; it generalizes hard instead. A cohort of five people at five different employers is released with the employer suppressed and the start date widened to a decade. That is correct, and the privacy report says so, but a buyer can pay for a dataset that generalization has emptied of value and only discover it after the charge. LD-503 has to show the achieved k, the generalization levels, and the suppression rate **before** purchase. `prepareRelease` is pure, so a preview can call the same function the gate calls and cannot disagree with it. Do not write a second estimator.
+
+**2. LD-604 bulk and asynchronous organization operations.** An exit criterion, and the groundwork is already there. The LD-601 runner takes a new job by adding a name to `JOB_NAMES` and a function to `JOB_RUNNERS`, and LD-602 added the webhook that tells a buyer a long job finished. Bulk operations should reuse both rather than inventing a second queue.
+
+**3. LD-201 connector framework.** The largest remaining piece and the one with the most prerequisites now.
+- Adding `lib/crypto/ingestion-keys.ts`, or any other module under `lib/crypto/`, **will fail the build** until `lib/constants/trust-disclosures.ts` gains a matching `KEY_CUSTODY` entry.
+- A `data_sources` table **will fail the build** until it has a `DELETION_MANIFEST` entry, and it must add its own `REVOKE` if it is service-role only.
+- Any field a connector writes into a vault schema **will fail the build** until it is classified in `lib/privacy/quasi-identifiers.ts`. This is the constraint most likely to be discovered late, so classify as you map.
+- Token refresh belongs in `JOB_NAMES` on the LD-601 runner, which is where the comment in `scheduled-jobs.service.ts` already says it goes.
+
+**4. LD-202 source health and provenance.** Follows LD-201 directly and should reuse the same `data_sources` rows rather than adding a parallel notion of a source.
+
+**5. LD-206 tracker transparency and browsing insight.** The remaining half of the "a new user gets something useful before contributing" criterion. It is worth checking whether the insight can be delivered without the extension first, because LD-205 is a separate build target.
+
+**6. LD-205 extension foundation.** A browser extension is a new artifact with its own build, review, and release process, not another route in this application. Treat it as such when estimating.
+
+**7. LD-108 accessibility conformance.** Deferrable, and the specification says so, but the e2e suite already asserts named landmarks, single page headings, and keyboard-dismissable menus, so the starting position is better than zero.
+
+Two smaller pieces of unfinished work sit outside that list and should be picked up with whichever spec touches them next.
+
+- **An operator console for rights cases.** `pause`, `resume`, `extend`, and `resolve` are implemented and tested with no screen and no server action behind them. Until that exists, an operator has to advance a case through the service role by hand, which does not scale past a handful of requests.
+- **Webhook management for organizations.** `createWebhook` is a service function with no UI, so an endpoint can only be registered by an operator.
 
 ### Phase 3, months 6 to 9. Make credentials portable and access governed
 
