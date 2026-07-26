@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 export interface UseApiDataOptions {
   enabled?: boolean; // Whether to fetch immediately
@@ -31,54 +32,29 @@ export function useApiData<T>(
 ): UseApiDataReturn<T> {
   const { enabled = true, refetchInterval } = options;
 
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!enabled) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
+  const query = useQuery<T, Error>({
+    queryKey: ['api-data', endpoint],
+    queryFn: async () => {
       const response = await fetch(endpoint);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({} as { error?: string }));
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
-      const result = await response.json();
-      setData(result);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to fetch data';
-      setError(errorMessage);
-      console.error('API fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [endpoint, enabled]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Auto-refetch interval
-  useEffect(() => {
-    if (!refetchInterval || !enabled) return;
-
-    const intervalId = setInterval(fetchData, refetchInterval);
-    return () => clearInterval(intervalId);
-  }, [refetchInterval, enabled, fetchData]);
+      return response.json() as Promise<T>;
+    },
+    enabled,
+    refetchInterval: enabled ? refetchInterval : false,
+  });
 
   return {
-    data,
-    loading,
-    error,
-    refetch: fetchData,
+    data: query.data ?? null,
+    loading: query.isFetching,
+    error: query.error?.message ?? null,
+    refetch: async () => {
+      await query.refetch();
+    },
   };
 }
 
@@ -90,52 +66,46 @@ export function useApiData<T>(
  * await mutate({ method: 'POST', body: { label: 'My Data' } });
  */
 export function useApiMutation<T>(endpoint: string) {
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<T | null>(null);
+  type MutationOptions = {
+    method: 'POST' | 'PATCH' | 'DELETE';
+    body?: unknown;
+  };
+
+  const mutation = useMutation<T, Error, MutationOptions>({
+    mutationFn: async (options) => {
+      const response = await fetch(endpoint, {
+        method: options.method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({} as { error?: string }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      return response.json() as Promise<T>;
+    },
+  });
 
   const mutate = useCallback(
-    async (options: {
-      method: 'POST' | 'PATCH' | 'DELETE';
-      body?: unknown;
-    }): Promise<T | null> => {
+    async (options: MutationOptions): Promise<T | null> => {
       try {
-        setLoading(true);
-        setError(null);
-
-        const response = await fetch(endpoint, {
-          method: options.method,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: options.body ? JSON.stringify(options.body) : undefined,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP ${response.status}`);
-        }
-
-        const result = await response.json();
-        setData(result);
-        return result;
+        return await mutation.mutateAsync(options);
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Failed to mutate data';
-        setError(errorMessage);
         console.error('API mutation error:', err);
         return null;
-      } finally {
-        setLoading(false);
       }
     },
-    [endpoint]
+    [mutation]
   );
 
   return {
     mutate,
-    loading,
-    error,
-    data,
+    loading: mutation.isPending,
+    error: mutation.error?.message ?? null,
+    data: mutation.data ?? null,
   };
 }

@@ -15,6 +15,15 @@ Lucid is a personal data bank. Individuals keep their data in an encrypted vault
 
 Encryption happens in the browser, so the server never sees plaintext data or the keys that protect it.
 
+## Technology
+
+- Next.js 16.2.10 with the App Router and React 19.2.7.
+- Supabase for Postgres, Auth, Realtime, and Row Level Security.
+- Serwist 9.5.6 for the installable PWA and offline cache.
+- TypeScript 5, Tailwind CSS, shadcn/ui, TanStack Query, Vitest, and Playwright.
+
+The development and production build scripts use Webpack explicitly because the stable Serwist 9 integration is Webpack-based. Keep the `--webpack` flags until Serwist supports the default Next.js bundler in a stable release.
+
 ### Core philosophy
 
 - **User sovereignty**: the individual holds the keys and decides who sees what.
@@ -62,19 +71,11 @@ Organizations that request data:
 | Vault data export | Export vault entries to open formats (JSON-LD). Entries are decrypted in the browser before download. | Built |
 | Account recovery and notifications | Recovery-code vault escrow, password change with re-encryption, and realtime in-app notifications with optional email. | Built |
 
-## In progress
+## Roadmap
 
-| Feature | Description |
-|---------|-------------|
-| Production rollout | Applying the latest migrations to the hosted database and enabling MFA and Stripe in the hosted project so payments, payouts, and 2FA are live in production. |
+[docs/competitive-feature-roadmap.md](docs/competitive-feature-roadmap.md) is the single definitive roadmap. It holds the prioritized list of features to build and gaps to close, with numbered specs, scoring, and a phased sequence. Planned work is tracked there, not in this file. The table above records what is built today.
 
-## Deferred to beta and later
-
-| Feature | Description | Target |
-|---------|-------------|--------|
-| Additional data schemas | FHIR for healthcare and Open Banking for financial data. | Beta |
-| DID support | Decentralized identifiers for credential issuers and holders. | Beta |
-| Mobile apps | Native iOS and Android clients. | Post-beta |
+Production rollout is an operational task rather than a feature. Hosted database migrations are current, and leaked-password protection requires Supabase Pro.
 
 
 ---
@@ -108,10 +109,19 @@ npx supabase start
 # 5. Start the development server
 npm run dev
 
-# 6. Run the tests
-npm test          # unit and component tests (Vitest)
-npm run test:e2e  # end-to-end tests (Playwright)
+# 6. Run the local checks
+npm run typecheck
+npm run lint
+npm run test:run
+npm run build
+npm run test:e2e
 ```
+
+`npm run security:audit` checks production dependencies. As of July 25, 2026, npm still reports high-severity advisories in Next.js and Serwist's transitive build dependencies, but offers only preview releases as fixes. Do not use `npm audit fix --force`; review the next stable Next.js and Serwist releases instead.
+
+Server-side administrative flows prefer `SUPABASE_SECRET_KEY`. Existing projects can use
+`SUPABASE_SERVICE_ROLE_KEY` as a legacy fallback, but current Supabase Auth admin APIs require the
+new secret key format.
 
 ---
 
@@ -123,7 +133,8 @@ lucid-mvp/
 │   ├── (auth)/            # Sign-in, register, passkey, and signup routes
 │   ├── (dashboard)/       # Vault, consent, audit, credentials, requests, settings
 │   ├── (org)/             # Organization and credential-issuer routes
-│   └── api/               # Route handlers (auth, org, supabase, user)
+│   ├── api/               # Route handlers (auth, org, supabase, user)
+│   └── sw.ts              # Serwist service-worker source
 ├── components/            # React components
 │   ├── ui/               # shadcn/ui primitives
 │   ├── vault/            # Vault dialogs, list view, schema form

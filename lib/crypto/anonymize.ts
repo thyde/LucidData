@@ -24,12 +24,29 @@ export const IDENTIFIER_KEYS = new Set([
   'drivers_license',
   'account_number',
   'card_number',
+  'user_id',
+  'userid',
+  'account_id',
+  'device_id',
+  'advertising_id',
+  'ip_address',
+  'mac_address',
+  'cookie_id',
   'dob',
   'date_of_birth',
 ])
 
 export function isIdentifierField(key: string): boolean {
-  return IDENTIFIER_KEYS.has(key.toLowerCase().replace(/\s+/g, '_'))
+  return IDENTIFIER_KEYS.has(key.toLowerCase().replace(/[\s-]+/g, '_'))
+}
+
+/** Reject identifiers at any nesting level; client-side filtering is not a trust boundary. */
+export function containsIdentifierField(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsIdentifierField)
+  if (!value || typeof value !== 'object') return false
+  return Object.entries(value).some(
+    ([key, nested]) => isIdentifierField(key) || containsIdentifierField(nested)
+  )
 }
 
 export interface FieldEntry {

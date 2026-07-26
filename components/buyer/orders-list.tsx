@@ -38,7 +38,11 @@ export function OrdersList({ orgId, orders }: { orgId: string; orders: DataOrder
               </Badge>
             </TableCell>
             <TableCell className="text-right">
-              <ExportDownload orgId={orgId} token={order.export_token} />
+              <ExportDownload
+                orgId={orgId}
+                token={order.export_token}
+                expiresAt={order.export_expires_at}
+              />
             </TableCell>
           </TableRow>
         ))}

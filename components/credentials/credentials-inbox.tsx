@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useEncryption } from '@/lib/context/encryption-context'
@@ -22,22 +23,19 @@ function schemaLabel(type: string): string {
 export function CredentialsInbox() {
   const { toast } = useToast()
   const { isLocked, encrypt } = useEncryption()
-  const [items, setItems] = useState<MyCredential[]>([])
-  const [loading, setLoading] = useState(true)
   const [claimingId, setClaimingId] = useState<string | null>(null)
   const [shareTarget, setShareTarget] = useState<MyCredential | null>(null)
 
-  const load = useCallback(async () => {
-    try {
-      setItems(await getMyCredentialsAction())
-    } catch (e) {
-      toast({ title: 'Could not load credentials', description: (e as Error).message, variant: 'destructive' })
-    } finally {
-      setLoading(false)
-    }
-  }, [toast])
-
-  useEffect(() => { void load() }, [load])
+  const {
+    data: items = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['my-credentials'],
+    queryFn: getMyCredentialsAction,
+  })
 
   async function handleClaim(item: MyCredential) {    const cred = item.credential
     setClaimingId(cred.id)
@@ -77,7 +75,7 @@ export function CredentialsInbox() {
           description: 'Unlock your vault to save an encrypted copy.',
         })
       }
-      await load()
+      await refetch()
     } catch (e) {
       toast({ title: 'Could not claim credential', description: (e as Error).message, variant: 'destructive' })
     } finally {
@@ -102,6 +100,14 @@ export function CredentialsInbox() {
 
   if (loading) {
     return <p className="text-muted-foreground">Loading credentials…</p>
+  }
+
+  if (isError) {
+    return (
+      <p className="text-destructive">
+        Could not load credentials: {error.message}
+      </p>
+    )
   }
 
   const claimable = items.filter((i) => !i.credential.subject_user_id || !i.credential.claimed_at)

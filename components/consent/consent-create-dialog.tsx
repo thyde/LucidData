@@ -59,6 +59,11 @@ interface ConsentCreateDialogProps {
   trigger?: React.ReactNode;
 }
 
+function toDateTimeLocalValue(date: Date): string {
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+}
+
 export function ConsentCreateDialog({
   open: controlledOpen,
   onOpenChange,
@@ -109,7 +114,7 @@ export function ConsentCreateDialog({
   const getPresetDate = (days: number) => {
     const date = new Date();
     date.setDate(date.getDate() + days);
-    return date.toISOString().slice(0, 16);
+    return toDateTimeLocalValue(date);
   };
 
   return (

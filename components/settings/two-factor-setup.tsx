@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,8 +22,6 @@ type Mode = 'idle' | 'enroll' | 'disable'
 export function TwoFactorSetup() {
   const { toast } = useToast()
   const [supabase] = useState(() => createClient())
-  const [loading, setLoading] = useState(true)
-  const [enabled, setEnabled] = useState(false)
   const [mode, setMode] = useState<Mode>('idle')
   const [factorId, setFactorId] = useState<string | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
@@ -31,26 +30,27 @@ export function TwoFactorSetup() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null)
-  const [remaining, setRemaining] = useState<number | null>(null)
+  const {
+    data: status,
+    isLoading: loading,
+    refetch: refresh,
+  } = useQuery({
+    queryKey: ['mfa-status'],
+    queryFn: async () => {
+      const { data, error: factorsError } = await supabase.auth.mfa.listFactors()
+      const enabled = !factorsError && (data?.totp?.length ?? 0) > 0
+      if (!enabled) return { enabled: false, remaining: null }
 
-  const refresh = useCallback(async () => {
-    const { data, error } = await supabase.auth.mfa.listFactors()
-    const on = !error && (data?.totp?.length ?? 0) > 0
-    setEnabled(on)
-    if (on) {
       try {
-        const { remaining } = await getBackupCodesStatusAction()
-        setRemaining(remaining)
+        const backupStatus = await getBackupCodesStatusAction()
+        return { enabled: true, remaining: backupStatus.remaining }
       } catch {
-        setRemaining(null)
+        return { enabled: true, remaining: null }
       }
-    }
-    setLoading(false)
-  }, [supabase])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+    },
+  })
+  const enabled = status?.enabled ?? false
+  const remaining = status?.remaining ?? null
 
   async function startEnroll() {
     setError(null)
@@ -124,7 +124,7 @@ export function TwoFactorSetup() {
       if (listErr) throw listErr
       const factor = list?.totp?.[0]
       if (!factor) {
-        setEnabled(false)
+        await refresh()
         setMode('idle')
         return
       }

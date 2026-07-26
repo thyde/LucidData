@@ -9,7 +9,7 @@ export const vaultDataSchema = z.object({
   ) as z.ZodType<'personal' | 'health' | 'financial' | 'credentials' | 'other'>,
   dataType: z.enum(['json', 'credential', 'document']).default('json'),
   data: z.record(z.string(), z.any(), {
-    errorMap: () => ({ message: 'Data is required' }),
+    error: 'Data is required',
   }), // The actual data to be encrypted
   tags: z.array(z.string()).optional().default([]),
   schemaType: z.string().optional(),

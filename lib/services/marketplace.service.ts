@@ -10,11 +10,14 @@ import {
 import type { DataPool } from '@/types/database.types'
 import type { CreatePoolInput, DataCategory } from '@/lib/validations/marketplace'
 import type { Json } from '@/types/database.types'
+import type { OpenDataPool } from '@/lib/repositories/pool.repository'
 
 /** Open pools individuals can browse and contribute to. */
-export async function listOpenPools(category?: string): Promise<DataPool[]> {
-  return poolRepo.findOpenPools(category)
+export async function listOpenPools(category?: string): Promise<OpenDataPool[]> {
+  return poolRepo.findOpenPoolsWithBuyers(category)
 }
+
+export type { OpenDataPool }
 
 export async function getOpenPool(id: string): Promise<DataPool | null> {
   return poolRepo.findOpenPoolById(id)
@@ -73,6 +76,9 @@ export async function createPoolForOrg(
     name: input.name,
     description: input.description ?? null,
     category: input.category,
+    purpose: input.purpose,
+    minimum_contributors: input.minimum_contributors,
+    retention_days: input.retention_days,
     requested_fields: input.requested_fields,
     pricing_model: input.pricing_model,
     price_cents: input.price_cents,

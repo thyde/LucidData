@@ -32,6 +32,11 @@ interface ConsentExtendDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function toDateTimeLocalValue(date: Date): string {
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+}
+
 export function ConsentExtendDialog({
   consentId,
   currentEndDate,
@@ -82,7 +87,7 @@ export function ConsentExtendDialog({
   const addDays = (days: number) => {
     const date = currentEndDate ? new Date(currentEndDate) : new Date();
     date.setDate(date.getDate() + days);
-    return date.toISOString().slice(0, 16);
+    return toDateTimeLocalValue(date);
   };
 
   return (

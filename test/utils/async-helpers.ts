@@ -1,5 +1,4 @@
-import { vi } from 'vitest';
-import { QueryClient } from '@tanstack/react-query';
+import { expect, vi, type Mock } from 'vitest';
 import { act } from '@testing-library/react';
 
 /**
@@ -23,7 +22,7 @@ export async function waitForMutation() {
 /**
  * Waits for React Query cache invalidation to complete
  */
-export async function waitForInvalidation(queryClient: QueryClient) {
+export async function waitForInvalidation() {
   await flushPromises();
   // Allow cache to process updates
   await new Promise((resolve) => setTimeout(resolve, 50));
@@ -32,7 +31,7 @@ export async function waitForInvalidation(queryClient: QueryClient) {
 /**
  * Waits for toast to be called
  */
-export async function waitForToast(mockToast: any) {
+export async function waitForToast(mockToast: Mock) {
   await vi.waitFor(() => {
     expect(mockToast).toHaveBeenCalled();
   }, { timeout: 500 });

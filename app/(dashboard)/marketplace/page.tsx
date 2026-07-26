@@ -71,7 +71,7 @@ export default async function MarketplacePage() {
             Buyers are requesting these datasets. Contribute the fields you choose.
           </p>
         </div>
-        <PoolList pools={pools} />
+        <PoolList pools={pools} preferences={prefs} />
       </section>
 
       <section className="space-y-4">

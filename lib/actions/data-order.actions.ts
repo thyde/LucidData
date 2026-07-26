@@ -1,7 +1,10 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
+import {
+  requireOrgMembership,
+  requireVerifiedDataBuyer,
+} from '@/lib/middleware/withOrgMember'
 import {
   startPoolPurchase,
   listOrders,
@@ -19,20 +22,12 @@ async function getAuthenticatedUserId(): Promise<string> {
   return user.id
 }
 
-async function requireDataBuyer(orgId: string) {
-  const membership = await requireOrgMembership(orgId)
-  if (!membership.organization.data_buyer) {
-    throw new Error('This organization is not enabled for data purchasing')
-  }
-  return membership
-}
-
 export async function purchasePoolAction(
   orgId: string,
   input: unknown
 ): Promise<StartPurchaseResult> {
   const userId = await getAuthenticatedUserId()
-  await requireDataBuyer(orgId)
+  await requireVerifiedDataBuyer(orgId)
   const parsed = purchasePoolSchema.parse(input)
   return startPoolPurchase(orgId, userId, parsed)
 }
@@ -44,6 +39,6 @@ export async function getOrdersAction(orgId: string): Promise<DataOrder[]> {
 
 export async function getExportAction(orgId: string, token: string): Promise<DatasetExport> {
   const userId = await getAuthenticatedUserId()
-  await requireDataBuyer(orgId)
+  await requireVerifiedDataBuyer(orgId)
   return getExport(orgId, userId, token)
 }

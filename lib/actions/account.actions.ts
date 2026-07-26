@@ -9,6 +9,7 @@ import {
   emailNotificationPreferenceSchema,
   DELETE_CONFIRM_PHRASE,
 } from '@/lib/validations/account'
+import { z } from 'zod'
 
 async function getAuthenticatedUserId(): Promise<string> {
   const supabase = await createClient()
@@ -48,6 +49,12 @@ export async function setEmailNotificationPreferenceAction(input: unknown): Prom
   const userId = await getAuthenticatedUserId()
   const { enabled } = emailNotificationPreferenceSchema.parse(input)
   return account.setEmailNotificationPreference(userId, enabled)
+}
+
+export async function removePasskeyAction(input: unknown): Promise<void> {
+  const userId = await getAuthenticatedUserId()
+  const { passkeyId } = z.object({ passkeyId: z.string().uuid() }).parse(input)
+  return account.removePasskey(userId, passkeyId)
 }
 
 export async function deleteAccountAction(input: unknown): Promise<void> {

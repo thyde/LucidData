@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withOrgAuth } from '@/lib/middleware/withOrgAuth'
 import { createServiceClient } from '@/lib/supabase/service'
 
@@ -27,25 +27,29 @@ export const GET = withOrgAuth(async (req, { orgId }) => {
   const now = new Date().toISOString()
   const query = supabase
     .from('consents')
-    .select('id, access_level, end_date, vault_data_id')
+    .select('id, access_level, end_date, vault_data_id, data_category, vault:vault_data(category)')
     .eq('user_id', user.id)
     .eq('granted_to', orgId)
     .eq('revoked', false)
     .or(`end_date.is.null,end_date.gt.${now}`)
 
-  if (category) {
-    // If category specified, also include consents with no vault_data_id (global consents)
-    // or consents whose vault_data_id category matches — this is checked via join
-    // For now, return global consents (vault_data_id is null) as covering all categories
-  }
-
   const { data: consents } = await query.order('created_at', { ascending: false })
 
-  if (!consents?.length) {
+  const matching = (consents ?? []).filter((consent) => {
+    if (!category) return true
+    if (consent.data_category) return consent.data_category === category
+    if (consent.vault_data_id) {
+      const vault = Array.isArray(consent.vault) ? consent.vault[0] : consent.vault
+      return vault?.category === category
+    }
+    return true
+  })
+
+  if (matching.length === 0) {
     return NextResponse.json({ has_consent: false }, { status: 200 })
   }
 
-  const active = consents[0]
+  const active = matching[0]
   return NextResponse.json({
     has_consent: true,
     access_level: active.access_level,

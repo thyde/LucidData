@@ -4,11 +4,13 @@ import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
 import { getIssuerOverviewAction } from '@/lib/actions/issuer.actions'
 import { listIssuedCredentialsAction } from '@/lib/actions/credential.actions'
 import { getBillingOverviewAction } from '@/lib/actions/billing.actions'
+import { getOrganizationApiKeysAction } from '@/lib/actions/organization-api-key.actions'
 import { IssuerSetup } from '@/components/org/issuer-setup'
 import { IssueCredential } from '@/components/org/issue-credential'
 import { VerifyTool } from '@/components/org/verify-tool'
 import { RequestCredentials } from '@/components/org/request-credentials'
 import { PlanBilling } from '@/components/org/plan-billing'
+import { ApiKeyManager } from '@/components/org/api-key-manager'
 import { isStripeConfigured } from '@/lib/stripe/client'
 
 export default async function OrgDetailPage({
@@ -32,6 +34,7 @@ export default async function OrgDetailPage({
   const issued = overview?.domainVerified ? await listIssuedCredentialsAction(orgId) : []
   const usage = await getBillingOverviewAction(orgId)
   const stripeEnabled = isStripeConfigured()
+  const apiKeys = role === 'owner' ? await getOrganizationApiKeysAction(orgId) : []
 
   return (
     <div className="space-y-8">
@@ -90,6 +93,13 @@ export default async function OrgDetailPage({
               Open buyer portal →
             </Link>
           </div>
+        </div>
+      )}
+
+      {role === 'owner' && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-medium">API keys</h2>
+          <ApiKeyManager organizationId={orgId} initialKeys={apiKeys} />
         </div>
       )}
 

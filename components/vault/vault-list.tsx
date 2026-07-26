@@ -218,7 +218,7 @@ export function VaultList({ onEntryClick }: VaultListProps) {
             >
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{entry.label}</CardTitle>
+                  <CardTitle role="heading" aria-level={2} className="text-lg">{entry.label}</CardTitle>
                   <Badge>{entry.category}</Badge>
                 </div>
               </CardHeader>

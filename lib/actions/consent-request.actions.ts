@@ -1,9 +1,13 @@
 'use server'
 
+import { z } from 'zod'
+
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { createConsent } from '@/lib/services/consent.service'
+import { createAuditEntry } from '@/lib/services/audit.service'
 import type { ConsentRequest } from '@/types/database.types'
+
+const consentAccessLevelSchema = z.enum(['read', 'export', 'verify'])
 
 async function getAuthenticatedUserId(): Promise<string> {
   const supabase = await createClient()
@@ -46,10 +50,32 @@ export async function respondToConsentRequestAction(
     throw new Error('This request has already been answered')
   }
 
+  if (response === 'approved') {
+    consentAccessLevelSchema.parse(existing.access_level)
+    const { data, error } = await supabase.rpc('approve_consent_request_atomic', {
+      request_id: requestId,
+      response_note: note,
+    })
+    if (error) throw error
+    const result = data as unknown as { request: ConsentRequest; consent_id: string }
+    await createAuditEntry({
+      userId,
+      eventType: 'consent_granted',
+      action: `Approved ${existing.access_level} access request`,
+      consentId: result.consent_id,
+      metadata: {
+        request_id: requestId,
+        organization_id: existing.organization_id,
+        data_category: existing.data_category,
+      },
+    })
+    return result.request
+  }
+
   const { data, error } = await supabase
     .from('consent_requests')
     .update({
-      status: response,
+      status: 'denied',
       response_note: note ?? null,
       responded_at: new Date().toISOString(),
     })
@@ -58,28 +84,5 @@ export async function respondToConsentRequestAction(
     .select()
     .single()
   if (error) throw error
-  const updated = data as ConsentRequest
-
-  // Approving a request must actually grant access: create a consent record the
-  // requesting organization can verify via GET /api/org/verify-consent.
-  if (response === 'approved') {
-    const service = createServiceClient()
-    const { data: org } = await service
-      .from('organizations')
-      .select('name, email')
-      .eq('id', updated.organization_id)
-      .single()
-
-    await createConsent(userId, {
-      granted_to: updated.organization_id,
-      granted_to_name: org?.name ?? undefined,
-      granted_to_email: org?.email ?? undefined,
-      access_level: updated.access_level,
-      purpose: updated.purpose,
-      end_date: updated.expires_at ?? undefined,
-      consent_type: 'explicit',
-    })
-  }
-
-  return updated
+  return data as ConsentRequest
 }

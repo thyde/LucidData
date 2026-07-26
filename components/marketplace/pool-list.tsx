@@ -8,7 +8,12 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ContributeDialog } from '@/components/marketplace/contribute-dialog'
 import { categoryLabel, formatCents } from '@/components/dashboard/chart-theme'
-import type { DataPool } from '@/types/database.types'
+import {
+  MARKETPLACE_PURPOSE_LABELS,
+  isMarketplaceCategoryAllowed,
+} from '@/lib/validations/marketplace'
+import type { OpenDataPool } from '@/lib/services/marketplace.service'
+import type { SalePreferences } from '@/types/database.types'
 
 const PRICING_ICON = {
   snapshot: Package,
@@ -22,9 +27,48 @@ const PRICING_LABEL = {
   filtered: 'Filtered bundle',
 } as const
 
-export function PoolList({ pools }: { pools: DataPool[] }) {
+function pricingDisplay(pricingModel: string) {
+  switch (pricingModel) {
+    case 'snapshot':
+      return { Icon: PRICING_ICON.snapshot, label: PRICING_LABEL.snapshot }
+    case 'subscription':
+      return { Icon: PRICING_ICON.subscription, label: PRICING_LABEL.subscription }
+    case 'filtered':
+      return { Icon: PRICING_ICON.filtered, label: PRICING_LABEL.filtered }
+    default:
+      return { Icon: Package, label: pricingModel }
+  }
+}
+
+function incompatibility(pool: OpenDataPool, preferences: SalePreferences | null): string | null {
+  if (!isMarketplaceCategoryAllowed(pool.category as Parameters<typeof isMarketplaceCategoryAllowed>[0])) {
+    return 'This category is not available for marketplace sale.'
+  }
+  if (preferences && pool.price_per_record_cents < preferences.min_price_cents) {
+    return `Below your ${formatCents(preferences.min_price_cents)} minimum.`
+  }
+  if (preferences?.blocked_buyer_orgs.includes(pool.buyer_org_id)) {
+    return 'You blocked this buyer.'
+  }
+  if (
+    preferences &&
+    preferences.allowed_purposes.length > 0 &&
+    !preferences.allowed_purposes.includes(pool.purpose)
+  ) {
+    return 'This purpose is not in your allowed purposes.'
+  }
+  return null
+}
+
+export function PoolList({
+  pools,
+  preferences,
+}: {
+  pools: OpenDataPool[]
+  preferences: SalePreferences | null
+}) {
   const router = useRouter()
-  const [activePool, setActivePool] = useState<DataPool | null>(null)
+  const [activePool, setActivePool] = useState<OpenDataPool | null>(null)
 
   if (pools.length === 0) {
     return (
@@ -38,7 +82,8 @@ export function PoolList({ pools }: { pools: DataPool[] }) {
     <>
       <div className="grid gap-4 md:grid-cols-2">
         {pools.map((pool) => {
-          const Icon = PRICING_ICON[pool.pricing_model]
+          const { Icon, label } = pricingDisplay(pool.pricing_model)
+          const blockedReason = incompatibility(pool, preferences)
           return (
             <Card key={pool.id} className="flex h-full flex-col">
               <CardHeader>
@@ -46,10 +91,13 @@ export function PoolList({ pools }: { pools: DataPool[] }) {
                   <Badge variant="secondary">{categoryLabel(pool.category)}</Badge>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Icon className="h-3.5 w-3.5" />
-                    {PRICING_LABEL[pool.pricing_model]}
+                    {label}
                   </span>
                 </div>
                 <CardTitle className="text-lg">{pool.name}</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {pool.buyer_name}{pool.buyer_verified ? ' · Verified buyer' : ' · Unverified buyer'}
+                </p>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col">
                 {pool.description && (
@@ -65,13 +113,27 @@ export function PoolList({ pools }: { pools: DataPool[] }) {
                   </div>
                 )}
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-sm font-medium text-primary">
-                    {formatCents(pool.price_per_record_cents)} / record
-                  </span>
-                  <Button size="sm" onClick={() => setActivePool(pool)}>
+                  <div className="text-sm">
+                    <p className="font-medium text-primary">
+                      {formatCents(pool.price_per_record_cents)} / record
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {MARKETPLACE_PURPOSE_LABELS[pool.purpose as keyof typeof MARKETPLACE_PURPOSE_LABELS]}
+                      {' · '}{pool.retention_days}-day retention
+                      {' · '}minimum {pool.minimum_contributors} contributors
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={Boolean(blockedReason)}
+                    onClick={() => setActivePool(pool)}
+                  >
                     Contribute
                   </Button>
                 </div>
+                {blockedReason && (
+                  <p className="mt-2 text-xs text-destructive">{blockedReason}</p>
+                )}
               </CardContent>
             </Card>
           )

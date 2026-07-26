@@ -5,7 +5,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { clearSession, getUniqueEmail, fillFormField, TEST_USER } from '../helpers/auth';
+import { clearSession, getUniqueEmail, fillFormField, signup, TEST_USER } from '../helpers/auth';
 
 test.describe('Signup Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -73,16 +73,10 @@ test.describe('Signup Flow', () => {
   });
 
   test('should successfully create account with valid data', async ({ page }) => {
-    await page.goto('/signup');
-
     const email = getUniqueEmail();
-    await fillFormField(page, 'input[name="email"]', email);
-    await fillFormField(page, 'input[name="password"]', TEST_USER.password);
-    await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
-    await page.click('button[type="submit"]');
+    await signup(page, email, TEST_USER.password);
 
-    // Should redirect to dashboard
-    await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
+    await expect(page).toHaveURL('/dashboard');
 
     // Should display user info
     await expect(page.locator(`text=${email}`)).toBeVisible();
@@ -92,14 +86,7 @@ test.describe('Signup Flow', () => {
     const email = getUniqueEmail();
 
     // First signup
-    await page.goto('/signup');
-    await fillFormField(page, 'input[name="email"]', email);
-    await fillFormField(page, 'input[name="password"]', TEST_USER.password);
-    await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
-    await page.click('button[type="submit"]');
-
-    // Wait for success
-    await expect(page).toHaveURL('/dashboard');
+    await signup(page, email, TEST_USER.password);
 
     // Logout
     await clearSession(page);

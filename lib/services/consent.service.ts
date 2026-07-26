@@ -14,6 +14,7 @@ export interface CreateConsentPayload {
   ip_address?: string
   user_agent?: string
   terms_version?: string
+  data_category?: string
 }
 
 export async function createConsent(userId: string, payload: CreateConsentPayload): Promise<Consent> {

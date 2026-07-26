@@ -1,7 +1,11 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
+import {
+  requireDataBuyer,
+  requireOrgMembership,
+  requireVerifiedDataBuyer,
+} from '@/lib/middleware/withOrgMember'
 import {
   listOpenPools,
   getOpenPool,
@@ -10,6 +14,7 @@ import {
   closePool,
   getMarketSupply,
   type MarketSupplyRow,
+  type OpenDataPool,
 } from '@/lib/services/marketplace.service'
 import { createPoolSchema } from '@/lib/validations/marketplace'
 import type { DataPool } from '@/types/database.types'
@@ -21,16 +26,7 @@ async function getAuthenticatedUserId(): Promise<string> {
   return user.id
 }
 
-/** Assert the user belongs to the org and the org has the data-buyer capability. */
-async function requireDataBuyer(orgId: string) {
-  const membership = await requireOrgMembership(orgId)
-  if (!membership.organization.data_buyer) {
-    throw new Error('This organization is not enabled for data purchasing')
-  }
-  return membership
-}
-
-export async function getOpenPoolsAction(category?: string): Promise<DataPool[]> {
+export async function getOpenPoolsAction(category?: string): Promise<OpenDataPool[]> {
   await getAuthenticatedUserId()
   return listOpenPools(category)
 }
@@ -46,13 +42,13 @@ export async function getOrgPoolsAction(orgId: string): Promise<DataPool[]> {
 }
 
 export async function getMarketSupplyAction(orgId: string): Promise<MarketSupplyRow[]> {
-  await requireDataBuyer(orgId)
+  await requireVerifiedDataBuyer(orgId)
   return getMarketSupply()
 }
 
 export async function createPoolAction(orgId: string, input: unknown): Promise<DataPool> {
   const userId = await getAuthenticatedUserId()
-  await requireDataBuyer(orgId)
+  await requireVerifiedDataBuyer(orgId)
   const parsed = createPoolSchema.parse(input)
   return createPoolForOrg(orgId, userId, parsed)
 }

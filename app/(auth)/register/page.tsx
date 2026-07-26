@@ -212,14 +212,8 @@ export default function RegisterPage() {
           </DialogDescription>
         </DialogHeader>
         {recoveryCode && <RecoveryCodeDisplay code={recoveryCode} />}
-        <Button
-          className="w-full"
-          onClick={() => {
-            router.push('/dashboard');
-            router.refresh();
-          }}
-        >
-          Continue to dashboard
+        <Button asChild className="w-full">
+          <Link href="/dashboard">Continue to dashboard</Link>
         </Button>
       </DialogContent>
     </Dialog>

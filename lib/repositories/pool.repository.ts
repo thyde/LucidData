@@ -2,6 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { DataPool, InsertDataPool, UpdateDataPool } from '@/types/database.types'
 
+export interface OpenDataPool extends DataPool {
+  buyer_name: string
+  buyer_verified: boolean
+}
+
 /** Open pools any authenticated individual can browse and contribute to (RLS). */
 export async function findOpenPools(category?: string): Promise<DataPool[]> {
   const supabase = await createClient()
@@ -14,6 +19,29 @@ export async function findOpenPools(category?: string): Promise<DataPool[]> {
   const { data, error } = await query
   if (error) throw error
   return data
+}
+
+/** Open pools enriched with the buyer identity sellers need for informed consent. */
+export async function findOpenPoolsWithBuyers(category?: string): Promise<OpenDataPool[]> {
+  const pools = await findOpenPools(category)
+  if (pools.length === 0) return []
+
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('organizations')
+    .select('id, name, verified_at')
+    .in('id', Array.from(new Set(pools.map((pool) => pool.buyer_org_id))))
+  if (error) throw error
+
+  const buyers = new Map((data ?? []).map((buyer) => [buyer.id, buyer]))
+  return pools.map((pool) => {
+    const buyer = buyers.get(pool.buyer_org_id)
+    return {
+      ...pool,
+      buyer_name: buyer?.name ?? 'Unknown buyer',
+      buyer_verified: Boolean(buyer?.verified_at),
+    }
+  })
 }
 
 /** A single open pool by id (RLS-visible only while open). */

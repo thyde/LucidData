@@ -61,6 +61,7 @@ export function MobileNav() {
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={pathname === link.href ? 'page' : undefined}
                 onClick={() => setOpen(false)}
                 className={cn(
                   'text-lg font-medium transition-colors hover:text-foreground',

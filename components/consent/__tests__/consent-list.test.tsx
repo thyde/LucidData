@@ -96,9 +96,9 @@ describe('ConsentList', () => {
       render(<ConsentList />);
 
       // Should render all consents from mockConsentList
-      expect(screen.getByText(mockConsent.grantedToName)).toBeInTheDocument();
-      expect(screen.getByText(mockExpiredConsent.grantedToName)).toBeInTheDocument();
-      expect(screen.getByText(mockRevokedConsent.grantedToName)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.granted_to_name!)).toBeInTheDocument();
+      expect(screen.getByText(mockExpiredConsent.granted_to_name!)).toBeInTheDocument();
+      expect(screen.getByText(mockRevokedConsent.granted_to_name!)).toBeInTheDocument();
     });
 
     it('displays cards in grid layout', () => {
@@ -128,23 +128,23 @@ describe('ConsentList', () => {
       await user.type(searchInput, 'Acme');
 
       // Should show Acme Healthcare
-      expect(screen.getByText(mockConsent.grantedToName)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.granted_to_name!)).toBeInTheDocument();
 
       // Should hide others
-      expect(screen.queryByText(mockExpiredConsent.grantedToName)).not.toBeInTheDocument();
-      expect(screen.queryByText(mockRevokedConsent.grantedToName)).not.toBeInTheDocument();
+      expect(screen.queryByText(mockExpiredConsent.granted_to_name!)).not.toBeInTheDocument();
+      expect(screen.queryByText(mockRevokedConsent.granted_to_name!)).not.toBeInTheDocument();
     });
 
     it('filters consents by purpose text', async () => {
       const consentsWithPurpose = [
         createMockConsent({
           id: 'consent-1',
-          grantedToName: 'Org 1',
+          granted_to_name: 'Org 1',
           purpose: 'For research purposes',
         }),
         createMockConsent({
           id: 'consent-2',
-          grantedToName: 'Org 2',
+          granted_to_name: 'Org 2',
           purpose: 'For medical records',
         }),
       ];
@@ -168,7 +168,7 @@ describe('ConsentList', () => {
       await user.type(searchInput, 'acme'); // lowercase
 
       // Should still find "Acme Healthcare"
-      expect(screen.getByText(mockConsent.grantedToName)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.granted_to_name!)).toBeInTheDocument();
     });
 
     it('renders status filter dropdown', () => {
@@ -195,11 +195,11 @@ describe('ConsentList', () => {
       await user.selectOptions(select, 'active');
 
       // Should show active consent
-      expect(screen.getByText(mockConsent.grantedToName)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.granted_to_name!)).toBeInTheDocument();
 
       // Should hide expired and revoked
-      expect(screen.queryByText(mockExpiredConsent.grantedToName)).not.toBeInTheDocument();
-      expect(screen.queryByText(mockRevokedConsent.grantedToName)).not.toBeInTheDocument();
+      expect(screen.queryByText(mockExpiredConsent.granted_to_name!)).not.toBeInTheDocument();
+      expect(screen.queryByText(mockRevokedConsent.granted_to_name!)).not.toBeInTheDocument();
     });
   });
 
@@ -208,10 +208,10 @@ describe('ConsentList', () => {
     it('shows "active" badge for active consents', () => {
       render(<ConsentList />);
 
-      const acmeCard = screen.getByText(mockConsent.grantedToName).closest('div[class*="card"]');
+      const acmeCard = screen.getByText(mockConsent.granted_to_name!).closest('div[class*="card"]') as HTMLElement;
       expect(acmeCard).toBeInTheDocument();
 
-      const badge = within(acmeCard!).getByText(/active/i);
+      const badge = within(acmeCard).getByText(/active/i);
       expect(badge).toBeInTheDocument();
     });
 
@@ -219,11 +219,11 @@ describe('ConsentList', () => {
       render(<ConsentList />);
 
       const expiredCard = screen
-        .getByText(mockExpiredConsent.grantedToName)
-        .closest('div[class*="card"]');
+        .getByText(mockExpiredConsent.granted_to_name!)
+        .closest('div[class*="card"]') as HTMLElement;
       expect(expiredCard).toBeInTheDocument();
 
-      const badge = within(expiredCard!).getByText(/expired/i);
+      const badge = within(expiredCard).getByText(/expired/i);
       expect(badge).toBeInTheDocument();
     });
 
@@ -231,11 +231,11 @@ describe('ConsentList', () => {
       render(<ConsentList />);
 
       const revokedCard = screen
-        .getByText(mockRevokedConsent.grantedToName)
-        .closest('div[class*="card"]');
+        .getByText(mockRevokedConsent.granted_to_name!)
+        .closest('div[class*="card"]') as HTMLElement;
       expect(revokedCard).toBeInTheDocument();
 
-      const badge = within(revokedCard!).getByText(/revoked/i);
+      const badge = within(revokedCard).getByText(/revoked/i);
       expect(badge).toBeInTheDocument();
     });
 
@@ -246,8 +246,8 @@ describe('ConsentList', () => {
       render(<ConsentList />);
 
       // Should show expiration date with warning styling
-      const card = screen.getByText(expiringSoon.grantedToName).closest('div[class*="card"]');
-      const expiryText = within(card!).getByText(/expires:/i).parentElement;
+      const card = screen.getByText(expiringSoon.granted_to_name!).closest('div[class*="card"]') as HTMLElement;
+      const expiryText = within(card).getByText(/expires:/i).parentElement;
       expect(expiryText).toBeInTheDocument();
     });
 
@@ -265,17 +265,17 @@ describe('ConsentList', () => {
     it('displays organization name as card title', () => {
       render(<ConsentList />);
 
-      expect(screen.getByText(mockConsent.grantedToName)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.granted_to_name!)).toBeInTheDocument();
     });
 
     it('displays purpose as card description', () => {
       render(<ConsentList />);
 
-      const card = screen.getByText(mockConsent.grantedToName).closest('div[class*="card"]');
+      const card = screen.getByText(mockConsent.granted_to_name!).closest('div[class*="card"]') as HTMLElement;
       expect(card).toBeInTheDocument();
 
       // Purpose should be in the card
-      expect(within(card!).getByText(mockConsent.purpose)).toBeInTheDocument();
+      expect(within(card).getByText(mockConsent.purpose)).toBeInTheDocument();
     });
 
     it('truncates purpose with line-clamp-2', () => {
@@ -283,7 +283,7 @@ describe('ConsentList', () => {
         'This is a very long purpose that should be truncated when displayed in the card view to prevent it from taking up too much space';
       const consentWithLongPurpose = createMockConsent({
         id: 'consent-long',
-        grantedToName: 'Long Purpose Org',
+        granted_to_name: 'Long Purpose Org',
         purpose: longPurpose,
       });
       vi.mocked(useConsentList).mockReturnValue(createMockQuery([consentWithLongPurpose]));
@@ -297,17 +297,17 @@ describe('ConsentList', () => {
     it('displays access level', () => {
       render(<ConsentList />);
 
-      const card = screen.getByText(mockConsent.grantedToName).closest('div[class*="card"]');
-      expect(within(card!).getByText(/access:/i)).toBeInTheDocument();
-      expect(within(card!).getByText(/read/i)).toBeInTheDocument();
+      const card = screen.getByText(mockConsent.granted_to_name!).closest('div[class*="card"]') as HTMLElement;
+      expect(within(card).getByText(/access:/i)).toBeInTheDocument();
+      expect(within(card).getByText(/read/i)).toBeInTheDocument();
     });
 
     it('displays expiration date when set', () => {
       render(<ConsentList />);
 
-      const card = screen.getByText(mockConsent.grantedToName).closest('div[class*="card"]');
-      expect(within(card!).getByText(/expires:/i)).toBeInTheDocument();
-      expect(within(card!).getByText(/dec 31, 2026/i)).toBeInTheDocument();
+      const card = screen.getByText(mockConsent.granted_to_name!).closest('div[class*="card"]') as HTMLElement;
+      expect(within(card).getByText(/expires:/i)).toBeInTheDocument();
+      expect(within(card).getByText(/dec 31, 2026/i)).toBeInTheDocument();
     });
 
     it('highlights expiring soon dates', () => {
@@ -316,8 +316,8 @@ describe('ConsentList', () => {
 
       render(<ConsentList />);
 
-      const card = screen.getByText(expiringSoon.grantedToName).closest('div[class*="card"]');
-      const expirySection = within(card!).getByText(/expires:/i).parentElement;
+      const card = screen.getByText(expiringSoon.granted_to_name!).closest('div[class*="card"]') as HTMLElement;
+      const expirySection = within(card).getByText(/expires:/i).parentElement;
 
       // Check that warning styling is applied
       expect(expirySection?.querySelector('.text-warning')).toBeInTheDocument();

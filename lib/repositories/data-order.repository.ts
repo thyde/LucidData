@@ -1,5 +1,11 @@
 import { createServiceClient } from '@/lib/supabase/service'
-import type { DataOrder, InsertDataOrder, UpdateDataOrder } from '@/types/database.types'
+import type {
+  DataOrder,
+  DataOrderRecord,
+  InsertDataOrder,
+  InsertDataOrderRecord,
+  UpdateDataOrder,
+} from '@/types/database.types'
 
 export async function createOrder(order: InsertDataOrder): Promise<DataOrder> {
   const service = createServiceClient()
@@ -16,6 +22,36 @@ export async function updateOrder(id: string, patch: UpdateDataOrder): Promise<D
     .eq('id', id)
     .select('*')
     .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteOrder(id: string): Promise<void> {
+  const service = createServiceClient()
+  const { error } = await service.from('data_orders').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function createOrderRecords(
+  records: InsertDataOrderRecord[]
+): Promise<DataOrderRecord[]> {
+  if (records.length === 0) return []
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('data_order_records')
+    .insert(records)
+    .select('*')
+  if (error) throw error
+  return data
+}
+
+export async function findOrderRecords(orderId: string): Promise<DataOrderRecord[]> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('data_order_records')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: true })
   if (error) throw error
   return data
 }

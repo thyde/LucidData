@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { createClient } from '@/lib/supabase/client'
+import { verifyPassword } from '@/lib/supabase/verify-password'
 import { deriveMasterKey, rewrapAllEntries, setupRecoveryFromPassword } from '@/lib/account/account-crypto'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
 
@@ -60,11 +61,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       if (!user?.email) throw new Error('Not signed in')
 
       // Verify the current password.
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword,
-      })
-      if (authError) {
+      if (!(await verifyPassword(user.email, currentPassword))) {
         setError('Current password is incorrect')
         return
       }
@@ -79,11 +76,34 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
         return
       }
 
-      await rewrapAllEntries(oldMasterKey, newMasterKey, 'password_change')
-      const code = await setupRecoveryFromPassword(newPassword, keySalt)
+      try {
+        await rewrapAllEntries(oldMasterKey, newMasterKey, 'password_change')
+      } catch (rewrapError) {
+        const { error: rollbackError } = await supabase.auth.updateUser({
+          password: currentPassword,
+        })
+        if (rollbackError) {
+          throw new Error(
+            'Your password changed, but the vault could not be re-encrypted. Use your recovery code before signing out.'
+          )
+        }
+        throw rewrapError
+      }
+
+      let code: string | null = null
+      try {
+        code = await setupRecoveryFromPassword(newPassword, keySalt)
+      } catch {
+        toast({
+          title: 'Password changed',
+          description: 'Your vault was re-encrypted, but a new recovery code could not be generated.',
+          variant: 'destructive',
+        })
+      }
       await unlock(newPassword, keySalt)
 
-      setNewCode(code)
+      if (code) setNewCode(code)
+      else setOpen(false)
       toast({ title: 'Password changed', description: 'Your vault was re-encrypted with the new password.' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not change your password')

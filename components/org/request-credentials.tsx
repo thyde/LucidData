@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,17 +51,10 @@ export function RequestCredentials({ orgId }: { orgId: string }) {
   const [types, setTypes] = useState<Set<string>>(new Set())
   const [expiresInDays, setExpiresInDays] = useState('30')
   const [busy, setBusy] = useState(false)
-  const [requests, setRequests] = useState<CredentialRequest[]>([])
-
-  const load = useCallback(async () => {
-    try {
-      setRequests(await listOrgCredentialRequestsAction(orgId))
-    } catch {
-      /* surfaced on submit; list stays empty */
-    }
-  }, [orgId])
-
-  useEffect(() => { void load() }, [load])
+  const { data: requests = [], refetch } = useQuery<CredentialRequest[]>({
+    queryKey: ['credential-requests', 'organization', orgId],
+    queryFn: () => listOrgCredentialRequestsAction(orgId),
+  })
 
   function toggleType(key: string) {
     setTypes((prev) => {
@@ -97,7 +91,7 @@ export function RequestCredentials({ orgId }: { orgId: string }) {
       setPurpose('')
       setMessage('')
       setTypes(new Set())
-      await load()
+      await refetch()
     } catch (e) {
       toast({ title: 'Could not send request', description: (e as Error).message, variant: 'destructive' })
     } finally {

@@ -7,7 +7,10 @@ import { createAuditEntry } from '@/lib/services/audit.service'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { recordOrderPayouts } from '@/lib/services/payout.service'
 import type { DataOrder } from '@/types/database.types'
-import type { PurchasePoolInput } from '@/lib/validations/marketplace'
+import {
+  isMarketplaceCategoryAllowed,
+  type PurchasePoolInput,
+} from '@/lib/validations/marketplace'
 
 /** A dataset was free / Stripe is off (completed now), or the buyer must pay via Checkout. */
 export type StartPurchaseResult =
@@ -15,20 +18,53 @@ export type StartPurchaseResult =
   | { kind: 'checkout'; url: string; recordCount: number; totalCents: number }
 
 export interface DatasetExport {
-  pool: { id: string; name: string; category: string }
+  pool: {
+    id: string
+    name: string
+    category: string
+    purpose: string
+    retentionDays: number
+  }
+  exportExpiresAt: string
   recordCount: number
   records: { id: string; category: string; payload: unknown; contributed_at: string }[]
 }
 
-/** Compute the stubbed total for a purchase. */
+const EXPORT_WINDOW_DAYS = 7
+
+/** Compute the total for an immutable snapshot purchase. */
 function computeTotal(
   pricePerRecordCents: number,
   basePriceCents: number,
   recordCount: number,
-  orderType: 'snapshot' | 'subscription'
+  orderType: 'snapshot'
 ): number {
-  if (orderType === 'subscription') return basePriceCents
+  void orderType
   return basePriceCents + recordCount * pricePerRecordCents
+}
+
+async function createOrderWithSnapshot(
+  input: Parameters<typeof orderRepo.createOrder>[0],
+  contributions: Awaited<ReturnType<typeof contributionRepo.findActiveContributionsByPool>>
+): Promise<DataOrder> {
+  const order = await orderRepo.createOrder(input)
+  try {
+    await orderRepo.createOrderRecords(
+      contributions.map((contribution) => ({
+        order_id: order.id,
+        source_contribution_id: contribution.id,
+        source_user_id: contribution.user_id,
+        category: contribution.category,
+        payload: contribution.anonymized_payload,
+        payout_cents: contribution.payout_cents,
+        contributed_at: contribution.created_at,
+      }))
+    )
+    return order
+  } catch (error) {
+    await orderRepo.deleteOrder(order.id).catch(() => undefined)
+    throw error
+  }
 }
 
 /**
@@ -44,8 +80,18 @@ export async function startPoolPurchase(
 ): Promise<StartPurchaseResult> {
   const pool = await poolRepo.findPoolByOrg(input.pool_id, orgId)
   if (!pool) throw new Error('Pool not found for this organization')
+  if (!isMarketplaceCategoryAllowed(pool.category as Parameters<typeof isMarketplaceCategoryAllowed>[0])) {
+    throw new Error('This category is not available for marketplace sale')
+  }
 
-  const recordCount = await contributionRepo.countActiveContributions(pool.id)
+  const contributions = await contributionRepo.findActiveContributionsByPool(pool.id)
+  const recordCount = contributions.length
+  const contributorCount = new Set(contributions.map((contribution) => contribution.user_id)).size
+  if (contributorCount < pool.minimum_contributors) {
+    throw new Error(
+      `This pool needs at least ${pool.minimum_contributors} contributors before purchase`
+    )
+  }
   const totalCents = computeTotal(
     pool.price_per_record_cents,
     pool.price_cents,
@@ -53,23 +99,23 @@ export async function startPoolPurchase(
     input.order_type
   )
   const exportToken = randomBytes(24).toString('base64url')
-  const currentPeriodEnd =
-    input.order_type === 'subscription'
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      : null
+  const exportExpiresAt = new Date(
+    Date.now() + EXPORT_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString()
 
   // Free datasets, or environments without Stripe configured, complete immediately.
   if (totalCents <= 0 || !isStripeConfigured()) {
-    const order = await orderRepo.createOrder({
+    const order = await createOrderWithSnapshot({
       pool_id: pool.id,
       buyer_org_id: orgId,
       order_type: input.order_type,
       record_count: recordCount,
       total_cents: totalCents,
       export_token: exportToken,
-      current_period_end: currentPeriodEnd,
+      current_period_end: null,
+      export_expires_at: exportExpiresAt,
       status: 'paid',
-    })
+    }, contributions)
     await createAuditEntry({
       userId: actingUserId,
       eventType: 'data_purchased',
@@ -81,16 +127,17 @@ export async function startPoolPurchase(
   }
 
   // Paid path: create a pending order, then a one-time Checkout session.
-  const order = await orderRepo.createOrder({
+  const order = await createOrderWithSnapshot({
     pool_id: pool.id,
     buyer_org_id: orgId,
     order_type: input.order_type,
     record_count: recordCount,
     total_cents: totalCents,
     export_token: exportToken,
-    current_period_end: currentPeriodEnd,
+    current_period_end: null,
+    export_expires_at: exportExpiresAt,
     status: 'pending',
-  })
+  }, contributions)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const session = await getStripe().checkout.sessions.create({
@@ -172,28 +219,38 @@ export async function getExport(
   const order = await orderRepo.findOrderByToken(token)
   if (!order || order.buyer_org_id !== orgId) throw new Error('Export not found')
   if (order.status !== 'paid') throw new Error('This order has not been paid yet')
+  if (new Date(order.export_expires_at).getTime() <= Date.now()) {
+    throw new Error('This export link has expired')
+  }
 
   const pool = await poolRepo.findPoolByOrg(order.pool_id, orgId)
   if (!pool) throw new Error('Pool not found')
 
-  const contributions = await contributionRepo.findActiveContributionsByPool(order.pool_id)
+  const records = await orderRepo.findOrderRecords(order.id)
 
   await createAuditEntry({
     userId: actingUserId,
     eventType: 'data_exported',
-    action: `Exported dataset for pool "${pool.name}" (${contributions.length} records)`,
+    action: `Exported dataset for pool "${pool.name}" (${records.length} records)`,
     actorType: 'buyer',
     metadata: { pool_id: pool.id, order_id: order.id },
   })
 
   return {
-    pool: { id: pool.id, name: pool.name, category: pool.category },
-    recordCount: contributions.length,
-    records: contributions.map((c) => ({
-      id: c.id,
-      category: c.category,
-      payload: c.anonymized_payload,
-      contributed_at: c.created_at,
+    pool: {
+      id: pool.id,
+      name: pool.name,
+      category: pool.category,
+      purpose: pool.purpose,
+      retentionDays: pool.retention_days,
+    },
+    exportExpiresAt: order.export_expires_at,
+    recordCount: records.length,
+    records: records.map((record) => ({
+      id: record.source_contribution_id ?? record.id,
+      category: record.category,
+      payload: record.payload,
+      contributed_at: record.contributed_at,
     })),
   }
 }

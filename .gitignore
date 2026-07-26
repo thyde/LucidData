@@ -60,6 +60,7 @@ nul
 
 # editor / local tooling
 .vscode/
+.learnings/
 
 # PWA
 public/sw.js

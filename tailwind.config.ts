@@ -1,7 +1,4 @@
 import type { Config } from "tailwindcss";
-// tailwindcss-animate ships without type declarations; import it without `require`
-// so the config loads correctly when Tailwind evaluates it as an ES module.
-// @ts-expect-error - no bundled types for tailwindcss-animate
 import tailwindcssAnimate from "tailwindcss-animate";
 
 const config: Config = {

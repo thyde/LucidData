@@ -15,6 +15,14 @@ vi.mock('@/lib/hooks/useVault', () => ({
   useDeleteVault: vi.fn(),
 }));
 
+vi.mock('@/lib/context/encryption-context', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/context/encryption-context')>();
+  return {
+    ...actual,
+    useEncryption: vi.fn(() => ({ isLocked: false })),
+  };
+});
+
 vi.mock('@/lib/hooks/use-toast', () => ({
   useToast: vi.fn(() => ({ toast: vi.fn() })),
 }));
@@ -233,9 +241,12 @@ describe('VaultList', () => {
     it('each entry shows tag count or tags', () => {
       render(<VaultList />);
 
-      expect(screen.getByText('medical')).toBeInTheDocument();
-      expect(screen.getByText('important')).toBeInTheDocument();
-      expect(screen.getByText('finance')).toBeInTheDocument();
+      const medicalCard = screen.getByText('Medical Records').closest('[role="article"]') as HTMLElement;
+      const financialCard = screen.getByText('Financial Data').closest('[role="article"]') as HTMLElement;
+
+      expect(within(medicalCard).getByText('medical')).toBeInTheDocument();
+      expect(within(medicalCard).getByText('important')).toBeInTheDocument();
+      expect(within(financialCard).getByText('finance')).toBeInTheDocument();
     });
 
     it('clicking entry opens VaultViewDialog', async () => {
@@ -556,7 +567,7 @@ describe('VaultList', () => {
 
       // Edit dialog should open (with pointerEventsCheck: 0 for animation)
       await waitFor(() => {
-        const dialogs = screen.getAllByRole('dialog', {}, { timeout: 3000 });
+        const dialogs = screen.getAllByRole('dialog');
         // Should have edit dialog (view dialog may close)
         expect(dialogs.some(d => d.textContent?.includes('Edit Vault Entry'))).toBe(true);
       }, { timeout: 3000 });

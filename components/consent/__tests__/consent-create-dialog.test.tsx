@@ -24,6 +24,11 @@ import { useCreateConsent } from '@/lib/hooks/useConsent';
 import { useVaultList } from '@/lib/hooks/useVault';
 import { useToast } from '@/lib/hooks/use-toast';
 
+function toDateTimeLocalValue(date: Date): string {
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+}
+
 describe('ConsentCreateDialog', () => {
   const mockToast = vi.fn();
   let mockMutation: ReturnType<typeof createMockMutation>;
@@ -52,6 +57,8 @@ describe('ConsentCreateDialog', () => {
     );
     vi.mocked(useToast).mockReturnValue({
       toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
     });
   });
 
@@ -516,11 +523,10 @@ describe('ConsentCreateDialog', () => {
 
       expect(mockMutation.mutate).toHaveBeenCalledWith(
         expect.objectContaining({
-          grantedToName: 'Acme Corp',
-          grantedTo: 'org-123',
+          granted_to_name: 'Acme Corp',
+          granted_to: 'org-123',
           purpose: 'Valid purpose for testing consent grant',
-          accessLevel: 'read',
-          termsVersion: '1.0',
+          access_level: 'read',
         }),
         expect.objectContaining({
           onSuccess: expect.any(Function),
@@ -568,14 +574,13 @@ describe('ConsentCreateDialog', () => {
 
       const callArgs = vi.mocked(mockMutation.mutate).mock.calls[0][0];
       expect(callArgs).toEqual({
-        vaultDataId: 'vault-123',
-        grantedToName: 'Test Org',
-        grantedTo: 'org-test',
-        grantedToEmail: undefined,
-        accessLevel: 'read',
+        vault_data_id: 'vault-123',
+        granted_to_name: 'Test Org',
+        granted_to: 'org-test',
+        granted_to_email: undefined,
+        access_level: 'read',
         purpose: 'Testing purpose field',
-        endDate: undefined,
-        termsVersion: '1.0',
+        end_date: undefined,
       });
     });
 
@@ -700,7 +705,7 @@ describe('ConsentCreateDialog', () => {
       const dateInput = screen.getByLabelText(/expiration date.*optional/i) as HTMLInputElement;
       const expectedDate = new Date(now);
       expectedDate.setDate(expectedDate.getDate() + 30);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(dateInput.value).toBe(expectedString);
 
@@ -720,7 +725,7 @@ describe('ConsentCreateDialog', () => {
       const dateInput = screen.getByLabelText(/expiration date.*optional/i) as HTMLInputElement;
       const expectedDate = new Date(now);
       expectedDate.setDate(expectedDate.getDate() + 90);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(dateInput.value).toBe(expectedString);
 
@@ -740,7 +745,7 @@ describe('ConsentCreateDialog', () => {
       const dateInput = screen.getByLabelText(/expiration date.*optional/i) as HTMLInputElement;
       const expectedDate = new Date(now);
       expectedDate.setDate(expectedDate.getDate() + 365);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(dateInput.value).toBe(expectedString);
 

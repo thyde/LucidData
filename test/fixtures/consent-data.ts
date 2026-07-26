@@ -4,6 +4,7 @@ import { Consent } from '@/types/database.types';
  * Mock consent entry for testing (active consent)
  */
 export const mockConsent: Consent = {
+  data_category: null,
   id: 'consent-123',
   user_id: 'user-123',
   vault_data_id: 'vault-123',

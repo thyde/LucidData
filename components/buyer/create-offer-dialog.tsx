@@ -18,9 +18,9 @@ import {
 import { useToast } from '@/lib/hooks/use-toast'
 import { createOfferAction } from '@/lib/actions/offer.actions'
 
-const CATEGORIES = ['personal', 'health', 'financial', 'credentials', 'location', 'interests', 'browsing', 'other']
+const CATEGORIES = ['personal', 'credentials', 'interests', 'other'] as const
 
-export function CreateOfferDialog({ orgId }: { orgId: string }) {
+export function CreateOfferDialog({ orgId, disabled = false }: { orgId: string; disabled?: boolean }) {
   const router = useRouter()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
@@ -54,7 +54,9 @@ export function CreateOfferDialog({ orgId }: { orgId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Create offer</Button>
+        <Button variant="outline" disabled={disabled}>
+          Create offer
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -106,6 +108,10 @@ export function CreateOfferDialog({ orgId }: { orgId: string }) {
                 </option>
               ))}
             </select>
+            <p className="text-xs text-muted-foreground">
+              Health, financial, location, and browsing data cannot be sold yet, so you cannot
+              offer incentives for them.
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

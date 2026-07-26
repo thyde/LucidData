@@ -306,6 +306,12 @@ Driven by the per-field sensitivity and rule in the schema registry.
 
 ## 9. Phased roadmap
 
+Superseded. [competitive-feature-roadmap.md](competitive-feature-roadmap.md) is the single
+definitive roadmap and carries the current priority order. The phases below are kept for design
+context only. Phases 1 and 2 shipped. Phase 3 is now LD-203, Phase 4 is now LD-201, and the
+cross-cutting anonymization work is now LD-501. Phase 5 is out of scope for the current roadmap.
+Do not plan from this list.
+
 Each phase is shippable on its own and ordered by value over effort.
 
 1. Phase 1 — Structured entry. Schema registry (in code), schema-driven forms, custom

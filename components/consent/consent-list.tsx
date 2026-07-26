@@ -15,25 +15,26 @@ interface ConsentListProps {
   vaultDataId?: string;
 }
 
+function getConsentStatus(consent: Consent, now: number): 'active' | 'expired' | 'revoked' {
+  if (consent.revoked) return 'revoked';
+  if (consent.end_date && new Date(consent.end_date).getTime() < now) return 'expired';
+  return 'active';
+}
+
 export function ConsentList({ vaultDataId }: ConsentListProps) {
   const { data: consents, isLoading, error } = useConsentList({ vaultDataId });
   const revokeConsent = useRevokeConsent();
+  const [now] = useState(() => Date.now());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'revoked' | 'expired'>('all');
   const [selectedConsentId, setSelectedConsentId] = useState<string | null>(null);
-
-  const getConsentStatus = (consent: Consent): 'active' | 'expired' | 'revoked' => {
-    if (consent.revoked) return 'revoked';
-    if (consent.end_date && new Date(consent.end_date) < new Date()) return 'expired';
-    return 'active';
-  };
 
   const filteredConsents = useMemo(() => {
     if (!consents) return [];
 
     return consents.filter((consent) => {
       // Status filter
-      const status = getConsentStatus(consent);
+      const status = getConsentStatus(consent, now);
       if (statusFilter !== 'all' && status !== statusFilter) return false;
 
       // Search filter
@@ -47,7 +48,7 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
 
       return true;
     });
-  }, [consents, statusFilter, searchTerm]);
+  }, [consents, now, statusFilter, searchTerm]);
 
   const handleRevoke = async (consentId: string) => {
     // For simple revoke without reason dialog, use a default reason
@@ -131,6 +132,7 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
           />
         </div>
         <select
+          aria-label="Consent status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'revoked' | 'expired')}
           className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -161,18 +163,18 @@ export function ConsentList({ vaultDataId }: ConsentListProps) {
       ) : (
         <div className="grid gap-4">
           {filteredConsents.map((consent) => {
-            const status = getConsentStatus(consent);
+            const status = getConsentStatus(consent, now);
             const isExpiringSoon =
               status === 'active' &&
               consent.end_date &&
-              new Date(consent.end_date).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+              new Date(consent.end_date).getTime() - now < 7 * 24 * 60 * 60 * 1000;
 
             return (
               <Card key={consent.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle>{consent.granted_to_name}</CardTitle>
+                      <CardTitle role="heading" aria-level={3}>{consent.granted_to_name}</CardTitle>
                       <CardDescription className="mt-1 line-clamp-2">
                         {consent.purpose}
                       </CardDescription>

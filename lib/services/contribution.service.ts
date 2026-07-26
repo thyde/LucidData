@@ -1,8 +1,12 @@
 import * as contributionRepo from '@/lib/repositories/contribution.repository'
+import * as monetizationRepo from '@/lib/repositories/monetization.repository'
+import * as payoutRepo from '@/lib/repositories/payout.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import type { PoolContribution, Json } from '@/types/database.types'
 import type { ContributeInput } from '@/lib/validations/marketplace'
+import { isMarketplaceCategoryAllowed } from '@/lib/validations/marketplace'
+import { containsIdentifierField } from '@/lib/crypto/anonymize'
 
 export interface EarningsSummary {
   totalCents: number
@@ -22,14 +26,53 @@ export async function listMyContributions(userId: string): Promise<PoolContribut
 export async function contribute(userId: string, input: ContributeInput): Promise<PoolContribution> {
   const pool = await poolRepo.findOpenPoolById(input.pool_id)
   if (!pool) throw new Error('Pool not found or no longer open')
+  if (!isMarketplaceCategoryAllowed(pool.category as ContributeInput['category'])) {
+    throw new Error('This category is not available for marketplace sale')
+  }
+
+  const preferences = await monetizationRepo.findSalePreferences(userId)
+  if (preferences && pool.price_per_record_cents < preferences.min_price_cents) {
+    throw new Error('This pool pays less than your minimum price per record')
+  }
+  if (preferences?.blocked_buyer_orgs.includes(pool.buyer_org_id)) {
+    throw new Error('You have blocked this buyer organization')
+  }
+  if (
+    preferences &&
+    preferences.allowed_purposes.length > 0 &&
+    !preferences.allowed_purposes.includes(pool.purpose)
+  ) {
+    throw new Error('This pool purpose is not in your allowed purposes')
+  }
+
+  if (containsIdentifierField(input.anonymized_payload)) {
+    throw new Error('The contribution contains a direct identifier')
+  }
+
+  const fieldSettings = await monetizationRepo.findFieldsByVault(
+    input.vault_data_id,
+    userId
+  )
+  const optedInFields = new Set(
+    fieldSettings.filter((field) => field.opted_in).map((field) => field.field_key)
+  )
+  const privateFields = Object.keys(input.anonymized_payload).filter(
+    (field) => !optedInFields.has(field)
+  )
+  if (privateFields.length > 0) {
+    throw new Error(`These fields are private: ${privateFields.join(', ')}`)
+  }
 
   const contribution = await contributionRepo.createContribution({
     pool_id: input.pool_id,
     user_id: userId,
-    vault_data_id: input.vault_data_id ?? null,
+    vault_data_id: input.vault_data_id,
     anonymized_payload: input.anonymized_payload as Json,
     category: input.category,
     payout_cents: pool.price_per_record_cents,
+    declared_purpose: pool.purpose,
+    consent_version: '2026-07-25',
+    consented_at: new Date().toISOString(),
   })
 
   await createAuditEntry({
@@ -37,7 +80,13 @@ export async function contribute(userId: string, input: ContributeInput): Promis
     eventType: 'data_contributed',
     action: `Shared ${Object.keys(input.anonymized_payload).length} field(s) to pool "${pool.name}"`,
     vaultDataId: input.vault_data_id,
-    metadata: { pool_id: input.pool_id, payout_cents: pool.price_per_record_cents },
+    metadata: {
+      pool_id: input.pool_id,
+      buyer_org_id: pool.buyer_org_id,
+      purpose: pool.purpose,
+      payout_cents: pool.price_per_record_cents,
+      consent_version: '2026-07-25',
+    },
   })
   return contribution
 }
@@ -54,8 +103,12 @@ export async function withdraw(id: string, userId: string): Promise<PoolContribu
 }
 
 export async function getEarnings(userId: string): Promise<EarningsSummary> {
-  const contributions = await contributionRepo.findContributionsByUser(userId)
+  const [contributions, payouts] = await Promise.all([
+    contributionRepo.findContributionsByUser(userId),
+    payoutRepo.findPayoutsByUser(userId),
+  ])
   const active = contributions.filter((c) => c.status === 'active')
+  const contributionCategories = new Map(contributions.map((c) => [c.id, c.category]))
 
   const startOfMonth = new Date()
   startOfMonth.setUTCDate(1)
@@ -64,10 +117,16 @@ export async function getEarnings(userId: string): Promise<EarningsSummary> {
   const byCategoryMap = new Map<string, number>()
   let totalCents = 0
   let earnedThisMonthCents = 0
-  for (const c of active) {
-    totalCents += c.payout_cents
-    byCategoryMap.set(c.category, (byCategoryMap.get(c.category) ?? 0) + c.payout_cents)
-    if (new Date(c.created_at) >= startOfMonth) earnedThisMonthCents += c.payout_cents
+  for (const payout of payouts) {
+    if (payout.status !== 'paid') continue
+    totalCents += payout.amount_cents
+    const category = payout.contribution_id
+      ? contributionCategories.get(payout.contribution_id) ?? 'other'
+      : 'other'
+    byCategoryMap.set(category, (byCategoryMap.get(category) ?? 0) + payout.amount_cents)
+    if (new Date(payout.created_at) >= startOfMonth) {
+      earnedThisMonthCents += payout.amount_cents
+    }
   }
 
   return {

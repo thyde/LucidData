@@ -2,9 +2,11 @@
 
 Guidance for AI coding agents working in this repository. Read this before making changes. For the full reference, see [.github/copilot-instructions.md](.github/copilot-instructions.md). The crypto layer has its own nested guidance in [lib/crypto/AGENTS.md](lib/crypto/AGENTS.md); read it before touching anything under `lib/crypto/`.
 
+Planned work lives in exactly one place. [docs/competitive-feature-roadmap.md](docs/competitive-feature-roadmap.md) is the single definitive roadmap: the prioritized list of features to build and gaps to close, with numbered specs an agent can execute one at a time. Do not plan from the README or from design documents under `docs/`.
+
 ## What this project is
 
-LucidData is a privacy-first personal data bank. Users own, control, and share their data on their terms. The app is built with Next.js 15 (App Router, React 19), Supabase (Postgres, Auth, Realtime), and client-side encryption using the Web Crypto API.
+LucidData is a privacy-first personal data bank. Users own, control, and share their data on their terms. The app is built with Next.js 16.2.10 (App Router, React 19.2.7), Supabase (Postgres, Auth, Realtime), and client-side encryption using the Web Crypto API.
 
 Core ideas:
 
@@ -15,7 +17,7 @@ Core ideas:
 
 ## Setup and commands
 
-Requirements: Node, npm, and the Supabase CLI (installed as a dev dependency).
+Requirements: Node.js 20 or later, npm, Docker Desktop, and the Supabase CLI (installed as a dev dependency).
 
 ```bash
 npm install            # install dependencies
@@ -25,12 +27,15 @@ npm run dev            # start the app at http://localhost:3000
 
 Common scripts (see package.json for the full list):
 
-- `npm run dev` - start the dev server (binds 0.0.0.0).
-- `npm run build` - production build.
-- `npm run lint` - ESLint via next lint.
+- `npm run dev` - start the Webpack dev server (binds 0.0.0.0).
+- `npm run build` - production Webpack build.
+- `npm run lint` - run ESLint with zero warnings allowed.
 - `npm test` - Vitest in watch mode. `npm run test:run` for a single run.
 - `npm run test:e2e` - Playwright end-to-end tests.
-- `npm run test:all` - unit tests then e2e.
+- `npm run test:all` - typecheck, lint, unit tests, then e2e.
+- `npm run security:audit` - audit production dependencies at high severity or above.
+
+The dev and build scripts use Webpack explicitly because the stable Serwist 9 PWA integration is Webpack-based. Keep the `--webpack` flags until Serwist supports the default Next.js bundler in a stable release.
 
 Database and migrations:
 
@@ -43,7 +48,8 @@ Database and migrations:
 Environment variables (never commit `.env.local`):
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase client config.
-- `SUPABASE_SERVICE_ROLE_KEY` - server-only privileged access.
+- `SUPABASE_SECRET_KEY` - preferred server-only key for current Supabase Auth admin APIs.
+- `SUPABASE_SERVICE_ROLE_KEY` - legacy server-only fallback.
 - `ISSUER_KEY_SECRET` - base64 32-byte key that AES-256-GCM-wraps issuer private keys (credential issuance only).
 - `NEXT_PUBLIC_RP_ID` - WebAuthn relying-party id (`localhost` in dev).
 
@@ -75,7 +81,7 @@ lib/
   services/      business logic
   repositories/  Supabase data access
   crypto/        client encryption, key derivation, hashing, credential signing
-  supabase/      server/client/middleware helpers
+  supabase/      server/client/session helpers
   hooks/         TanStack Query hooks
   validations/   Zod schemas
 supabase/migrations/  SQL migrations (schema source of truth)
@@ -88,7 +94,7 @@ These are not optional. Skipping them creates real vulnerabilities. This is a pe
 
 Row Level Security (RLS):
 
-- RLS is the primary database guardrail and is enabled on nearly every table. Every new table must enable RLS and add policies scoped with `auth.uid()` (see `20260616000001_initial_schema.sql` and `20260617000002_security_hardening.sql` for the patterns).
+- RLS is the primary database guardrail and is enabled on every public table. Every new table must enable RLS and add policies scoped with `(SELECT auth.uid())` so PostgreSQL evaluates the session user once per statement (see `20260725031537_schema_constraints_and_rls_performance.sql`).
 - `SECURITY DEFINER` functions must pin `SET search_path = ''` and revoke `EXECUTE` from API roles unless they are deliberately exposed as RPCs.
 - The service-role client (`lib/supabase/service.ts`) bypasses RLS entirely. Never use it to serve user-facing reads or writes. When it is unavoidable (registration, API-key auth, webhooks), the repository-layer `userId` filter is the only thing protecting the user, so it must be present and correct.
 
@@ -147,7 +153,7 @@ When you write or edit user-facing text (UI labels, buttons, empty states, error
 
 ## CI
 
-`.github/workflows/ci.yml` runs lint and the Vitest unit suite on pushes to `main` and on every pull request. It does not run Playwright e2e (those need browser downloads and a running app plus Supabase). Still run `npm run lint` and `npm run test:run` locally before committing, and `npm run test:e2e` when you change UI flows.
+`.github/workflows/ci.yml` runs typecheck, lint, the Vitest suite, and a production build on pushes to `main` and on every pull request. It does not run Playwright e2e because those tests need browser downloads and a running app plus Supabase. Run `npm run test:e2e` locally when you change UI flows.
 
 ## Before you finish
 

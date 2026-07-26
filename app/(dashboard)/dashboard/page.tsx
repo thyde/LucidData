@@ -48,7 +48,6 @@ export default async function DashboardPage() {
 
   const vaultCount = vaultResult.count ?? 0
   const consentCount = consentResult.count ?? 0
-  const claimedOfferIds = claims.map((c) => c.offer_id)
   const buyersCount = tracker.reduce((sum, p) => sum + p.bought, 0)
 
   return (
@@ -66,7 +65,7 @@ export default async function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle>Data tracker</CardTitle>
+              <CardTitle role="heading" aria-level={2}>Data tracker</CardTitle>
               <CardDescription>What you shared vs. what buyers accessed</CardDescription>
             </div>
             <div className="text-right text-sm text-muted-foreground">
@@ -86,7 +85,7 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Data score</CardTitle>
+            <CardTitle role="heading" aria-level={2}>Data score</CardTitle>
             <CardDescription>Profile completeness</CardDescription>
           </CardHeader>
           <CardContent>
@@ -100,7 +99,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle>Revenue</CardTitle>
+              <CardTitle role="heading" aria-level={2}>Revenue</CardTitle>
               <CardDescription>Earnings by data category</CardDescription>
             </div>
             <span className="text-2xl font-bold">{formatCents(earnings.earnedThisMonthCents)}</span>
@@ -115,7 +114,7 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Data market</CardTitle>
+            <CardTitle role="heading" aria-level={2}>Data market</CardTitle>
             <CardDescription>Your data points by category</CardDescription>
           </CardHeader>
           <CardContent>
@@ -175,7 +174,7 @@ export default async function DashboardPage() {
       {/* Consent activity */}
       <Card>
         <CardHeader>
-          <CardTitle>Consent activity</CardTitle>
+          <CardTitle role="heading" aria-level={2}>Consent activity</CardTitle>
           <CardDescription>Time-bound access you have granted</CardDescription>
         </CardHeader>
         <CardContent>
@@ -200,17 +199,17 @@ export default async function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Your offers</CardTitle>
+            <CardTitle role="heading" aria-level={2}>Your offers</CardTitle>
             <CardDescription>Incentives from buyers who want your data</CardDescription>
           </CardHeader>
           <CardContent>
-            <OffersList offers={offers} claimedOfferIds={claimedOfferIds} />
+            <OffersList offers={offers} claims={claims} />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Learning center</CardTitle>
+            <CardTitle role="heading" aria-level={2}>Learning center</CardTitle>
             <CardDescription>Understand and get the most from your data</CardDescription>
           </CardHeader>
           <CardContent>

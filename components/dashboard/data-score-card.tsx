@@ -9,7 +9,7 @@ export function DataScoreCard({ score }: { score: DataScore }) {
   return (
     <div className="flex items-center gap-4">
       <div className="relative h-32 w-32 shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 128, height: 128 }}>
           <RadialBarChart
             innerRadius="72%"
             outerRadius="100%"

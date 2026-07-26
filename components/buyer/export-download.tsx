@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/lib/hooks/use-toast'
@@ -9,12 +9,24 @@ import { getExportAction } from '@/lib/actions/data-order.actions'
 interface ExportDownloadProps {
   orgId: string
   token: string
+  expiresAt: string
 }
 
-export function ExportDownload({ orgId, token }: ExportDownloadProps) {
+export function ExportDownload({ orgId, token, expiresAt }: ExportDownloadProps) {
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [busy, setBusy] = useState(false)
+  const [expired, setExpired] = useState(false)
+
+  // The server also rejects expired tokens. This keeps the button in step with
+  // the expiry while the page stays open.
+  useEffect(() => {
+    const expiresAtMs = new Date(expiresAt).getTime()
+    const check = () => setExpired(Date.now() >= expiresAtMs)
+    check()
+    const timer = setInterval(check, 30000)
+    return () => clearInterval(timer)
+  }, [expiresAt])
 
   function handleDownload() {
     setBusy(true)
@@ -44,9 +56,14 @@ export function ExportDownload({ orgId, token }: ExportDownloadProps) {
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={handleDownload} disabled={busy || isPending}>
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={handleDownload}
+      disabled={expired || busy || isPending}
+    >
       <Download className="h-4 w-4" />
-      {busy ? 'Preparing…' : 'Download'}
+      {expired ? 'Expired' : busy ? 'Preparing…' : 'Download'}
     </Button>
   )
 }

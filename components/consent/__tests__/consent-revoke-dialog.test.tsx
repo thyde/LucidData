@@ -50,6 +50,8 @@ describe('ConsentRevokeDialog', () => {
     vi.mocked(useRevokeConsent).mockReturnValue(mockMutation);
     vi.mocked(useToast).mockReturnValue({
       toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
     });
   });
 

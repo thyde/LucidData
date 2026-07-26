@@ -1,0 +1,37 @@
+'use server'
+
+import { z } from 'zod'
+import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
+import {
+  getOrganizationApiKeys,
+  revokeOrganizationApiKey,
+  rotateOrganizationApiKey,
+  type RotatedOrganizationApiKey,
+} from '@/lib/services/organization-api-key.service'
+import type { OrganizationApiKeyMetadata } from '@/lib/repositories/organization-api-key.repository'
+
+const keyNameSchema = z.string().trim().min(1).max(80)
+const keyIdSchema = z.string().uuid()
+
+export async function getOrganizationApiKeysAction(
+  organizationId: string
+): Promise<OrganizationApiKeyMetadata[]> {
+  await requireOrgMembership(organizationId, ['owner'])
+  return getOrganizationApiKeys(organizationId)
+}
+
+export async function rotateOrganizationApiKeyAction(
+  organizationId: string,
+  name: string
+): Promise<RotatedOrganizationApiKey> {
+  await requireOrgMembership(organizationId, ['owner'])
+  return rotateOrganizationApiKey(organizationId, keyNameSchema.parse(name))
+}
+
+export async function revokeOrganizationApiKeyAction(
+  organizationId: string,
+  keyId: string
+): Promise<OrganizationApiKeyMetadata> {
+  await requireOrgMembership(organizationId, ['owner'])
+  return revokeOrganizationApiKey(keyIdSchema.parse(keyId))
+}

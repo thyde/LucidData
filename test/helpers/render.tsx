@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, RenderOptions } from '@testing-library/react';
 import { ReactElement } from 'react';
+import { EncryptionProvider } from '@/lib/context/encryption-context';
 
 /**
  * Creates a test-specific QueryClient with proper configuration
@@ -10,18 +11,12 @@ export function createTestQueryClient() {
     defaultOptions: {
       queries: {
         retry: false, // Don't retry in tests
-        gcTime: 0, // No cache in tests (formerly cacheTime)
+        gcTime: Infinity,
         staleTime: 0, // Prevent stale data issues
       },
       mutations: {
         retry: false,
       },
-    },
-    // Disable logging in tests
-    logger: {
-      log: () => {},
-      warn: () => {},
-      error: () => {},
     },
   });
 }
@@ -42,7 +37,7 @@ export function renderWithProviders(
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        {children}
+        <EncryptionProvider>{children}</EncryptionProvider>
       </QueryClientProvider>
     );
   }

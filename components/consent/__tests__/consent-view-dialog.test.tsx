@@ -60,19 +60,19 @@ describe('ConsentViewDialog', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(mockConsent.grantedToName)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.granted_to_name!)).toBeInTheDocument();
     });
 
     it('displays organization name as title', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
-      expect(screen.getByRole('heading', { name: mockConsent.grantedToName })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: mockConsent.granted_to_name! })).toBeInTheDocument();
     });
 
     it('displays organization identifier', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
-      expect(screen.getByText(mockConsent.grantedTo)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.granted_to)).toBeInTheDocument();
     });
 
     it('displays status badge in header', () => {
@@ -181,7 +181,7 @@ describe('ConsentViewDialog', () => {
 
       expect(screen.getByText(/revoked on:/i)).toBeInTheDocument();
       expect(screen.getByText(/reason:/i)).toBeInTheDocument();
-      expect(screen.getByText(mockRevokedConsent.revokedReason!)).toBeInTheDocument();
+      expect(screen.getByText(mockRevokedConsent.revoked_reason!)).toBeInTheDocument();
     });
   });
 
@@ -191,14 +191,14 @@ describe('ConsentViewDialog', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
       expect(screen.getByText(/ip address:/i)).toBeInTheDocument();
-      expect(screen.getByText(mockConsent.ipAddress!)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.ip_address!)).toBeInTheDocument();
     });
 
     it('displays user agent with font-mono and truncated', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
       expect(screen.getByText(/user agent:/i)).toBeInTheDocument();
-      const userAgentElement = screen.getByText(mockConsent.userAgent!);
+      const userAgentElement = screen.getByText(mockConsent.user_agent!);
       expect(userAgentElement).toBeInTheDocument();
       expect(userAgentElement.className).toContain('font-mono');
       expect(userAgentElement.className).toContain('truncate');
@@ -208,14 +208,14 @@ describe('ConsentViewDialog', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
       expect(screen.getByText(/terms version:/i)).toBeInTheDocument();
-      expect(screen.getByText(mockConsent.termsVersion)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.terms_version!)).toBeInTheDocument();
     });
 
     it('displays contact email if present', () => {
       render(<ConsentViewDialog {...defaultProps} />);
 
       expect(screen.getByText(/contact:/i)).toBeInTheDocument();
-      expect(screen.getByText(mockConsent.grantedToEmail!)).toBeInTheDocument();
+      expect(screen.getByText(mockConsent.granted_to_email!)).toBeInTheDocument();
     });
   });
 
@@ -254,8 +254,8 @@ describe('ConsentViewDialog', () => {
       const extendButton = screen.getByRole('button', { name: /extend consent/i });
       await user.click(extendButton);
 
-      // Main dialog should close, extend dialog should open
-      expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+      // Keep the owner mounted while switching from the main dialog to its child.
+      expect(mockOnOpenChange).not.toHaveBeenCalled();
       expect(screen.getByTestId('extend-dialog')).toBeInTheDocument();
     });
   });
@@ -296,7 +296,7 @@ describe('ConsentViewDialog', () => {
       const revokeButton = screen.getByRole('button', { name: /revoke consent/i });
       await user.click(revokeButton);
 
-      expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+      expect(mockOnOpenChange).not.toHaveBeenCalled();
       expect(screen.getByTestId('revoke-dialog')).toBeInTheDocument();
       expect(screen.getByText(/Revoke Dialog for Acme Healthcare/i)).toBeInTheDocument();
     });

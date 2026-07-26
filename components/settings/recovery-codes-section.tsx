@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
+import { verifyPassword } from '@/lib/supabase/verify-password'
 import { setupRecoveryFromPassword } from '@/lib/account/account-crypto'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
 
@@ -43,8 +44,7 @@ export function RecoveryCodesSection({ keySalt, generatedAt }: RecoveryCodesSect
       if (!user?.email) throw new Error('Not signed in')
 
       // Verify the password before escrowing a key derived from it.
-      const { error: authError } = await supabase.auth.signInWithPassword({ email: user.email, password })
-      if (authError) {
+      if (!(await verifyPassword(user.email, password))) {
         setError('Incorrect password')
         return
       }

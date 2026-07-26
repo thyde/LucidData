@@ -1,8 +1,8 @@
 import * as userRepo from '@/lib/repositories/user.repository'
-import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { createServiceClient } from '@/lib/supabase/service'
 import { notifySecurityEvent } from '@/lib/services/security-notification.service'
+import { createClient } from '@/lib/supabase/server'
 
 export interface AccountSecurity {
   key_salt: string | null
@@ -52,12 +52,9 @@ export async function rewrapVaultEntries(
   reason: 'password_change' | 'recovery',
   entries: { id: string; encrypted_dek: string; dek_salt: string }[]
 ): Promise<void> {
-  for (const entry of entries) {
-    await vaultRepo.updateVaultEntry(entry.id, userId, {
-      encrypted_dek: entry.encrypted_dek,
-      dek_salt: entry.dek_salt,
-    })
-  }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('rewrap_vault_entries_atomic', { entries })
+  if (error) throw error
   const noun = entries.length === 1 ? 'entry' : 'entries'
   const action =
     reason === 'password_change'
@@ -85,6 +82,26 @@ export async function recordDataExport(userId: string, count: number): Promise<v
 
 export async function completeOnboarding(userId: string): Promise<void> {
   await userRepo.updateUser(userId, { onboarding_completed: true })
+}
+
+export async function removePasskey(userId: string, passkeyId: string): Promise<void> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('passkeys')
+    .delete()
+    .eq('id', passkeyId)
+    .eq('user_id', userId)
+    .select('id')
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Passkey not found')
+
+  await createAuditEntry({
+    userId,
+    eventType: 'passkey_removed',
+    action: 'Removed a registered passkey',
+    metadata: { passkey_id: passkeyId },
+  })
 }
 
 // Toggle the optional email copy of in-app notifications. In-app notifications are

@@ -25,8 +25,12 @@ import {
   suggestedAccessFeeCents,
 } from '@/lib/constants/data-pricing'
 import type { DataCategory } from '@/lib/validations/marketplace'
+import {
+  MARKETPLACE_PURPOSE_LABELS,
+  type MarketplacePurpose,
+} from '@/lib/validations/marketplace'
 
-const CATEGORIES = ['personal', 'health', 'financial', 'credentials', 'location', 'interests', 'browsing', 'other']
+const CATEGORIES = ['personal', 'credentials', 'interests', 'other'] as const
 
 function dollars(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -37,6 +41,9 @@ function makeDefaults() {
     name: '',
     description: '',
     category: 'personal',
+    purpose: 'research' as MarketplacePurpose,
+    minimum_contributors: '5',
+    retention_days: '30',
     requested_fields: '',
     pricing_model: 'snapshot',
     price: dollars(suggestedAccessFeeCents('personal')),
@@ -44,7 +51,7 @@ function makeDefaults() {
   }
 }
 
-export function CreatePoolDialog({ orgId }: { orgId: string }) {
+export function CreatePoolDialog({ orgId, disabled = false }: { orgId: string; disabled?: boolean }) {
   const router = useRouter()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
@@ -59,6 +66,9 @@ export function CreatePoolDialog({ orgId }: { orgId: string }) {
           name: form.name,
           description: form.description || undefined,
           category: form.category,
+          purpose: form.purpose,
+          minimum_contributors: Number(form.minimum_contributors),
+          retention_days: Number(form.retention_days),
           requested_fields: form.requested_fields
             .split(',')
             .map((f) => f.trim())
@@ -94,7 +104,7 @@ export function CreatePoolDialog({ orgId }: { orgId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Create data pool</Button>
+        <Button disabled={disabled}>Create data pool</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -141,18 +151,42 @@ export function CreatePoolDialog({ orgId }: { orgId: string }) {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pool-pricing">Pricing model</Label>
+              <Label htmlFor="pool-purpose">Purpose</Label>
               <select
-                id="pool-pricing"
-                aria-label="Pricing model"
-                value={form.pricing_model}
-                onChange={(e) => setForm((f) => ({ ...f, pricing_model: e.target.value }))}
+                id="pool-purpose"
+                aria-label="Purpose"
+                value={form.purpose}
+                onChange={(e) => setForm((f) => ({ ...f, purpose: e.target.value as MarketplacePurpose }))}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                <option value="snapshot">One-time snapshot</option>
-                <option value="subscription">Subscription</option>
-                <option value="filtered">Filtered bundle</option>
+                {Object.entries(MARKETPLACE_PURPOSE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
               </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pool-minimum">Minimum contributors</Label>
+              <Input
+                id="pool-minimum"
+                type="number"
+                min="5"
+                max="100000"
+                value={form.minimum_contributors}
+                onChange={(e) => setForm((f) => ({ ...f, minimum_contributors: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pool-retention">Declared retention (days)</Label>
+              <Input
+                id="pool-retention"
+                type="number"
+                min="1"
+                max="365"
+                value={form.retention_days}
+                onChange={(e) => setForm((f) => ({ ...f, retention_days: e.target.value }))}
+              />
             </div>
           </div>
           <div className="space-y-2">
@@ -193,6 +227,10 @@ export function CreatePoolDialog({ orgId }: { orgId: string }) {
             {formatCents(suggestedPerRecordCents(form.category as DataCategory))} per record plus a{' '}
             {formatCents(suggestedAccessFeeCents(form.category as DataCategory))} access fee.{' '}
             {SENSITIVITY_LABEL[DATA_TYPE_PRICING[form.category as DataCategory].sensitivity]}.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Health, financial, location, and browsing data are not available for sale until
+            regulated-data safeguards and buyer verification are in place.
           </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

@@ -21,8 +21,8 @@ const TIERS: Tier[] = [
     audience: 'For people who want to own their data',
     features: [
       'Encrypted personal data vault',
-      'Marketplace + per-field sell controls',
-      'Earnings dashboard',
+      'Marketplace contribution controls',
+      'Completed payout dashboard',
       'Immutable audit log',
     ],
     cta: { label: 'Create account', href: '/register' },
@@ -44,12 +44,12 @@ const TIERS: Tier[] = [
   {
     name: 'Data buyer',
     price: 'Pay per dataset',
-    audience: 'Buy bulk anonymized data',
+    audience: 'Buy seller-approved snapshots',
     features: [
-      'Browse consented data pools',
-      'Snapshot, subscription, or filtered buys',
-      'Anonymized dataset exports',
-      'Offers to incentivize sharing',
+      'One-time immutable snapshots',
+      'Minimum contributor cohorts',
+      'Seven-day export access',
+      'Purpose and retention disclosure',
     ],
     cta: { label: 'Become a buyer', href: '/org/register' },
   },

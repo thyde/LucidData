@@ -116,6 +116,13 @@ export function VaultCreateDialog() {
       parsedData = schemaData;
     }
 
+    if (Object.keys(parsedData).length === 0) {
+      setJsonError('Data is required');
+      return;
+    }
+
+    setJsonError(null);
+
     const payload = {
       label: values.label,
       category: values.category,
@@ -252,10 +259,10 @@ export function VaultCreateDialog() {
                     placeholder='{"key": "value"}'
                     rows={6}
                   />
-                  {jsonError && (
-                    <p className="text-sm font-medium text-destructive">{jsonError}</p>
-                  )}
                 </>
+              )}
+              {jsonError && (
+                <p className="text-sm font-medium text-destructive">{jsonError}</p>
               )}
             </div>
 

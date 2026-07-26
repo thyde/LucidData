@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**LucidData** is a privacy-first personal data bank MVP that lets users own, control, and share their data on their terms. It is built with Next.js 15 (App Router, React 19), Supabase (Postgres, Auth, Realtime), and client-side encryption using the Web Crypto API. The app emphasizes user data sovereignty, an immutable audit trail, and data portability through open formats.
+**LucidData** is a privacy-first personal data bank MVP that lets users own, control, and share their data on their terms. It is built with Next.js 16 (App Router, React 19), Supabase (Postgres, Auth, Realtime), and client-side encryption using the Web Crypto API. The app emphasizes user data sovereignty, an immutable audit trail, and data portability through open formats.
 
 **Core Philosophy:**
 - Treat user data as property, not product
@@ -27,14 +27,13 @@ This file is self-contained: the patterns below live in its own sections. The ol
 - **[Coding Conventions](#coding-conventions)** - Naming, imports, file organization
 
 ### Project docs
-- **[README.md](README.md)** - Vision, roadmap, high-level architecture
-- **[SETUP.md](SETUP.md)** - One-time configuration, service URLs, architecture
-- **[QUICKSTART.md](QUICKSTART.md)** - Daily commands and troubleshooting
+- **[README.md](README.md)** - Vision, current feature status, high-level architecture
+- **[docs/competitive-feature-roadmap.md](docs/competitive-feature-roadmap.md)** - The single definitive roadmap. The prioritized list of features to build and gaps to close. Plan from this file, not from the README
 
 **How to use this map:**
 1. Check Core Security Patterns for rules that apply to ALL features.
 2. Read the relevant in-document section before implementing a feature.
-3. Reference README, SETUP, and QUICKSTART for setup, commands, and conventions.
+3. Reference README for setup, service URLs, and daily commands.
 
 ---
 
@@ -80,13 +79,14 @@ When generating or editing user-facing copy, apply the **humanizer** rules ([.gi
 **For comprehensive stack overview, see [README.md](README.md). Critical versions and configuration notes below.**
 
 ### Core Framework
-- **Next.js 15.1.3** with App Router (React 19) - Path alias: `@/*` maps to project root
+- **Next.js 16.2.10** with App Router and **React 19.2.7** - Path alias: `@/*` maps to project root
+- **Serwist 9.5.6** for PWA support. Development and production builds use Webpack explicitly because the stable Serwist integration is Webpack-based.
 - **TypeScript 5** with strict mode enabled
 - **Tailwind CSS 3.4.1** for styling
 
 ### Database
 - **Postgres via Supabase.** Schema is managed with SQL migrations in `supabase/migrations/`; there is no ORM.
-- **Local stack:** `npx supabase start` (applies migrations). Types: `npx supabase gen types` into `types/database.types.ts`.
+- **Local stack:** `npx supabase start` (applies migrations). Regenerate the schema types after migrations and preserve the application aliases at the end of `types/database.types.ts`.
 - **Data access** goes through `lib/repositories/` and `lib/services/`, never raw SQL in components.
 
 ### Authentication
@@ -225,11 +225,11 @@ export default async function DashboardLayout({
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   if (!user) {
     redirect('/login');
   }
-  
+
   return (
     <div>
       <nav>{/* Navigation */}</nav>
@@ -256,20 +256,22 @@ Use schemas from `lib/validations/`. Call `.parse()` in server actions and servi
 
 ## Development Workflow
 
-**For daily development commands and troubleshooting, see [QUICKSTART.md](QUICKSTART.md).**
-
-**For service URLs, environment setup, and initial configuration, see [SETUP.md](SETUP.md).**
+See [README.md](README.md) for local setup and service URLs.
 
 ### Quick Reference
 - **Start dev server:** `npm run dev` (http://localhost:3000)
+- **Production build:** `npm run build` (uses Webpack for Serwist)
 - **Local Supabase stack:** `npx supabase start` (applies migrations); Studio at http://127.0.0.1:54323
 - **New migration:** add a SQL file under `supabase/migrations/`, then `npx supabase migration up --local`
-- **Regenerate types:** `npx supabase gen types` into `types/database.types.ts`
-- **Tests:** `npm test` (Vitest), `npm run test:e2e` (Playwright)
+- **Regenerate types:** generate from Supabase, then preserve the application aliases at the end of `types/database.types.ts`
+- **Local checks:** `npm run typecheck`, `npm run lint`, `npm run test:run`, and `npm run build`
+- **Browser tests:** `npm run test:e2e` (Playwright)
+- **Dependency audit:** `npm run security:audit`; do not force preview upgrades to clear advisories
 
 ### Critical Environment Variables
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase client config
 - `SUPABASE_SERVICE_ROLE_KEY` - server-only privileged access
+- `SUPABASE_SECRET_KEY` - preferred server-only key for current Supabase Auth admin APIs
 - `ISSUER_KEY_SECRET` - base64 32-byte key that AES-256-GCM-wraps issuer private keys (needed only for credential issuance)
 - `NEXT_PUBLIC_RP_ID` - WebAuthn relying-party id (`localhost` in dev)
 
@@ -394,9 +396,8 @@ The service appends the audit-log entry with `createAuditHash()` from `lib/crypt
 ## Documentation References
 
 ### Project Documentation
-- **[README.md](README.md)** - Project vision, roadmap, comprehensive tech stack overview
-- **[SETUP.md](SETUP.md)** - Initial setup, architecture notes, service URLs, troubleshooting
-- **[QUICKSTART.md](QUICKSTART.md)** - Daily development workflow, commands, common tasks
+- **[README.md](README.md)** - Project vision, current feature status, comprehensive tech stack overview
+- **[docs/competitive-feature-roadmap.md](docs/competitive-feature-roadmap.md)** - The single definitive roadmap of features to build and gaps to close
 
 ### Copilot Instructions
 - **[Documentation Map](#-documentation-map)** - Navigation to the sections of this document
@@ -446,4 +447,4 @@ When implementing new features:
 
 ---
 
-**Last Updated**: June 16, 2026
+**Last Updated**: July 25, 2026

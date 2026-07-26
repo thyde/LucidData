@@ -23,7 +23,7 @@ export const POST = withAuth(async (req, { userId }) => {
       expectedOrigin: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
       expectedRPID: process.env.NEXT_PUBLIC_RP_ID ?? 'localhost',
     })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: 'Verification failed' }, { status: 400 })
   }
 

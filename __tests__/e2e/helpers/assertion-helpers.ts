@@ -197,8 +197,6 @@ export async function expectFieldValidationError(
   fieldName: string,
   errorMessage: string
 ): Promise<void> {
-  // Look for error message near the field
-  const field = page.locator(`input[name="${fieldName}"], textarea[name="${fieldName}"]`);
   const errorElement = page.locator(`[data-field="${fieldName}"] .error, #${fieldName}-error, text="${errorMessage}"`);
 
   await expect(errorElement.first()).toBeVisible({ timeout: 10000 });

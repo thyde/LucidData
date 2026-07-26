@@ -70,7 +70,7 @@ export async function login(
   await page.click('button[type="submit"]');
 
   // Wait for redirect to dashboard with increased timeout for slower browsers
-  await page.waitForURL('/dashboard', { timeout: 15000 });
+  await page.waitForURL('/dashboard', { timeout: 30000, waitUntil: 'commit' });
 }
 
 /**
@@ -145,8 +145,30 @@ export async function signup(
   const submitButton = page.locator('button[type="submit"]');
   await submitButton.click();
 
-  // Wait for redirect or success message with increased timeout for slower browsers
-  await page.waitForURL('/dashboard', { timeout: 15000 });
+  const continueButton = page.getByRole('link', { name: 'Continue to dashboard' });
+  await page.waitForFunction(
+    () =>
+      window.location.pathname === '/dashboard' ||
+      Array.from(document.querySelectorAll('a')).some(
+        (link) => link.textContent?.trim() === 'Continue to dashboard'
+      ),
+    undefined,
+    { timeout: 60000 }
+  );
+
+  if (await continueButton.isVisible()) {
+    await Promise.all([
+      page.waitForURL('/dashboard', { timeout: 60000, waitUntil: 'commit' }),
+      continueButton.click(),
+    ]);
+  }
+
+  await page.waitForURL('/dashboard', { timeout: 60000, waitUntil: 'commit' });
+
+  const onboardingDialog = page.getByRole('dialog').filter({ hasText: 'Welcome to Lucid' });
+  await onboardingDialog.waitFor({ state: 'visible', timeout: 15000 });
+  await onboardingDialog.getByRole('button', { name: 'Skip' }).click();
+  await onboardingDialog.waitFor({ state: 'hidden', timeout: 15000 });
 }
 
 /**

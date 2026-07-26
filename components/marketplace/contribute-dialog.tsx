@@ -19,11 +19,12 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { toFieldEntries, buildAnonymizedPayload } from '@/lib/crypto/anonymize'
 import { contributeAction } from '@/lib/actions/contribution.actions'
 import { formatCents } from '@/components/dashboard/chart-theme'
-import type { DataPool } from '@/types/database.types'
 import type { DecryptedVaultData } from '@/types'
+import type { OpenDataPool } from '@/lib/services/marketplace.service'
+import { MARKETPLACE_PURPOSE_LABELS } from '@/lib/validations/marketplace'
 
 interface ContributeDialogProps {
-  pool: DataPool
+  pool: OpenDataPool
   open: boolean
   onOpenChange: (open: boolean) => void
   onContributed?: () => void
@@ -35,6 +36,7 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
   const { toast } = useToast()
   const [selected, setSelected] = useState<DecryptedVaultData | null>(null)
   const [checkedKeys, setCheckedKeys] = useState<Set<string>>(new Set())
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const fields = useMemo(() => (selected ? toFieldEntries(selected.data) : []), [selected])
@@ -63,6 +65,7 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
   function reset() {
     setSelected(null)
     setCheckedKeys(new Set())
+    setAcceptedTerms(false)
   }
 
   function handleSubmit() {
@@ -79,6 +82,7 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
           vault_data_id: selected.id,
           category: pool.category,
           anonymized_payload: payload,
+          accepted_terms: acceptedTerms,
         })
         toast({
           title: 'Shared to pool',
@@ -191,6 +195,19 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
               {checkedKeys.size} field(s) will be shared anonymously · earn{' '}
               {formatCents(pool.price_per_record_cents)} per purchase.
             </div>
+            <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+              <Checkbox
+                checked={acceptedTerms}
+                onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                aria-label="Accept contribution terms"
+              />
+              <span>
+                I agree to share these fields with {pool.buyer_name} for{' '}
+                {MARKETPLACE_PURPOSE_LABELS[pool.purpose as keyof typeof MARKETPLACE_PURPOSE_LABELS]}.
+                The buyer declares a {pool.retention_days}-day retention period. LucidData cannot
+                revoke copies the buyer already downloaded.
+              </span>
+            </label>
           </div>
         )}
 
@@ -198,7 +215,10 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!selected || isLocked || isPending}>
+          <Button
+            onClick={handleSubmit}
+            disabled={!selected || !acceptedTerms || isLocked || isPending}
+          >
             {isPending ? 'Sharing…' : 'Share to pool'}
           </Button>
         </DialogFooter>

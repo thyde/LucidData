@@ -29,8 +29,8 @@ export function Hero() {
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
           The $200B data market runs on your information, yet you never see a cent or know where
-          it goes. LucidData hands you the controls: own your data, decide who can use it, and
-          earn every time it is sold.
+          it goes. LucidData gives you an encrypted vault and controls for deciding whether to
+          contribute supported data to a buyer request.
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild size="lg">
@@ -59,7 +59,7 @@ const FEATURES = [
   {
     icon: Wallet,
     title: 'Earn from your data',
-    body: 'Opt fields into anonymized pools and get paid when buyers purchase. You set the terms.',
+    body: 'Choose supported fields for a buyer pool and track completed payouts when a snapshot is purchased.',
   },
   {
     icon: BadgeCheck,
@@ -110,7 +110,7 @@ export function AudienceSplit() {
           <CardContent className="flex flex-1 flex-col">
             <p className="text-muted-foreground">
               Store your data in an encrypted vault, see who wants it, and choose how and to whom
-              you sell. Watch your earnings grow on a dashboard you control.
+              you contribute supported fields. Completed sales and payouts appear in your account.
             </p>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>• Encrypted personal data vault</li>
@@ -137,12 +137,12 @@ export function AudienceSplit() {
           <CardContent className="flex flex-1 flex-col">
             <p className="text-muted-foreground">
               Issue verifiable credentials, validate the credentials people share with you, or
-              buy consented, anonymized data in bulk, all with a clear audit trail.
+              buy seller-approved snapshots of supported data, with a clear audit trail.
             </p>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>• Issue diplomas, IDs, and credentials</li>
               <li>• Verify what customers share</li>
-              <li>• Purchase bulk anonymized datasets</li>
+              <li>• Purchase time-limited dataset snapshots</li>
             </ul>
             <div className="mt-6">
               <Button asChild variant="outline">
@@ -160,10 +160,10 @@ export function AudienceSplit() {
 
 const PIPELINE = [
   { icon: ShoppingBag, title: 'Collect', body: 'Add data to your vault or claim credentials from trusted issuers.' },
-  { icon: Package, title: 'Package & anonymize', body: 'Choose fields to share; we strip identifiers in your browser before anything leaves.' },
+  { icon: Package, title: 'Choose & strip identifiers', body: 'Choose fields to share; known direct identifiers are removed in your browser before anything leaves.' },
   { icon: UploadCloud, title: 'Contribute', body: 'Opt approved fields into buyer data pools you choose.' },
   { icon: LayoutDashboard, title: 'Access', body: 'Buyers purchase only what you consented to share.' },
-  { icon: TrendingUp, title: 'Earn', body: 'Revenue accrues to you and shows up on your dashboard.' },
+  { icon: TrendingUp, title: 'Earn', body: 'Completed payouts show up on your dashboard after a buyer purchases a snapshot.' },
 ]
 
 export function DataPipeline() {

@@ -37,10 +37,7 @@ export async function createConsent(page: Page, data: ConsentData): Promise<stri
 
   // Set end date if provided
   if (data.endDate) {
-    const endDateStr = data.endDate instanceof Date
-      ? data.endDate.toISOString().split('T')[0]
-      : data.endDate;
-    await page.fill('input[name="endDate"], input[type="date"]', endDateStr);
+    await page.fill('input[name="endDate"], input[type="date"]', data.endDate);
   }
 
   // Select vault data if vaultDataId is provided

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   hash,
   createAuditHash,
@@ -6,6 +6,8 @@ import {
   hashPassword,
   verifyPassword,
 } from '../hashing';
+
+type AuditChainEntry = Parameters<typeof verifyHashChain>[0][number];
 
 describe('hashing utilities', () => {
   describe('hash', () => {
@@ -307,12 +309,12 @@ describe('hashing utilities', () => {
     });
 
     it('should validate a long chain', () => {
-      const entries = [];
-      let previousHash = null;
+      const entries: AuditChainEntry[] = [];
+      let previousHash: string | null = null;
 
       // Create a chain of 10 entries
       for (let i = 0; i < 10; i++) {
-        const entry = {
+        const entry: AuditChainEntry = {
           currentHash: '',
           previousHash,
           eventType: 'data_created',
@@ -337,12 +339,12 @@ describe('hashing utilities', () => {
     });
 
     it('should detect tampering in middle of long chain', () => {
-      const entries = [];
-      let previousHash = null;
+      const entries: AuditChainEntry[] = [];
+      let previousHash: string | null = null;
 
       // Create a chain of 10 entries
       for (let i = 0; i < 10; i++) {
-        const entry = {
+        const entry: AuditChainEntry = {
           currentHash: '',
           previousHash,
           eventType: 'data_created',

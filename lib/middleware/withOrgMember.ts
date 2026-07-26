@@ -75,6 +75,24 @@ export async function requireOrgMembership(
   return { organization: row.organization as Organization, role }
 }
 
+export async function requireDataBuyer(organizationId: string): Promise<OrgMembership> {
+  const membership = await requireOrgMembership(organizationId)
+  if (!membership.organization.data_buyer) {
+    throw new Error('This organization is not enabled for data purchasing')
+  }
+  return membership
+}
+
+export async function requireVerifiedDataBuyer(
+  organizationId: string
+): Promise<OrgMembership> {
+  const membership = await requireDataBuyer(organizationId)
+  if (!membership.organization.verified_at) {
+    throw new Error('Verify your organization before using the data marketplace')
+  }
+  return membership
+}
+
 /**
  * Links a user to an organization with a role. Idempotent on (org, user).
  * Uses the service role so it can run during onboarding before any RLS context.

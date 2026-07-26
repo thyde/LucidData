@@ -5,6 +5,7 @@ import { ChangePasswordForm } from '@/components/settings/change-password-form'
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog'
 import { NotificationPreferences } from '@/components/settings/notification-preferences'
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup'
+import { PasskeyList } from '@/components/settings/passkey-list'
 import { getAccountSecurity } from '@/lib/services/account.service'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -47,21 +48,7 @@ export default async function SettingsPage() {
           Passkeys let you sign in without a password using your device biometrics or PIN.
         </p>
 
-        {passkeys && passkeys.length > 0 && (
-          <div className="border rounded-md divide-y">
-            {passkeys.map(pk => (
-              <div key={pk.id} className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm">{pk.device_name ?? 'Unnamed device'}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Added {new Date(pk.created_at).toLocaleDateString()}
-                    {pk.last_used_at && ` · Last used ${new Date(pk.last_used_at).toLocaleDateString()}`}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <PasskeyList passkeys={passkeys ?? []} />
 
         <RegisterPasskeyButton />
       </section>

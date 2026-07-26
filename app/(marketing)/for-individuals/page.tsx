@@ -7,7 +7,7 @@ import { DataPipeline } from '@/components/marketing/sections'
 
 export const metadata: Metadata = {
   title: 'For individuals | LucidData',
-  description: 'Own your data, decide who can use it, and earn every time it is sold.',
+  description: 'Store encrypted data and choose whether to contribute supported fields to buyers.',
 }
 
 const POINTS = [
@@ -19,17 +19,17 @@ const POINTS = [
   {
     icon: Store,
     title: 'Sell on your terms',
-    body: 'Toggle which fields are for sale, choose which buyers and purposes you allow, and set a price floor.',
+    body: 'Choose supported fields, review the buyer and purpose, set a price floor, and approve each contribution.',
   },
   {
     icon: Wallet,
     title: 'Get paid',
-    body: 'Earn each time your anonymized data is purchased. Track revenue by category on your dashboard.',
+    body: 'Track completed sales and payouts by category after buyers purchase eligible snapshots.',
   },
   {
     icon: LineChart,
     title: 'Full transparency',
-    body: 'See who collected and bought your data, with an immutable audit trail you can verify.',
+    body: 'Review contributions, payouts, and a tamper-evident audit trail of actions inside LucidData.',
   },
 ]
 
@@ -42,7 +42,7 @@ export default function ForIndividualsPage() {
             Your data is an asset. Start treating it like one.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Store, control, and monetize your personal data without ever surrendering ownership.
+            Store personal data privately and choose when supported fields may enter a buyer snapshot.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">
@@ -79,7 +79,7 @@ export default function ForIndividualsPage() {
         <div className="container mx-auto px-4 py-20 text-center">
           <h2 className="text-3xl font-bold tracking-tight">You&apos;re in charge.</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            We never sell anything you don&apos;t ask us to. It&apos;s that simple.
+            Marketplace contributions require your explicit approval. Sensitive categories stay private.
           </p>
           <div className="mt-8">
             <Button asChild size="lg">

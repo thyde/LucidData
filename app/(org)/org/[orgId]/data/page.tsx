@@ -3,15 +3,14 @@ import { notFound } from 'next/navigation'
 import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
 import { listOrgPools, getMarketSupply } from '@/lib/services/marketplace.service'
 import { listOrders } from '@/lib/services/data-order.service'
-import { listOrgOffers } from '@/lib/services/offer.service'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { listOrgOffers, getOfferClaimStats } from '@/lib/services/offer.service'
+import { Card, CardContent } from '@/components/ui/card'
 import { CreatePoolDialog } from '@/components/buyer/create-pool-dialog'
 import { CreateOfferDialog } from '@/components/buyer/create-offer-dialog'
 import { DatasetBrowser } from '@/components/buyer/dataset-browser'
 import { OrdersList } from '@/components/buyer/orders-list'
 import { SupplyDiscovery } from '@/components/buyer/supply-discovery'
-import { categoryLabel } from '@/components/dashboard/chart-theme'
+import { OfferManager } from '@/components/buyer/offer-manager'
 
 export default async function BuyerPortalPage({
   params,
@@ -34,12 +33,15 @@ export default async function BuyerPortalPage({
     notFound()
   }
 
-  const [pools, orders, offers, supply] = await Promise.all([
+  const [pools, orders, offers, supply, claimStats] = await Promise.all([
     listOrgPools(orgId),
     listOrders(orgId),
     listOrgOffers(orgId),
     getMarketSupply(),
+    getOfferClaimStats(orgId),
   ])
+
+  const isVerified = Boolean(membership.organization.verified_at)
 
   return (
     <div className="space-y-8">
@@ -58,11 +60,29 @@ export default async function BuyerPortalPage({
             </p>
           </div>
           <div className="flex gap-2">
-            <CreatePoolDialog orgId={orgId} />
-            <CreateOfferDialog orgId={orgId} />
+            <CreatePoolDialog orgId={orgId} disabled={!isVerified} />
+            <CreateOfferDialog orgId={orgId} disabled={!isVerified} />
           </div>
         </div>
       </div>
+
+      {!isVerified && (
+        <div className="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm">
+          <p className="font-medium text-yellow-950">
+            Verify your organization before using the data marketplace
+          </p>
+          <p className="mt-1 text-yellow-900">
+            People who share data need to know who is buying it. Once your organization is
+            verified you can create data pools, publish offers, and buy datasets.
+          </p>
+          <Link
+            href={`/org/${orgId}`}
+            className="mt-2 inline-block font-medium text-yellow-950 underline"
+          >
+            Verify your organization
+          </Link>
+        </div>
+      )}
 
       {orderStatus === 'success' && (
         <div className="rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
@@ -101,28 +121,7 @@ export default async function BuyerPortalPage({
 
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Your offers</h2>
-        {offers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No offers yet.</p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {offers.map((offer) => (
-              <Card key={offer.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary">{categoryLabel(offer.target_category)}</Badge>
-                    <Badge variant={offer.status === 'active' ? 'default' : 'outline'}>
-                      {offer.status}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-base">{offer.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {offer.incentive}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <OfferManager orgId={orgId} initialOffers={offers} claimStats={claimStats} />
       </section>
     </div>
   )

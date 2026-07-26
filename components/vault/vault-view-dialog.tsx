@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useVaultEntry, useDeleteVault } from '@/lib/hooks/useVault';
 import { useEncryption } from '@/lib/context/encryption-context';
 import { useConsentList } from '@/lib/hooks/useConsent';
@@ -67,7 +67,6 @@ function getCategoryVariant(category: string): 'default' | 'secondary' | 'destru
 export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: VaultViewDialogProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showConsentCreate, setShowConsentCreate] = useState(false);
-  const [deleteCompleted, setDeleteCompleted] = useState(false);
   const { isLocked } = useEncryption();
   const { data: entry, isLoading, isError, error } = useVaultEntry(entryId);
   const deleteMutation = useDeleteVault();
@@ -75,7 +74,10 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
 
   const handleDelete = () => {
     deleteMutation.mutate(entryId, {
-      onSuccess: () => setDeleteCompleted(true),
+      onSuccess: () => {
+        setShowDeleteDialog(false);
+        onOpenChange(false);
+      },
       onError: (mutationError) => {
         // Error is already handled by mutation's onError handler (toast notification)
         // Keep the dialog open so user can try again
@@ -83,15 +85,6 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
       },
     });
   };
-
-  // Close dialogs when deletion is complete
-  useEffect(() => {
-    if (deleteCompleted) {
-      setShowDeleteDialog(false);
-      onOpenChange(false);
-      setDeleteCompleted(false);
-    }
-  }, [deleteCompleted, onOpenChange]);
 
   return (
     <>

@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
-import { getConsentRequestsAction, respondToConsentRequestAction } from '@/lib/actions/consent-request.actions'
+import { getConsentRequestsAction } from '@/lib/actions/consent-request.actions'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { ConsentRequestRespondDialog } from './consent-request-respond-dialog'

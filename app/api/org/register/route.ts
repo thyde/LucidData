@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { addOrgMember } from '@/lib/middleware/withOrgMember'
+import { updateInitialKeySuffix } from '@/lib/repositories/organization-api-key.repository'
 import { generateApiKey } from '@/lib/utils/api-key'
 import { z } from 'zod'
 
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  await updateInitialKeySuffix(org.id, key.slice(-6))
 
   // If a signed-in user created this org from the portal, make them the owner so
   // they can manage it without the API key.

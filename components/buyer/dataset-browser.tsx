@@ -17,6 +17,17 @@ const PRICING_LABEL = {
   filtered: 'Filtered bundle',
 } as const
 
+function pricingLabel(pricingModel: string): string {
+  switch (pricingModel) {
+    case 'snapshot':
+    case 'subscription':
+    case 'filtered':
+      return PRICING_LABEL[pricingModel]
+    default:
+      return pricingModel
+  }
+}
+
 export function DatasetBrowser({ orgId, pools }: { orgId: string; pools: DataPool[] }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -31,11 +42,11 @@ export function DatasetBrowser({ orgId, pools }: { orgId: string; pools: DataPoo
     )
   }
 
-  function purchase(pool: DataPool, orderType: 'snapshot' | 'subscription') {
+  function purchase(pool: DataPool) {
     setPendingId(pool.id)
     startTransition(async () => {
       try {
-        const result = await purchasePoolAction(orgId, { pool_id: pool.id, order_type: orderType })
+        const result = await purchasePoolAction(orgId, { pool_id: pool.id, order_type: 'snapshot' })
         if (result.kind === 'checkout') {
           window.location.href = result.url
           return
@@ -90,23 +101,13 @@ export function DatasetBrowser({ orgId, pools }: { orgId: string; pools: DataPoo
                 <p className="text-sm text-muted-foreground">{pool.description}</p>
               )}
               <p className="mt-2 text-xs text-muted-foreground">
-                {PRICING_LABEL[pool.pricing_model]} · {formatCents(pool.price_per_record_cents)} /
+                {pricingLabel(pool.pricing_model)} · {formatCents(pool.price_per_record_cents)} /
                 record · base {formatCents(pool.price_cents)}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" disabled={busy} onClick={() => purchase(pool, 'snapshot')}>
+                <Button size="sm" disabled={busy} onClick={() => purchase(pool)}>
                   Buy snapshot
                 </Button>
-                {pool.pricing_model === 'subscription' && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={busy}
-                    onClick={() => purchase(pool, 'subscription')}
-                  >
-                    Subscribe
-                  </Button>
-                )}
                 {pool.status === 'open' && (
                   <Button size="sm" variant="outline" disabled={busy} onClick={() => close(pool)}>
                     Close

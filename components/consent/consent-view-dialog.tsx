@@ -24,6 +24,7 @@ interface ConsentViewDialogProps {
 
 export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentViewDialogProps) {
   const { data: consent, isLoading } = useConsentEntry(consentId);
+  const [now] = useState(() => Date.now());
   const [showRevoke, setShowRevoke] = useState(false);
   const [showExtend, setShowExtend] = useState(false);
 
@@ -45,14 +46,14 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
 
   const status = consent.revoked
     ? 'revoked'
-    : consent.end_date && new Date(consent.end_date) < new Date()
+    : consent.end_date && new Date(consent.end_date).getTime() < now
     ? 'expired'
     : 'active';
 
   const isExpiringSoon =
     status === 'active' &&
     consent.end_date &&
-    new Date(consent.end_date).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+    new Date(consent.end_date).getTime() - now < 7 * 24 * 60 * 60 * 1000;
 
   return (
     <>
@@ -191,20 +192,14 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => {
-                    onOpenChange(false);
-                    setShowExtend(true);
-                  }}
+                  onClick={() => setShowExtend(true)}
                 >
                   Extend Consent
                 </Button>
                 <Button
                   variant="destructive"
                   className="flex-1"
-                  onClick={() => {
-                    onOpenChange(false);
-                    setShowRevoke(true);
-                  }}
+                  onClick={() => setShowRevoke(true)}
                 >
                   Revoke Consent
                 </Button>

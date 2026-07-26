@@ -24,14 +24,31 @@ export function withOrgAuth(handler: OrgHandler) {
 
     const hash = hashApiKey(apiKey)
     const supabase = createServiceClient()
+    const { data: key } = await supabase
+      .from('organization_api_keys')
+      .select('id, organization_id, expires_at')
+      .eq('key_hash', hash)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (!key || (key.expires_at && new Date(key.expires_at) <= new Date())) {
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+    }
+
     const { data: org } = await supabase
       .from('organizations')
-      .select('id, name, email, verified_at')
-      .eq('api_key_hash', hash)
-      .single()
+      .select('id, name, email')
+      .eq('id', key.organization_id)
+      .maybeSingle()
 
-    if (!org) {
-      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+    if (!org) return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+
+    const { error: usageError } = await supabase
+      .from('organization_api_keys')
+      .update({ last_used_at: new Date().toISOString() })
+      .eq('id', key.id)
+    if (usageError) {
+      return NextResponse.json({ error: 'Could not authenticate API key' }, { status: 503 })
     }
 
     return handler(req, { orgId: org.id, orgName: org.name, orgEmail: org.email })

@@ -12,7 +12,7 @@ export function DataMarketDonut({ data }: { data: CategoryCount[] }) {
     <div className="flex items-center gap-4">
       <div className="relative h-40 w-40 shrink-0">
         {total > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 160, height: 160 }}>
             <PieChart>
               <Pie
                 data={chartData}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@/test/helpers/render';
+import { screen, waitFor, within } from '@/test/helpers/render';
 import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { VaultCreateDialog } from '../vault-create-dialog';
@@ -43,8 +43,17 @@ describe('VaultCreateDialog', () => {
     vi.mocked(useCreateVault).mockReturnValue(mockMutation);
     vi.mocked(useToast).mockReturnValue({
       toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
     });
   });
+
+  async function openJsonEditor(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /edit as json/i }));
+    const editor = screen.getByRole('textbox', { name: /^data$/i });
+    await user.clear(editor);
+    return editor;
+  }
 
   // Rendering Tests (5 tests)
   describe('Rendering', () => {
@@ -109,11 +118,11 @@ describe('VaultCreateDialog', () => {
 
       const categorySelect = screen.getByLabelText(/category/i);
       expect(categorySelect).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /personal/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /health/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /financial/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /credentials/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /other/i })).toBeInTheDocument();
+      expect(within(categorySelect).getByRole('option', { name: /personal/i })).toBeInTheDocument();
+      expect(within(categorySelect).getByRole('option', { name: /health/i })).toBeInTheDocument();
+      expect(within(categorySelect).getByRole('option', { name: /financial/i })).toBeInTheDocument();
+      expect(within(categorySelect).getByRole('option', { name: /credentials/i })).toBeInTheDocument();
+      expect(within(categorySelect).getByRole('option', { name: /other/i })).toBeInTheDocument();
     });
 
     it('renders description textarea', async () => {
@@ -152,20 +161,20 @@ describe('VaultCreateDialog', () => {
 
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
 
-      const dataTypeSelect = screen.getByLabelText(/data type/i);
+      const dataTypeSelect = screen.getByLabelText('Data Type', { exact: true });
       expect(dataTypeSelect).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /json/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /^credential$/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /document/i })).toBeInTheDocument();
+      expect(within(dataTypeSelect).getByRole('option', { name: /^json$/i })).toBeInTheDocument();
+      expect(within(dataTypeSelect).getByRole('option', { name: /^credential$/i })).toBeInTheDocument();
+      expect(within(dataTypeSelect).getByRole('option', { name: /document/i })).toBeInTheDocument();
     });
 
-    it('renders schemaType input (optional)', async () => {
+    it('renders the schema type selector', async () => {
       const user = userEvent.setup();
       render(<VaultCreateDialog />);
 
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
 
-      expect(screen.getByLabelText(/schema type/i)).toBeInTheDocument();
+      expect(screen.getByLabelText('Data type', { exact: true })).toHaveValue('custom');
     });
 
     it('renders expiresAt datetime input (optional)', async () => {
@@ -276,7 +285,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Medical Records');
       await user.selectOptions(screen.getByLabelText(/category/i), 'health');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"bloodType": "A+"}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -292,7 +301,7 @@ describe('VaultCreateDialog', () => {
 
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
 
-      const dataTypeSelect = screen.getByLabelText(/data type/i);
+      const dataTypeSelect = screen.getByLabelText('Data Type', { exact: true });
       expect(dataTypeSelect).toHaveValue('json');
     });
 
@@ -318,7 +327,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test Entry');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"key": "value"}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -346,7 +355,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Medical Records');
       await user.selectOptions(screen.getByLabelText(/category/i), 'health');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"bloodType": "A+"}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -403,7 +412,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -421,7 +430,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -445,7 +454,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -465,7 +474,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -490,7 +499,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -527,7 +536,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -578,7 +587,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -614,7 +623,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{"test": true}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));
@@ -636,7 +645,7 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
       await user.type(screen.getByLabelText(/label/i), 'Test');
       await user.selectOptions(screen.getByLabelText(/category/i), 'personal');
-      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      const dataInput = await openJsonEditor(user);
       await user.click(dataInput);
       await user.paste('{invalid}');
       await user.click(screen.getByRole('button', { name: /^create$/i }));

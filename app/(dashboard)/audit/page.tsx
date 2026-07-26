@@ -102,7 +102,7 @@ export default function AuditPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle role="heading" aria-level={2}>Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
           {logs.length === 0 ? (

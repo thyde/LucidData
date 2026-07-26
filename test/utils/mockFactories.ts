@@ -1,5 +1,15 @@
 import { vi } from 'vitest';
 import { act } from '@testing-library/react';
+import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
+
+type MockMutationResult = UseMutationResult<any, Error, any, unknown> & {
+  mutate: ReturnType<typeof vi.fn>;
+  mutateAsync: ReturnType<typeof vi.fn>;
+};
+
+type MockQueryResult = UseQueryResult<any, Error> & {
+  refetch: ReturnType<typeof vi.fn>;
+};
 
 /**
  * Creates a mock mutation function that simulates async React Query behavior
@@ -29,16 +39,26 @@ export function createMockMutation<TData = any, TVariables = any>(options?: {
     }, 0);
   });
 
-  return {
+  const result = {
     mutate: mockMutate,
-    mutateAsync: vi.fn(),
+    mutateAsync: vi.fn(async (variables: TVariables) => variables as unknown as TData),
+    variables: undefined,
+    context: undefined,
+    failureCount: 0,
+    failureReason: null,
+    isPaused: false,
+    isIdle: true,
     isPending: false,
     isError: false,
     isSuccess: false,
+    status: 'idle' as const,
+    submittedAt: 0,
     error: null,
     data: undefined,
     reset: vi.fn(),
   };
+
+  return result as MockMutationResult;
 }
 
 /**
@@ -46,44 +66,71 @@ export function createMockMutation<TData = any, TVariables = any>(options?: {
  */
 export function createMockQuery<TData = any>(
   data: TData,
-  overrides?: Partial<{
-    isLoading: boolean;
-    isError: boolean;
-    isFetching: boolean;
-    isSuccess: boolean;
-    error: Error | null;
-    refetch: ReturnType<typeof vi.fn>;
-  }>
+  overrides?: Partial<UseQueryResult<TData, Error>>
 ) {
-  return {
+  const result = {
     data,
+    dataUpdatedAt: 0,
+    errorUpdatedAt: 0,
+    failureCount: 0,
+    failureReason: null,
+    errorUpdateCount: 0,
     isLoading: false,
+    isPending: false,
     isError: false,
+    isFetched: true,
+    isFetchedAfterMount: true,
     isFetching: false,
+    isLoadingError: false,
+    isInitialLoading: false,
+    isPaused: false,
+    isPlaceholderData: false,
+    isRefetchError: false,
+    isRefetching: false,
+    isStale: false,
     isSuccess: true,
+    isEnabled: true,
     error: null,
-    refetch: vi.fn(),
+    refetch: vi.fn(async () => undefined),
+    status: 'success' as const,
+    fetchStatus: 'idle' as const,
+    promise: Promise.resolve(data),
     ...overrides,
   };
+
+  return result as MockQueryResult;
 }
 
 /**
  * Creates a loading query state
  */
-export function createLoadingQuery() {
-  return createMockQuery(undefined, {
+export function createLoadingQuery<TData = any>() {
+  return createMockQuery<TData>(undefined as TData, {
     isLoading: true,
+    isPending: true,
+    isFetched: false,
     isSuccess: false,
+    status: 'pending',
+    fetchStatus: 'fetching',
   });
 }
 
 /**
  * Creates an error query state
  */
-export function createErrorQuery(errorMessage = 'Failed to load') {
-  return createMockQuery(undefined, {
+export function createErrorQuery<TData = any>(errorMessage = 'Failed to load') {
+  return createMockQuery<TData>(undefined as TData, {
     isError: true,
     isSuccess: false,
     error: new Error(errorMessage),
+    status: 'error',
   });
+}
+
+export function createMockToast(toast = vi.fn()) {
+  return {
+    toast,
+    dismiss: vi.fn(),
+    toasts: [],
+  };
 }

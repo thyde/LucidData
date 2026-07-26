@@ -1,14 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withOrgAuth } from '@/lib/middleware/withOrgAuth'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createNotification } from '@/lib/services/notification.service'
 import { z } from 'zod'
+import { dataCategorySchema } from '@/lib/validations/marketplace'
 
 const ConsentRequestSchema = z.object({
   user_email: z.string().email(),
   purpose: z.string().min(10).max(500),
   access_level: z.enum(['read', 'export', 'verify']),
-  data_category: z.string().optional(),
+  data_category: dataCategorySchema.optional(),
   expires_in_days: z.number().min(1).max(365).default(30),
 })
 

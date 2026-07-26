@@ -67,11 +67,13 @@ export async function updateVaultData(id: string, userId: string, payload: Updat
 
 export async function deleteVaultData(id: string, userId: string): Promise<void> {
   const entry = await vaultRepo.findVaultById(id, userId)
+  if (!entry) throw new Error('Vault entry not found')
+
   await vaultRepo.deleteVaultEntry(id, userId)
   await createAuditEntry({
     userId,
     eventType: 'data_deleted',
-    action: `Deleted vault entry: ${entry?.label ?? id}`,
-    vaultDataId: id,
+    action: `Deleted vault entry: ${entry.label}`,
+    metadata: { deleted_vault_data_id: id },
   })
 }

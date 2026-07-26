@@ -1,6 +1,6 @@
 import type Stripe from 'stripe'
 import * as payoutRepo from '@/lib/repositories/payout.repository'
-import * as contributionRepo from '@/lib/repositories/contribution.repository'
+import * as orderRepo from '@/lib/repositories/data-order.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { createAuditEntry } from '@/lib/services/audit.service'
@@ -96,24 +96,24 @@ export async function recordOrderPayouts(order: DataOrder): Promise<void> {
   const pool = await poolRepo.findPoolById(order.pool_id)
   const poolName = pool?.name ?? 'a data pool'
 
-  const contributions = await contributionRepo.findActiveContributionsByPool(order.pool_id)
+  const records = await orderRepo.findOrderRecords(order.id)
   const userIds = new Set<string>()
-  for (const c of contributions) {
-    if (c.payout_cents <= 0) continue
+  for (const record of records) {
+    if (!record.source_user_id || record.payout_cents <= 0) continue
     await payoutRepo.createPayout({
-      user_id: c.user_id,
-      contribution_id: c.id,
+      user_id: record.source_user_id,
+      contribution_id: record.source_contribution_id,
       data_order_id: order.id,
       pool_id: order.pool_id,
-      amount_cents: c.payout_cents,
+      amount_cents: record.payout_cents,
       status: 'pending',
     })
-    await notifyDataSold(c.user_id, {
+    await notifyDataSold(record.source_user_id, {
       poolName,
-      amountCents: c.payout_cents,
+      amountCents: record.payout_cents,
       orderId: order.id,
     })
-    userIds.add(c.user_id)
+    userIds.add(record.source_user_id)
   }
 
   for (const userId of userIds) {
@@ -149,11 +149,14 @@ export async function processPendingPayouts(userId: string): Promise<void> {
         action: `Received a payout of $${(payout.amount_cents / 100).toFixed(2)}`,
         metadata: { payout_id: payout.id, amount_cents: payout.amount_cents },
       })
-      let poolName = poolNames.get(payout.pool_id)
-      if (poolName === undefined) {
-        const pool = await poolRepo.findPoolById(payout.pool_id)
-        poolName = pool?.name ?? 'a data pool'
-        poolNames.set(payout.pool_id, poolName)
+      let poolName = 'a data pool'
+      if (payout.pool_id) {
+        poolName = poolNames.get(payout.pool_id) ?? ''
+        if (!poolName) {
+          const pool = await poolRepo.findPoolById(payout.pool_id)
+          poolName = pool?.name ?? 'a data pool'
+          poolNames.set(payout.pool_id, poolName)
+        }
       }
       await notifyPayoutPaid(userId, {
         poolName,

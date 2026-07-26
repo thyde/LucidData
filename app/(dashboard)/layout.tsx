@@ -2,8 +2,10 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { SignOutButton } from '@/components/auth/sign-out-button';
+import { DesktopNav } from '@/components/layout/desktop-nav';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { Building2, Settings } from 'lucide-react';
 
 export default async function DashboardLayout({
   children,
@@ -33,52 +35,25 @@ export default async function DashboardLayout({
             <Link href="/dashboard" className="text-2xl font-bold">
               Lucid
             </Link>
-            <nav className="hidden md:flex space-x-6">
-              <Link
-                href="/dashboard"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/vault"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Vault
-              </Link>
-              <Link
-                href="/marketplace"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Marketplace
-              </Link>
-              <Link
-                href="/credentials"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Credentials
-              </Link>
-              <Link
-                href="/consent"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Consents
-              </Link>
-              <Link
-                href="/audit"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Audit Log
-              </Link>
-              <Link
-                href="/requests"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Requests
-              </Link>
-            </nav>
+            <DesktopNav />
           </div>
           <div className="flex items-center space-x-4">
+            <Link
+              href="/org"
+              aria-label="Organizations"
+              title="Organizations"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Building2 className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/settings"
+              aria-label="Settings"
+              title="Settings"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Settings className="h-5 w-5" />
+            </Link>
             <NotificationBell />
             <span className="text-sm text-muted-foreground">{user.email}</span>
             <SignOutButton className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" />

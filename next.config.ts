@@ -1,30 +1,16 @@
 import type { NextConfig } from "next";
-import withPWAInit from "@ducanh2912/next-pwa";
+import withSerwistInit from "@serwist/next";
 
-const withPWA = withPWAInit({
-  dest: "public",
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
+const withSerwist = withSerwistInit({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  cacheOnNavigation: true,
   reloadOnOnline: true,
   disable: process.env.NODE_ENV === "development",
-  workboxOptions: {
-    disableDevLogs: true,
-  },
 });
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // TODO(tech-debt): Temporary deploy unblock. Runtime and the full E2E suite are
-  // green, but `next build` is currently red from known type-plumbing issues
-  // (Supabase generated `{}` row types, zod v4 + @hookform/resolvers mismatch) and
-  // one ESLint prefer-const. These gates are skipped so the beta can deploy; remove
-  // both blocks once the underlying type/lint debt is fixed.
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   async headers() {
     const headers = [
       {
@@ -68,4 +54,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+export default withSerwist(nextConfig);

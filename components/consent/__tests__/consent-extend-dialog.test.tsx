@@ -18,14 +18,26 @@ vi.mock('@/lib/hooks/use-toast', () => ({
 import { useExtendConsent } from '@/lib/hooks/useConsent';
 import { useToast } from '@/lib/hooks/use-toast';
 
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function toDateTimeLocalValue(date: Date): string {
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+}
+
 describe('ConsentExtendDialog', () => {
   const mockToast = vi.fn();
   let mockMutation: ReturnType<typeof createMockMutation>;
   const mockOnOpenChange = vi.fn();
+  const currentEndDate = addDays(new Date(), 30);
 
   const defaultProps = {
     consentId: 'consent-123',
-    currentEndDate: new Date('2026-02-01T00:00:00.000Z'),
+    currentEndDate,
     open: true,
     onOpenChange: mockOnOpenChange,
   };
@@ -50,6 +62,8 @@ describe('ConsentExtendDialog', () => {
     vi.mocked(useExtendConsent).mockReturnValue(mockMutation);
     vi.mocked(useToast).mockReturnValue({
       toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
     });
   });
 
@@ -71,9 +85,8 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       expect(screen.getByText(/current expiration:/i)).toBeInTheDocument();
-      // Date is formatted in local timezone (may show as Jan 31 or Feb 1 depending on timezone)
       const dateElement = screen.getByText(/current expiration:/i).parentElement;
-      expect(dateElement).toHaveTextContent(/(Jan 31, 2026|Feb 1, 2026)/i);
+      expect(dateElement).toHaveTextContent(currentEndDate.getFullYear().toString());
     });
 
     it('renders new expiration date input', () => {
@@ -119,13 +132,8 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      // Set to a time just before/at the current end date (UTC: 2026-02-01T00:00:00.000Z)
-      // In local timezone (PST), this would be 2026-01-31 16:00, which is before the UTC date
-      // Use the exact UTC time in local format to ensure it's less than or equal
       const currentDate = new Date(defaultProps.currentEndDate!);
-      const currentDateString = new Date(currentDate.getTime() - currentDate.getTimezoneOffset() * 60000)
-        .toISOString()
-        .slice(0, 16);
+      const currentDateString = toDateTimeLocalValue(currentDate);
       await user.type(input, currentDateString);
 
       const submitButton = screen.getByRole('button', { name: /extend consent/i });
@@ -143,8 +151,7 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      // Set to before current end date
-      const earlierDateString = '2026-01-15T00:00';
+      const earlierDateString = toDateTimeLocalValue(addDays(currentEndDate, -1));
       await user.type(input, earlierDateString);
 
       const submitButton = screen.getByRole('button', { name: /extend consent/i });
@@ -162,9 +169,8 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      // Set to future date after current expiration (current is 2026-02-01, so use 2026-03-01)
-      const futureDate = new Date('2026-03-01T00:00:00.000Z');
-      const futureDateString = futureDate.toISOString().slice(0, 16);
+      const futureDate = addDays(currentEndDate, 30);
+      const futureDateString = toDateTimeLocalValue(futureDate);
       await user.clear(input);
       await user.type(input, futureDateString);
 
@@ -240,10 +246,9 @@ describe('ConsentExtendDialog', () => {
 
       const input = screen.getByLabelText(/new expiration date/i) as HTMLInputElement;
 
-      // Calculate expected date: 2026-02-01 + 30 days = 2026-03-02
-      const expectedDate = new Date('2026-02-01T00:00:00.000Z');
+      const expectedDate = new Date(currentEndDate);
       expectedDate.setDate(expectedDate.getDate() + 30);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(input.value).toBe(expectedString);
     });
@@ -257,10 +262,9 @@ describe('ConsentExtendDialog', () => {
 
       const input = screen.getByLabelText(/new expiration date/i) as HTMLInputElement;
 
-      // Calculate expected date: 2026-02-01 + 90 days
-      const expectedDate = new Date('2026-02-01T00:00:00.000Z');
+      const expectedDate = new Date(currentEndDate);
       expectedDate.setDate(expectedDate.getDate() + 90);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(input.value).toBe(expectedString);
     });
@@ -274,10 +278,9 @@ describe('ConsentExtendDialog', () => {
 
       const input = screen.getByLabelText(/new expiration date/i) as HTMLInputElement;
 
-      // Calculate expected date: 2026-02-01 + 365 days
-      const expectedDate = new Date('2026-02-01T00:00:00.000Z');
+      const expectedDate = new Date(currentEndDate);
       expectedDate.setDate(expectedDate.getDate() + 365);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(input.value).toBe(expectedString);
     });
@@ -300,7 +303,7 @@ describe('ConsentExtendDialog', () => {
       // Should calculate from now
       const expectedDate = new Date(now);
       expectedDate.setDate(expectedDate.getDate() + 30);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(input.value).toBe(expectedString);
 
@@ -321,7 +324,7 @@ describe('ConsentExtendDialog', () => {
 
       const expectedDate = new Date(now);
       expectedDate.setDate(expectedDate.getDate() + 90);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(input.value).toBe(expectedString);
 
@@ -342,7 +345,7 @@ describe('ConsentExtendDialog', () => {
 
       const expectedDate = new Date(now);
       expectedDate.setDate(expectedDate.getDate() + 365);
-      const expectedString = expectedDate.toISOString().slice(0, 16);
+      const expectedString = toDateTimeLocalValue(expectedDate);
 
       expect(input.value).toBe(expectedString);
 
@@ -357,8 +360,8 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      const futureDate = new Date('2026-03-01T00:00:00.000Z');
-      const futureDateString = futureDate.toISOString().slice(0, 16);
+      const futureDate = addDays(currentEndDate, 30);
+      const futureDateString = toDateTimeLocalValue(futureDate);
       await user.clear(input);
       await user.type(input, futureDateString);
 
@@ -379,7 +382,9 @@ describe('ConsentExtendDialog', () => {
 
       // Verify the date object is correct
       const callArgs = vi.mocked(mockMutation.mutate).mock.calls[0][0];
-      expect(callArgs.data.endDate.toISOString()).toContain('2026-03-01');
+      expect(Math.floor(callArgs.data.endDate.getTime() / 60_000)).toBe(
+        Math.floor(futureDate.getTime() / 60_000)
+      );
     });
 
     it('closes dialog after successful extension', async () => {
@@ -387,8 +392,8 @@ describe('ConsentExtendDialog', () => {
       render(<ConsentExtendDialog {...defaultProps} />);
 
       const input = screen.getByLabelText(/new expiration date/i);
-      const futureDate = new Date('2026-03-01T00:00:00.000Z');
-      const futureDateString = futureDate.toISOString().slice(0, 16);
+      const futureDate = addDays(currentEndDate, 30);
+      const futureDateString = toDateTimeLocalValue(futureDate);
       await user.clear(input);
       await user.type(input, futureDateString);
 

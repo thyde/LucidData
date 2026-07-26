@@ -16,9 +16,13 @@ vi.mock('@/lib/hooks/useVault', () => ({
   })),
 }));
 
-vi.mock('@/lib/context/encryption-context', () => ({
-  useEncryption: vi.fn(() => ({ isLocked: false })),
-}));
+vi.mock('@/lib/context/encryption-context', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/context/encryption-context')>();
+  return {
+    ...actual,
+    useEncryption: vi.fn(() => ({ isLocked: false })),
+  };
+});
 
 vi.mock('@/lib/hooks/useConsent', () => ({
   useConsentList: vi.fn(() => ({

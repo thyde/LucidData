@@ -27,7 +27,7 @@ export function PlanBilling({ orgId, usage, canManageBilling, stripeEnabled }: P
     setPending(plan)
     try {
       const { url } = await createCheckoutAction(orgId, plan)
-      window.location.href = url
+      window.location.assign(url)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start checkout.')
       setPending(null)
@@ -39,7 +39,7 @@ export function PlanBilling({ orgId, usage, canManageBilling, stripeEnabled }: P
     setPending('portal')
     try {
       const { url } = await createBillingPortalAction(orgId)
-      window.location.href = url
+      window.location.assign(url)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not open the billing portal.')
       setPending(null)

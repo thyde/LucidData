@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export const metadata: Metadata = {
   title: 'For business | LucidData',
-  description: 'Issue credentials, verify what people share, or buy consented anonymized data in bulk.',
+  description: 'Issue credentials, verify selected claims, or buy seller-approved data snapshots.',
 }
 
 const PRODUCTS = [
@@ -27,8 +27,8 @@ const PRODUCTS = [
   {
     icon: Database,
     title: 'Buy bulk data',
-    body: 'Purchase consented, anonymized datasets from people who opted in, by snapshot, subscription, or filtered bundle.',
-    bullets: ['Consented & anonymized', 'Flexible pricing models', 'Dataset exports'],
+    body: 'Purchase one-time snapshots of supported fields from sellers who approved the buyer, purpose, and retention terms.',
+    bullets: ['Minimum contributor cohorts', 'Expiring exports', 'Immutable purchase snapshots'],
     cta: { label: 'Become a buyer', href: '/org/register' },
   },
 ]
@@ -39,11 +39,11 @@ export default function ForBusinessPage() {
       <section className="border-b">
         <div className="container mx-auto px-4 py-20 text-center">
           <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-            Trusted data, on terms everyone agrees to.
+            Verifiable credentials and seller-approved data snapshots.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Issue verifiable credentials, validate what customers share, or buy consented,
-            anonymized data in bulk, all with a clear audit trail.
+            Issue verifiable credentials, validate selected claims, or buy supported dataset
+            snapshots with recorded seller approval and an audit trail.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">

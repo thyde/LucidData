@@ -90,6 +90,7 @@ export function FieldMonetizationToggle({
                   size="sm"
                   variant={on ? 'default' : 'outline'}
                   onClick={() => toggle(field)}
+                  disabled={!loaded || isPending}
                   className="gap-1"
                 >
                   {on ? <DollarSign className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
