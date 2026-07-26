@@ -36,6 +36,32 @@ test.describe('Trust centre', () => {
     await expect(page.getByText('What is still exposed').first()).toBeVisible()
   })
 
+  // LD-205: an extension that says it will not watch you browse has to publish
+  // the permission list, or the claim is unverifiable.
+  test('publishes the extension permission list and what stays optional', async ({ page }) => {
+    await page.goto('/trust')
+    await page.getByRole('link', { name: 'Read the extension permissions' }).click()
+    await expect(page).toHaveURL('/trust/extension')
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Browser extension permissions' })
+    ).toBeVisible()
+
+    // The complete install set, named.
+    const installSection = page.getByRole('list').first()
+    await expect(installSection.getByText('downloads', { exact: true })).toBeVisible()
+    await expect(installSection.getByText('storage', { exact: true })).toBeVisible()
+
+    // The browsing permission is present as a capability, and stated as opt-in.
+    const insightRow = page.getByRole('row').filter({ hasText: 'Tracker insight' }).first()
+    await expect(insightRow).toContainText('webNavigation')
+    await expect(insightRow).toContainText(/separate opt-in/i)
+
+    // Revocation is described as removing the permission, not clearing a flag.
+    await expect(
+      page.getByText(/removes the underlying browser permission rather than/i)
+    ).toBeVisible()
+  })
+
   test('links to an assurance pack that states what we do not meet', async ({ page }) => {
     await page.goto('/trust')
     await page.getByRole('link', { name: 'Read the assurance pack' }).click()

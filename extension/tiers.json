@@ -1,0 +1,40 @@
+{
+  "$comment": "LD-205 capability tiers. This file is the single source: the extension reads it at runtime, the trust centre publishes it, and a test asserts it matches manifest.json. Editing the manifest without editing this fails the build.",
+  "installPermissions": ["downloads", "storage"],
+  "installHostPermissions": [
+    "http://localhost:3000/*",
+    "https://lucid-data.vercel.app/*"
+  ],
+  "tiers": [
+    {
+      "id": 0,
+      "spec": "LD-205",
+      "name": "Import assistance",
+      "capability": "Notices when a data export finishes downloading and offers to hand it to your vault.",
+      "granted": "At install",
+      "permissions": [],
+      "origins": [],
+      "reason": "Seeing that a file was saved needs the downloads permission. It reveals the file name and where it came from, not what you browse."
+    },
+    {
+      "id": 1,
+      "spec": "LD-206",
+      "name": "Tracker insight",
+      "capability": "Shows which companies collect data as you browse, analysed on this device.",
+      "granted": "Separate opt-in, with a browser permission prompt",
+      "permissions": ["webNavigation"],
+      "origins": ["<all_urls>"],
+      "reason": "Identifying who collects from a page needs to see which sites you visit. That is why it is off until you turn it on, and why turning it off removes the permission rather than setting a flag."
+    },
+    {
+      "id": 2,
+      "spec": "LD-207",
+      "name": "Browsing contribution",
+      "capability": "Lets you sell sanitized browsing data through the marketplace.",
+      "granted": "Separate opt-in. Never bundled with tracker insight",
+      "permissions": ["webNavigation"],
+      "origins": ["<all_urls>"],
+      "reason": "This is a commercial decision, not a privacy feature, so it is asked for on its own. Turning on tracker insight never turns this on."
+    }
+  ]
+}

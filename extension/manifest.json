@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "LucidData import assistant",
+  "version": "0.1.0",
+  "description": "Helps you finish a data export and hand it to your LucidData vault. Reads nothing about your browsing unless you turn that on.",
+  "minimum_chrome_version": "116",
+  "permissions": ["downloads", "storage"],
+  "optional_permissions": ["webNavigation"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://lucid-data.vercel.app/*"
+  ],
+  "optional_host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "LucidData"
+  },
+  "options_page": "src/options.html",
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:3000/*", "https://lucid-data.vercel.app/*"],
+      "js": ["src/bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

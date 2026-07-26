@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Upload } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEncryption } from '@/lib/context/encryption-context'
@@ -39,6 +39,13 @@ const CATEGORY_OPTIONS = [
 ]
 
 const MAX_RECORDS = 1000
+
+/**
+ * LD-205: the extension banner hands a detected export in through this event
+ * rather than through a prop, so the dialog keeps its own state and its
+ * public shape does not change.
+ */
+export const IMPORT_FILE_EVENT = 'lucid:import-file'
 
 // Import a .json or .csv file into vault entries. Parsing and encryption both happen
 // in the browser, so the file's plaintext never reaches the server: each record is
@@ -82,7 +89,7 @@ export function VaultImportDialog() {
     setProgress(null)
   }
 
-  const handleFile = async (file: File | undefined) => {
+  const handleFile = useCallback(async (file: File | undefined) => {
     if (!file) return
     setParseError(null)
     setParsed(null)
@@ -102,7 +109,7 @@ export function VaultImportDialog() {
     } catch {
       setParseError('Could not read this file. Use a .json or .csv file.')
     }
-  }
+  }, [])
 
   // Choosing a schema type auto-guesses a column mapping and aligns the category.
   const handleTargetTypeChange = (type: string) => {
@@ -161,6 +168,18 @@ export function VaultImportDialog() {
 
   const firstRecord = parsed?.records[0]
   const sampleKeys = firstRecord ? Object.keys(firstRecord).slice(0, 8) : []
+
+  // LD-205: accept a file the extension banner detected.
+  useEffect(() => {
+    function onImportFile(event: Event) {
+      const file = (event as CustomEvent<File>).detail
+      if (!file) return
+      setOpen(true)
+      void handleFile(file)
+    }
+    window.addEventListener(IMPORT_FILE_EVENT, onImportFile)
+    return () => window.removeEventListener(IMPORT_FILE_EVENT, onImportFile)
+  }, [handleFile])
 
   return (
     <Dialog

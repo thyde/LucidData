@@ -2,7 +2,7 @@
 
 Research date: 2026-07-25
 Last delivery update: 2026-07-26
-Status: active. **Phase 1 is delivered. Phase 2 is ten specs in.**
+Status: active. **Phase 1 is delivered. Phase 2 is eleven specs in.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Owner: product
@@ -859,12 +859,12 @@ Security.
 - Publish the permission list, each tier, and the reason for each on the LD-101 trust page.
 
 Acceptance criteria.
-- [ ] A fresh install holds no permission that permits reading general browsing activity.
-- [ ] Enabling a tier triggers a browser permission prompt, and declining leaves the tier off.
-- [ ] Revoking a tier removes the browser permission, verified by querying the permission state.
+- [x] A fresh install holds no permission that permits reading general browsing activity.
+- [x] Enabling a tier triggers a browser permission prompt, and declining leaves the tier off.
+- [x] Revoking a tier removes the browser permission, verified by querying the permission state.
 - [ ] Walkthroughs complete an export request for each supported provider.
-- [ ] A completed export reaches the import flow without a server round trip.
-- [ ] Uninstalling leaves no residual permission or stored data.
+- [x] A completed export reaches the import flow without a server round trip.
+- [x] Uninstalling leaves no residual permission or stored data.
 
 Tests. A manifest test pinning the install-time permission set, so a future change cannot silently
 widen it. A test asserting tier revocation actually drops the permission. Integration tests per provider
@@ -2020,7 +2020,7 @@ If sub-daily payout retries become necessary, the options are a Pro plan or a sc
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
-Status: ten of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
+Status: eleven of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
 
 - LD-107 assurance and procurement pack (delivered)
 - LD-602 organization developer surface (delivered in part)
@@ -2093,6 +2093,8 @@ Notes on LD-602 that affect later work.
 
 | LD-108 accessibility conformance | Delivered 2026-07-26 | `__tests__/e2e/accessibility/accessibility.spec.ts` runs axe-core against ten public and nine authenticated routes on every run, tagged `wcag2a` through `wcag22aa`, and fails on serious and critical violations with the rule and the offending selector in the message. It also drives sign in with the keyboard alone, proves the vault dialog is reachable and closes with Escape, and asserts that a validation error is linked to its control through `aria-describedby`. Every layout gained `components/layout/skip-link.tsx` and a named `main#main`, including the auth layout, which had no main landmark at all. The scan found and closed four real defects: the pricing badge and the home page call to action both failed AA contrast, and the sign-in and registration links failed "links must be distinguishable without relying on colour" because they were underlined only on hover. `/trust/accessibility` publishes the statement itself, and `lib/constants/__tests__/accessibility.test.ts` reads the layouts to check that the measures it claims are the measures that exist. | No manual screen reader testing and no third-party audit, both stated on the page rather than glossed over. Chart SVGs, custom-schema JSON display, and the memory-only vault key timeout are published as named limitations with a criterion each. |
 
+| LD-205 browser extension foundation | Delivered 2026-07-26 | `extension/` is a Manifest V3 extension whose install-time permission set is exactly `downloads` and `storage`, plus host access to this application and nothing else. `webNavigation` and `<all_urls>` are declared optional, so the browser withholds them until the person accepts a prompt, and that is checkable on the browser's own extension details page rather than being a promise. `extension/tiers.json` is the single description of the model: the extension reads it at runtime, `/trust/extension` publishes it, and a test asserts it matches the manifest, so widening the manifest without saying so fails the build. Turning a tier off calls `chrome.permissions.remove`, and only once no other enabled tier still needs the permission, which a test drives against a fake `chrome` rather than asserting in prose. Enablement is read from the browser, never from extension storage, so a permission revoked in browser settings shows as off. The background worker notices a finished export, and the file is read only when the vault page asks for it, handed over `window.postMessage` on this origin, and encrypted in the browser before anything is stored. | Provider-specific walkthroughs are written but cannot be end-to-end verified until LD-203 supplies the matching parsers, which the spec already made conditional. The extension is not published to a browser store; it loads unpacked, and `/trust/extension` says so rather than implying a store listing exists. |
+
 ### 6.5 Defects found while building Phase 2
 
 `supabase/migrations/20260726160000_api_role_grants.sql`.
@@ -2113,7 +2115,7 @@ Four more came from LD-108's automated scan, all on pages that had been read by 
 
 ### 6.6 What is left in Phase 2
 
-Two specs remain, and both belong to the browser extension. This is the order to take them in and what each one now depends on, given what has already landed.
+One spec remains. LD-206 tracker transparency now has the permission model it needs.
 
 **1. LD-503 buyer evaluation surface.** Delivered 2026-07-26. Kept here because the reasoning still applies to anything that quotes a price or a volume: call `prepareRelease`, do not estimate.
 
@@ -2123,9 +2125,9 @@ Two specs remain, and both belong to the browser extension. This is the order to
 
 **4. LD-202 source health and provenance.** Delivered 2026-07-26. It closed a latent defect on the way: `disconnectSource` already filtered `vault_data.source_provider` when asked to delete imported entries, and that column did not exist, so the option would have failed at runtime on first use. Two rules worth carrying forward. Unencrypted metadata needs a shape narrow enough that content cannot fit through it, enforced in the database as well as in Zod, because the schema is the only thing standing between a convenience field and a leak. And reading the clock during render is now a lint error, so relative-time components take `now` as a prop from a caller that read it in an effect.
 
-**5. LD-206 tracker transparency and browsing insight.** The remaining half of the "a new user gets something useful before contributing" criterion. It is worth checking whether the insight can be delivered without the extension first, because LD-205 is a separate build target.
+**5. LD-206 tracker transparency and browsing insight.** The remaining half of the "a new user gets something useful before contributing" criterion, and now the only Phase 2 spec left. The earlier note wondered whether the insight could be delivered without the extension. It cannot: seeing who collects from a page requires being on the page, and every server-side approximation would mean sending us browsing data, which is the thing this feature is supposed to expose. LD-205 built the tier that carries it.
 
-**6. LD-205 extension foundation.** A browser extension is a new artifact with its own build, review, and release process, not another route in this application. Treat it as such when estimating.
+**6. LD-205 extension foundation.** Delivered 2026-07-26. The estimate note was right: an extension is a separate artifact with its own manifest, its own permission model, and a store review this repository cannot perform. What made it worth doing first is that the permission model is the product claim. "We will not watch you browse" is unverifiable prose; `optional_permissions` makes the browser the enforcement point, and a user can confirm it without trusting us. Two rules follow for LD-206 and LD-207. Read enablement from `chrome.permissions.contains`, never from extension storage, or a permission revoked in browser settings leaves the feature claiming to be on. And when two tiers share a permission, removing it for one silently breaks the other, so revocation has to check what else is still enabled.
 
 **7. LD-108 accessibility conformance.** Delivered 2026-07-26. Two findings worth carrying. Automated scanning is genuinely worth the setup cost: it found four real contrast and link-distinguishability defects on pages that had been reviewed by eye more than once, which is exactly the class of problem people do not catch by looking. And the honest version of an accessibility statement is more useful than a passing one, so the page names what has not been tested rather than implying the automated pass covers the standard.
 
@@ -2431,7 +2433,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
-| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503, LD-604, LD-201, LD-202, LD-108 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus nine found during the work |
+| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503, LD-604, LD-201, LD-202, LD-108, LD-205 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus nine found during the work |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

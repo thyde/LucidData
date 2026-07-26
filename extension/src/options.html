@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>LucidData extension permissions</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="main">
+      <h1>What this extension can do</h1>
+      <p class="lead">
+        Each capability below is a separate permission held by your browser, not a setting we
+        keep. Turning one off removes the permission. You can check that on the browser's own
+        extension details page.
+      </p>
+
+      <section aria-labelledby="install-heading">
+        <h2 id="install-heading">Held from the moment you installed it</h2>
+        <ul id="install-permissions"></ul>
+        <p class="note">None of these can read the pages you visit or your history.</p>
+      </section>
+
+      <section aria-labelledby="tiers-heading">
+        <h2 id="tiers-heading">Capabilities</h2>
+        <ul id="tiers" class="tiers"></ul>
+      </section>
+
+      <section aria-labelledby="exports-heading">
+        <h2 id="exports-heading">Getting an export</h2>
+        <p class="note">
+          These are steps to follow on the provider's own site. The extension does not act on
+          your behalf.
+        </p>
+        <ul id="sources" class="sources"></ul>
+      </section>
+
+      <p class="footer">
+        The same information is published at
+        <a href="https://lucid-data.vercel.app/trust/extension">lucid-data.vercel.app/trust/extension</a>.
+      </p>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

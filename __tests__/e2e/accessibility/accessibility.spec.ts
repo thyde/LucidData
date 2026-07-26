@@ -65,6 +65,7 @@ test.describe('Accessibility, public surfaces', () => {
     '/trust',
     '/trust/accessibility',
     '/trust/assurance',
+    '/trust/extension',
     '/trust/threat-model',
     '/login',
     '/register',

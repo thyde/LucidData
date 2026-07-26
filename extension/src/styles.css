@@ -1,0 +1,113 @@
+:root {
+  color-scheme: light;
+  --fg: #0f172a;
+  --muted: #475569;
+  --line: #e2e8f0;
+  --on: #166534;
+  --off: #7c2d12;
+}
+
+body {
+  margin: 0;
+  padding: 2rem;
+  max-width: 46rem;
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--fg);
+}
+
+body.popup {
+  padding: 1rem;
+  width: 20rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 2rem 0 0.5rem;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 0 0 0.25rem;
+}
+
+.lead {
+  color: var(--muted);
+  margin-top: 0;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+ul,
+ol {
+  padding-left: 1.2rem;
+}
+
+.tiers,
+.sources {
+  list-style: none;
+  padding: 0;
+}
+
+.tier,
+.source {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.status {
+  display: inline-block;
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+/* The element's own text reads "On" or "Off", so colour is never the only
+   signal here. */
+.status-on {
+  color: var(--on);
+}
+
+.status-off {
+  color: var(--off);
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--fg);
+  border-radius: 6px;
+  background: var(--fg);
+  color: #fff;
+  cursor: pointer;
+  min-height: 2.25rem;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--fg);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.footer {
+  margin-top: 2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}

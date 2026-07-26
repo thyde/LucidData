@@ -343,6 +343,21 @@ export default function TrustPage() {
           Read the accessibility statement
         </Link>
       </section>
+
+      <section className="mt-6 rounded-lg border bg-muted/30 p-6">
+        <h2 className="text-xl font-semibold">Browser extension</h2>
+        <p className="mt-2 text-muted-foreground">
+          Every permission the extension holds, what each is for, and which capabilities stay off
+          until you grant them. The browsing permissions are optional, so your browser withholds
+          them rather than us promising not to use them.
+        </p>
+        <Link
+          href="/trust/extension"
+          className="mt-4 inline-block font-medium text-primary underline"
+        >
+          Read the extension permissions
+        </Link>
+      </section>
     </div>
   )
 }

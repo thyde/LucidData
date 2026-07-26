@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>LucidData</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="popup">
+    <main id="main">
+      <h1>LucidData</h1>
+      <div id="pending" hidden>
+        <p id="pending-text"></p>
+        <button type="button" id="open-import">Open my vault to import it</button>
+        <button type="button" id="dismiss" class="secondary">Not now</button>
+      </div>
+      <p id="idle">
+        No export waiting. Download one from a provider and this will offer to hand it over.
+      </p>
+      <p class="footer">
+        <a href="#" id="open-options">What this extension can do</a>
+      </p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

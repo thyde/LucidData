@@ -6,6 +6,7 @@ import { VaultViewDialog } from './vault-view-dialog';
 import { VaultEditDialog } from './vault-edit-dialog';
 import { VaultCreateDialog } from './vault-create-dialog';
 import { VaultImportDialog } from './vault-import-dialog';
+import { ExtensionImportBanner } from './extension-import-banner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -90,6 +91,10 @@ export function VaultList({ onEntryClick }: VaultListProps) {
           <VaultCreateDialog />
         </div>
       </div>
+
+      {/* LD-205: an export the browser extension noticed, offered rather than
+          pushed. Renders nothing when there is no extension or nothing waiting. */}
+      <ExtensionImportBanner />
 
       {/* Filters */}
       <div className="flex gap-4 items-center">
