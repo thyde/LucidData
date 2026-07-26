@@ -2166,6 +2166,41 @@ Two smaller pieces of unfinished work sit outside that list and should be picked
 - **An operator console for rights cases.** `pause`, `resume`, `extend`, and `resolve` are implemented and tested with no screen and no server action behind them. Until that exists, an operator has to advance a case through the service role by hand, which does not scale past a handful of requests.
 - **Webhook management for organizations.** `createWebhook` is a service function with no UI, so an endpoint can only be registered by an operator.
 
+### 6.7 Production infrastructure
+
+The product moved from `lucid-data.vercel.app` to `luciddatabank.com` on 2026-07-27. This is recorded here
+because two of the decisions constrain later work.
+
+**One origin, not four.** `luciddatabank.com` serves the app. `www`, `luciddatabank.app`, `luciddatabank.co`,
+and the old `lucid-data.vercel.app` all redirect to it while preserving the path. The alternative, attaching the
+extra domains as serving aliases, would have broken four things at once. A passkey is bound to its relying-party
+id, so a credential registered on one origin does not work on another. Sessions are per-origin, so a user signed
+in on one domain appears signed out on the next. OAuth callbacks are derived from `NEXT_PUBLIC_APP_URL` and
+would not match the origin the user started from. And the extension holds a host permission for a single origin,
+so the bridge would go quiet on the others. Anything added later that is origin-bound should assume one canonical
+origin and keep the rest as redirects.
+
+**The credential context URI is now on a domain we own.** Issued credentials and vault exports carry a JSON-LD
+context at `https://luciddatabank.com/`. It previously pointed at a domain owned by a third party, which meant
+the vocabulary defining every credential we issue sat on an address someone else controlled. This was safe to
+change only because production held no issued credentials at the time. Once credentials exist in the wild the
+context URI is effectively permanent, because a verifier resolving an older credential still expects the old
+address to answer. Treat it as frozen from here.
+
+Email runs on Zoho with MX, SPF, and DKIM published. Two gaps remain and both are listed in section 6.8.
+
+### 6.8 Outstanding setup
+
+None of these block Phase 3. They are recorded so they are not lost.
+
+| Item | State | Why it matters |
+| --- | --- | --- |
+| DMARC record | Absent | Without a policy at `_dmarc`, anyone can send mail as `security@luciddatabank.com` and receiving servers have no instruction to reject it. This matters more than usual for a product whose subject is custody of personal data |
+| Resend sending domain | Not configured | Notification email has no delivery path. When adding it, edit the existing SPF record rather than publishing a second one, because two SPF records is a permanent error rather than a merge |
+| Strava and Fitbit OAuth apps | Not created | LD-201 connectors cannot complete an authorization round trip without them. Both require an account we do not control |
+| Extension icons | Missing from the manifest | A store listing is rejected without them |
+| Extension store listings | Not started | Chrome, Edge, and Firefox each need their own submission. Firefox additionally needs `browser_specific_settings` |
+
 ### Phase 3, months 6 to 9. Make credentials portable and access governed
 
 - LD-401 standards-based credential formats
