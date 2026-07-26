@@ -270,7 +270,9 @@ describe('VaultCreateDialog', () => {
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
 
       const longDescription = 'a'.repeat(501);
-      await user.type(screen.getByLabelText(/description/i), longDescription);
+      // Paste rather than type: 501 simulated keystrokes times out under load.
+      await user.click(screen.getByLabelText(/description/i));
+      await user.paste(longDescription);
       await user.click(screen.getByRole('button', { name: /^create$/i }));
 
       await waitFor(() => {

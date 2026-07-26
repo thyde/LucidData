@@ -17,6 +17,7 @@ import {
   type OpenDataPool,
 } from '@/lib/services/marketplace.service'
 import { createPoolSchema } from '@/lib/validations/marketplace'
+import { evaluatePool, type PoolEvaluation } from '@/lib/services/pool-evaluation.service'
 import type { DataPool } from '@/types/database.types'
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -57,4 +58,18 @@ export async function closePoolAction(orgId: string, poolId: string): Promise<Da
   const userId = await getAuthenticatedUserId()
   await requireDataBuyer(orgId)
   return closePool(poolId, orgId, userId)
+}
+
+/**
+ * LD-503: what a buyer would actually receive, before they pay for it.
+ *
+ * Scoped to the owning organization, because coverage and cohort size for
+ * somebody else's pool are not public facts.
+ */
+export async function evaluatePoolAction(
+  orgId: string,
+  poolId: string
+): Promise<PoolEvaluation> {
+  await requireDataBuyer(orgId)
+  return evaluatePool(poolId, orgId)
 }

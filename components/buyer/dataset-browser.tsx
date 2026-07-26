@@ -9,6 +9,7 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { purchasePoolAction } from '@/lib/actions/data-order.actions'
 import { closePoolAction } from '@/lib/actions/marketplace.actions'
 import { categoryLabel, formatCents } from '@/components/dashboard/chart-theme'
+import { PoolEvaluationDialog } from '@/components/buyer/pool-evaluation-dialog'
 import type { DataPool } from '@/types/database.types'
 
 const PRICING_LABEL = {
@@ -105,6 +106,8 @@ export function DatasetBrowser({ orgId, pools }: { orgId: string; pools: DataPoo
                 record · base {formatCents(pool.price_cents)}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
+                {/* LD-503: see what a purchase would actually deliver first. */}
+                <PoolEvaluationDialog orgId={orgId} poolId={pool.id} poolName={pool.name} />
                 <Button size="sm" disabled={busy} onClick={() => purchase(pool)}>
                   Buy snapshot
                 </Button>

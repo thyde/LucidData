@@ -84,6 +84,21 @@ export function assertOrderMeetsMinimum(totalCents: number): void {
   if (totalCents < MINIMUM_ORDER_CENTS) throw new MinimumOrderError(totalCents)
 }
 
+/**
+ * What an order costs: a base access fee plus a per-record price.
+ *
+ * Lives here rather than inside the purchase path so the buyer evaluation
+ * surface quotes the same number the checkout charges. A separate estimator
+ * would eventually disagree, and the buyer would be the one who found out.
+ */
+export function computeOrderTotal(
+  pricePerRecordCents: number,
+  basePriceCents: number,
+  recordCount: number
+): number {
+  return basePriceCents + recordCount * pricePerRecordCents
+}
+
 export interface EarningsSplit {
   grossCents: number
   platformFeeCents: number

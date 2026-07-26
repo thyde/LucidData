@@ -238,11 +238,26 @@ test.describe('Marketplace lifecycle', () => {
       })
 
       await buyerPage.reload()
+
+      // LD-503: the buyer sees what a purchase would actually deliver, and what
+      // it would withhold, before paying for it.
+      await buyerPage.getByRole('button', { name: 'Evaluate' }).click()
+      const evaluation = buyerPage.getByRole('dialog', { name: poolName })
+      await expect(evaluation.getByText('Privacy outcome')).toBeVisible({ timeout: 15000 })
+      await expect(
+        evaluation.getByText('shares its identifying details with at least', { exact: false })
+      ).toBeVisible()
+      await expect(evaluation.getByText('Field coverage')).toBeVisible()
+      await expect(evaluation.getByText('Every value below is invented', { exact: false })).toBeVisible()
+      // Never a real contributed value.
+      await expect(evaluation.getByText('Synthetic Industries')).toHaveCount(0)
+      await buyerPage.keyboard.press('Escape')
+      await expect(evaluation).toBeHidden()
+
       await buyerPage.getByRole('button', { name: 'Buy snapshot' }).click()
       await expect(buyerPage.getByText('Purchase complete', { exact: true })).toBeVisible({
         timeout: 15000,
       })
-
       const extraUser = seededUsers[0]
       const { error: postPurchaseError } = await service.from('pool_contributions').insert({
         pool_id: pool.id,

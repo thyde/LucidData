@@ -2,7 +2,7 @@
 
 Research date: 2026-07-25
 Last delivery update: 2026-07-26
-Status: active. **Phase 1 is delivered. Phase 2 is five specs in.**
+Status: active. **Phase 1 is delivered. Phase 2 is six specs in.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Owner: product
@@ -2020,7 +2020,7 @@ If sub-daily payout retries become necessary, the options are a Pro plan or a sc
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
-Status: five of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
+Status: six of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
 
 - LD-107 assurance and procurement pack (delivered)
 - LD-602 organization developer surface (delivered in part)
@@ -2029,7 +2029,7 @@ Status: five of twelve delivered. Delivery is tracked in [section 6.4](#64-phase
 - LD-607 retention and deletion completeness (delivered)
 - LD-301 rights and DSAR engine (delivered)
 - LD-202 source health and provenance
-- LD-503 buyer evaluation surface
+- LD-503 buyer evaluation surface (delivered)
 - LD-205 extension foundation
 - LD-206 tracker transparency and browsing insight
 - LD-604 bulk and asynchronous organization operations
@@ -2083,6 +2083,8 @@ Notes on LD-602 that affect later work.
 - Delivery signing uses the stored secret hash rather than a plaintext secret, so a database read alone does not hand an attacker a working forgery key. LD-604 and anything else that adds an outbound callback should follow the same pattern.
 - The SSRF guard checks hostnames, not resolved addresses. A hostname that resolves to a private address still gets through. Closing that needs DNS resolution at send time with a re-check after resolution, and it is worth doing before the webhook surface is opened to self-service.
 
+| LD-503 buyer evaluation surface | Delivered 2026-07-26 | `lib/services/pool-evaluation.service.ts` shows a buyer what a purchase would actually deliver before they pay: contributor band, record count, per-field coverage, freshness buckets, and a privacy panel reporting the cohort size the release would achieve, how many records would be withheld, and how far each field would be generalized. It calls the same `prepareRelease` the purchase path calls, so a quote cannot disagree with a charge, and `computeOrderTotal` moved into `lib/constants/marketplace-economics.ts` for the same reason. Coverage, freshness, and schema mix come from three Postgres functions that aggregate keys and timestamps without ever returning a contributed value. Samples are invented from the schema by `lib/services/synthetic-samples.ts`, which a test proves cannot even import a repository. | Nothing in scope. Distribution-shape quality metrics were left out deliberately, because the useful ones are themselves disclosive on a small pool. |
+
 ### 6.5 A defect found while building Phase 2
 
 `supabase/migrations/20260726160000_api_role_grants.sql`.
@@ -2095,11 +2097,13 @@ The migration grants the privileges explicitly, sets matching default privileges
 
 Two things follow. Any migration that adds a table meant to be service-role only must add its own `REVOKE ALL ... FROM anon, authenticated`, because the default privileges now grant DML to new tables. And `npx supabase db reset --local` is worth running before a release, since it is the only thing that would have caught this.
 
+A second, smaller instance of the same class turned up while building LD-503. `REVOKE EXECUTE ... FROM PUBLIC` on a new function removes the default grant from **every** role, `service_role` included, so a function meant to be service-role only needs an explicit `GRANT EXECUTE ... TO service_role` immediately afterwards. Without it the failure appears at runtime as a permission error rather than at deploy time. Treat revoke-then-grant as a single idiom.
+
 ### 6.6 What is left in Phase 2
 
 Seven specs remain. This is the order to take them in and what each one now depends on, given what has already landed.
 
-**1. LD-503 buyer evaluation surface.** Promoted from its original position, because LD-501 created the need. Full-domain generalization rarely refuses once there are at least k records; it generalizes hard instead. A cohort of five people at five different employers is released with the employer suppressed and the start date widened to a decade. That is correct, and the privacy report says so, but a buyer can pay for a dataset that generalization has emptied of value and only discover it after the charge. LD-503 has to show the achieved k, the generalization levels, and the suppression rate **before** purchase. `prepareRelease` is pure, so a preview can call the same function the gate calls and cannot disagree with it. Do not write a second estimator.
+**1. LD-503 buyer evaluation surface.** Delivered 2026-07-26. Kept here because the reasoning still applies to anything that quotes a price or a volume: call `prepareRelease`, do not estimate.
 
 **2. LD-604 bulk and asynchronous organization operations.** An exit criterion, and the groundwork is already there. The LD-601 runner takes a new job by adding a name to `JOB_NAMES` and a function to `JOB_RUNNERS`, and LD-602 added the webhook that tells a buyer a long job finished. Bulk operations should reuse both rather than inventing a second queue.
 
@@ -2419,7 +2423,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
-| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus one found during the work. See section 6.4 |
+| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus three found during the work. See sections 6.4 and 6.5 |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

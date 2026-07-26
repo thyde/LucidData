@@ -2194,6 +2194,27 @@ export type Database = {
           user_agent: string
         }[]
       }
+      pool_field_coverage: {
+        Args: { p_pool_id: string }
+        Returns: {
+          field: string
+          present: number
+        }[]
+      }
+      pool_freshness: {
+        Args: { p_pool_id: string }
+        Returns: {
+          bucket: string
+          records: number
+        }[]
+      }
+      pool_schema_mix: {
+        Args: { p_pool_id: string }
+        Returns: {
+          records: number
+          schema_type: string
+        }[]
+      }
       redeem_offer_claim_atomic: {
         Args: { p_organization_id: string; p_redemption_code: string }
         Returns: {

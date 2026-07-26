@@ -6,7 +6,7 @@ import * as poolRepo from '@/lib/repositories/pool.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { recordOrderPayouts } from '@/lib/services/payout.service'
-import { assertOrderMeetsMinimum } from '@/lib/constants/marketplace-economics'
+import { assertOrderMeetsMinimum, computeOrderTotal } from '@/lib/constants/marketplace-economics'
 import { prepareRelease, type PrivacyReport } from '@/lib/privacy/k-anonymity'
 import type { DataOrder, Json } from '@/types/database.types'
 import {
@@ -49,7 +49,9 @@ function computeTotal(
   orderType: 'snapshot'
 ): number {
   void orderType
-  return basePriceCents + recordCount * pricePerRecordCents
+  // LD-503: shared with the buyer evaluation surface, so a quote and a charge
+  // cannot drift apart.
+  return computeOrderTotal(pricePerRecordCents, basePriceCents, recordCount)
 }
 
 async function createOrderWithSnapshot(
