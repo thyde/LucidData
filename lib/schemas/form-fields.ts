@@ -111,4 +111,18 @@ export const SCHEMA_FORM_FIELDS: Record<string, FormField[]> = {
     { name: 'resting_heart_rate', label: 'Resting heart rate (bpm)', type: 'number' },
     { name: 'sleep_minutes', label: 'Sleep (minutes)', type: 'number' },
   ],
+  // LD-206. Produced by the extension rather than typed, but the fields are
+  // here so the entry renders as a labelled list rather than raw JSON.
+  browsing_insight: [
+    { name: 'period_start', label: 'From', type: 'date', required: true },
+    { name: 'period_end', label: 'To', type: 'date', required: true },
+    { name: 'sites_visited', label: 'Sites visited', type: 'number' },
+    { name: 'collectors_seen', label: 'Collectors seen', type: 'number' },
+    { name: 'top_collector', label: 'Most widespread collector', type: 'text' },
+    { name: 'top_collector_reach', label: 'Present on (% of sites)', type: 'number' },
+    { name: 'advertising_collectors', label: 'Advertising collectors', type: 'number' },
+    { name: 'analytics_collectors', label: 'Analytics collectors', type: 'number' },
+    { name: 'fingerprinting_collectors', label: 'Fingerprinting collectors', type: 'number' },
+    { name: 'sensitive_sites_skipped', label: 'Sensitive sites excluded', type: 'number' },
+  ],
 }

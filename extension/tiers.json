@@ -20,11 +20,11 @@
       "id": 1,
       "spec": "LD-206",
       "name": "Tracker insight",
-      "capability": "Shows which companies collect data as you browse, analysed on this device.",
+      "capability": "Shows which companies collect data as you browse, analysed on this device, and sends Global Privacy Control on your behalf.",
       "granted": "Separate opt-in, with a browser permission prompt",
-      "permissions": ["webNavigation"],
+      "permissions": ["webNavigation", "scripting", "declarativeNetRequestWithHostAccess"],
       "origins": ["<all_urls>"],
-      "reason": "Identifying who collects from a page needs to see which sites you visit. That is why it is off until you turn it on, and why turning it off removes the permission rather than setting a flag."
+      "reason": "Identifying who collects from a page needs to see which sites you visit, run a reader in the page, and attach an opt-out header to requests. That is why it is off until you turn it on, and why turning it off removes the permission rather than setting a flag."
     },
     {
       "id": 2,
@@ -32,7 +32,7 @@
       "name": "Browsing contribution",
       "capability": "Lets you sell sanitized browsing data through the marketplace.",
       "granted": "Separate opt-in. Never bundled with tracker insight",
-      "permissions": ["webNavigation"],
+      "permissions": ["webNavigation", "scripting"],
       "origins": ["<all_urls>"],
       "reason": "This is a commercial decision, not a privacy feature, so it is asked for on its own. Turning on tracker insight never turns this on."
     }

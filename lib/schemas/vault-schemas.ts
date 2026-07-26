@@ -89,6 +89,25 @@ export const FitnessDailySchema = z.object({
 })
 export type FitnessDaily = z.infer<typeof FitnessDailySchema>
 
+// --- Browsing insight (LD-206, an aggregate produced by the extension) ---
+// Counts and company names only. There is deliberately no field that could
+// hold a site, a path, or a page title, because a shape with nowhere to put
+// one cannot leak one.
+export const BrowsingInsightSchema = z.object({
+  period_start: z.string().min(1),
+  period_end: z.string().min(1),
+  sites_visited: z.number(),
+  collectors_seen: z.number(),
+  sensitive_sites_skipped: z.number().optional(),
+  top_collector: z.string().optional(),
+  top_collector_reach: z.number().optional(),
+  advertising_collectors: z.number().optional(),
+  analytics_collectors: z.number().optional(),
+  fingerprinting_collectors: z.number().optional(),
+  source: z.string().optional(),
+})
+export type BrowsingInsight = z.infer<typeof BrowsingInsightSchema>
+
 // --- Schema registry ---
 export const VAULT_SCHEMA_TYPES = {
   custom: { label: 'Custom (JSON)', description: 'Free-form JSON data', category: 'personal' },
@@ -99,6 +118,7 @@ export const VAULT_SCHEMA_TYPES = {
   education: { label: 'Education Record', description: 'Academic credentials', category: 'credentials' },
   fitness_activity: { label: 'Fitness Activity', description: 'A workout or activity (e.g. from Strava)', category: 'health' },
   fitness_daily: { label: 'Daily Fitness Summary', description: 'A day of steps, calories, and activity (e.g. from Fitbit)', category: 'health' },
+  browsing_insight: { label: 'Tracker Summary', description: 'Who collected data as you browsed, counted on your device', category: 'other' },
 } as const
 
 export type VaultSchemaType = keyof typeof VAULT_SCHEMA_TYPES
@@ -111,4 +131,5 @@ export const SCHEMA_VALIDATORS: Record<string, z.ZodSchema> = {
   education: EducationSchema,
   fitness_activity: FitnessActivitySchema,
   fitness_daily: FitnessDailySchema,
+  browsing_insight: BrowsingInsightSchema,
 }

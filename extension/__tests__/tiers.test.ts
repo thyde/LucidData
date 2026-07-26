@@ -11,6 +11,14 @@ import { join } from 'path'
  */
 
 const tiersJson = readFileSync(join(process.cwd(), 'extension/tiers.json'), 'utf8')
+const TIER_MODEL = JSON.parse(tiersJson) as {
+  tiers: { id: number; permissions: string[]; origins: string[] }[]
+}
+
+function tierPermissions(id: number) {
+  const tier = TIER_MODEL.tiers.find((entry) => entry.id === id)!
+  return { permissions: tier.permissions, origins: tier.origins }
+}
 
 interface FakeChrome {
   granted: { permissions: Set<string>; origins: Set<string> }
@@ -107,7 +115,7 @@ describe('extension capability tiers', () => {
     const { enableTier, isTierEnabled } = await loadModule()
 
     expect(await enableTier(1)).toBe(true)
-    expect(fake.requests).toEqual([{ permissions: ['webNavigation'], origins: ['<all_urls>'] }])
+    expect(fake.requests).toEqual([tierPermissions(1)])
     expect(await isTierEnabled(1)).toBe(true)
   })
 
@@ -128,7 +136,7 @@ describe('extension capability tiers', () => {
     expect(await isTierEnabled(1)).toBe(true)
 
     await disableTier(1)
-    expect(fake.removals).toEqual([{ permissions: ['webNavigation'], origins: ['<all_urls>'] }])
+    expect(fake.removals).toEqual([tierPermissions(1)])
     expect(await isTierEnabled(1)).toBe(false)
     expect(fake.granted.permissions.has('webNavigation')).toBe(false)
   })
@@ -140,12 +148,19 @@ describe('extension capability tiers', () => {
     await enableTier(2)
 
     await disableTier(1)
-    // Tier 2 still needs webNavigation, so removing it would silently break it.
-    expect(fake.removals).toEqual([])
+    // Tier 2 still needs webNavigation and scripting, so removing them would
+    // silently break it. Only what tier 1 alone required goes.
+    const [removal] = fake.removals as { permissions: string[]; origins: string[] }[]
+    expect(removal.permissions).not.toContain('webNavigation')
+    expect(removal.permissions).not.toContain('scripting')
+    expect(removal.permissions).toContain('declarativeNetRequestWithHostAccess')
+    expect(removal.origins).toEqual([])
+    expect(fake.granted.permissions.has('webNavigation')).toBe(true)
     expect(await isTierEnabled(2)).toBe(true)
 
     await disableTier(2)
-    expect(fake.removals).toEqual([{ permissions: ['webNavigation'], origins: ['<all_urls>'] }])
+    expect(fake.granted.permissions.has('webNavigation')).toBe(false)
+    expect(fake.granted.permissions.has('scripting')).toBe(false)
     expect(await isTierEnabled(2)).toBe(false)
   })
 

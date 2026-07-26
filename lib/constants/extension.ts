@@ -55,3 +55,15 @@ export const INSTALL_PERMISSION_REASONS: Record<string, string> = {
  */
 export const EXTENSION_AVAILABILITY =
   'The extension is built and reviewable in the open, and is not yet published to a browser store. Until it is, it can be loaded unpacked from the repository.'
+
+/**
+ * LD-206 commitments. Each one is enforced by a test rather than by intent, so
+ * this list is a description of behaviour and not a policy.
+ */
+export const LD206_COMMITMENTS = [
+  'Only the registrable domain of a collector is kept. Never a path, a query string, or a fragment, which is where session tokens and email addresses live.',
+  'Which sites you visited is never written to your vault. A saved summary holds counts and company names.',
+  'Health, finance, legal, adult, government, and support sites produce no record at all. Not a filtered one, none, because the visit itself would be the disclosure.',
+  'Subdomains are collapsed to the organization, so a record cannot say which product you used.',
+  'While tracker insight is on, the extension sends the Global Privacy Control signal. Reporting who tracks you while staying silent about your opt-out would be incoherent.',
+] as const

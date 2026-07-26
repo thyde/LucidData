@@ -5,7 +5,11 @@
   "description": "Helps you finish a data export and hand it to your LucidData vault. Reads nothing about your browsing unless you turn that on.",
   "minimum_chrome_version": "116",
   "permissions": ["downloads", "storage"],
-  "optional_permissions": ["webNavigation"],
+  "optional_permissions": [
+    "webNavigation",
+    "scripting",
+    "declarativeNetRequestWithHostAccess"
+  ],
   "host_permissions": [
     "http://localhost:3000/*",
     "https://lucid-data.vercel.app/*"

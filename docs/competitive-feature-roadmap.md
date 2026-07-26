@@ -2,7 +2,7 @@
 
 Research date: 2026-07-25
 Last delivery update: 2026-07-26
-Status: active. **Phase 1 is delivered. Phase 2 is eleven specs in.**
+Status: active. **Phase 1 and Phase 2 are delivered. Phase 3 is next.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Owner: product
@@ -915,13 +915,13 @@ Security.
 - The extension must send Global Privacy Control, tying this to LD-302. Reporting trackers while not signalling an opt-out would be incoherent.
 
 Acceptance criteria.
-- [ ] Tracker detection runs entirely on device and issues no network request to perform analysis.
-- [ ] The user sees per-site and aggregate collection reporting within one browsing session.
-- [ ] Sensitive-category domains are excluded from persisted records by default and this is stated in the UI.
-- [ ] Only registrable domains are stored. A test asserts no query string, fragment, or path is persisted.
-- [ ] Findings written to the vault use the standard encrypted envelope.
-- [ ] The extension sends Global Privacy Control on supported requests.
-- [ ] A detected collector can be escalated into an LD-301 rights case with one action.
+- [x] Tracker detection runs entirely on device and issues no network request to perform analysis.
+- [x] The user sees per-site and aggregate collection reporting within one browsing session.
+- [x] Sensitive-category domains are excluded from persisted records by default and this is stated in the UI.
+- [x] Only registrable domains are stored. A test asserts no query string, fragment, or path is persisted.
+- [x] Findings written to the vault use the standard encrypted envelope.
+- [x] The extension sends Global Privacy Control on supported requests.
+- [x] A detected collector can be escalated into an LD-301 rights case with one action.
 
 Tests. A network-silence test proving analysis performs no outbound request. A URL sanitization test
 over adversarial URLs containing tokens, emails, and session identifiers. A sensitive-category exclusion
@@ -2020,7 +2020,7 @@ If sub-daily payout retries become necessary, the options are a Pro plan or a sc
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
-Status: eleven of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
+Status: delivered, with LD-602 delivered in part. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what was deliberately left out is in [section 6.6](#66-what-is-left-in-phase-2).
 
 - LD-107 assurance and procurement pack (delivered)
 - LD-602 organization developer surface (delivered in part)
@@ -2095,6 +2095,8 @@ Notes on LD-602 that affect later work.
 
 | LD-205 browser extension foundation | Delivered 2026-07-26 | `extension/` is a Manifest V3 extension whose install-time permission set is exactly `downloads` and `storage`, plus host access to this application and nothing else. `webNavigation` and `<all_urls>` are declared optional, so the browser withholds them until the person accepts a prompt, and that is checkable on the browser's own extension details page rather than being a promise. `extension/tiers.json` is the single description of the model: the extension reads it at runtime, `/trust/extension` publishes it, and a test asserts it matches the manifest, so widening the manifest without saying so fails the build. Turning a tier off calls `chrome.permissions.remove`, and only once no other enabled tier still needs the permission, which a test drives against a fake `chrome` rather than asserting in prose. Enablement is read from the browser, never from extension storage, so a permission revoked in browser settings shows as off. The background worker notices a finished export, and the file is read only when the vault page asks for it, handed over `window.postMessage` on this origin, and encrypted in the browser before anything is stored. | Provider-specific walkthroughs are written but cannot be end-to-end verified until LD-203 supplies the matching parsers, which the spec already made conditional. The extension is not published to a browser store; it loads unpacked, and `/trust/extension` says so rather than implying a store listing exists. |
 
+| LD-206 tracker transparency and browsing insight | Delivered 2026-07-26 | Tier 1 of the LD-205 model. On a completed navigation the worker asks the page what it already fetched, through the browser's own performance timeline, and classifies it against a list that ships with the extension. `extension/src/url-safety.js` is the only route from a URL to something storable, and it returns a registrable domain or nothing: no path, no query string, no fragment, no subdomain. The adversarial tests cover session tokens, email addresses, embedded credentials, and OAuth fragments. A sensitive site produces no record at all rather than a filtered one, because a filter is something a later change can forget to apply. Findings are counted, not listed, and a saved summary goes to the vault as a `browsing_insight` entry through the normal envelope, holding company names and counts and never which sites were visited. Tier 1 also installs a `declarativeNetRequest` rule that sends `Sec-GPC: 1`, because reporting who tracks someone while staying silent about their opt-out would be incoherent. A detected collector links straight into a prefilled LD-301 rights case. Three tests read the analysis source and assert it contains no `fetch`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, or `EventSource`, which is what turns "analysis is local" from a claim into a check. | Reporting only, no blocking, as the spec required. The tracker list is bundled and finite; an unrecognized third party is still counted but without a company name, and the UI says so. Escalation drafts a request to us to forward, because a rights request has to come from an account that can be verified. |
+
 ### 6.5 Defects found while building Phase 2
 
 `supabase/migrations/20260726160000_api_role_grants.sql`.
@@ -2115,7 +2117,7 @@ Four more came from LD-108's automated scan, all on pages that had been read by 
 
 ### 6.6 What is left in Phase 2
 
-One spec remains. LD-206 tracker transparency now has the permission model it needs.
+Nothing. All twelve specs are delivered, one of them (LD-602) in part. The sequence and the reasoning are kept below because the notes on each still apply to whatever touches that area next.
 
 **1. LD-503 buyer evaluation surface.** Delivered 2026-07-26. Kept here because the reasoning still applies to anything that quotes a price or a volume: call `prepareRelease`, do not estimate.
 
@@ -2125,7 +2127,7 @@ One spec remains. LD-206 tracker transparency now has the permission model it ne
 
 **4. LD-202 source health and provenance.** Delivered 2026-07-26. It closed a latent defect on the way: `disconnectSource` already filtered `vault_data.source_provider` when asked to delete imported entries, and that column did not exist, so the option would have failed at runtime on first use. Two rules worth carrying forward. Unencrypted metadata needs a shape narrow enough that content cannot fit through it, enforced in the database as well as in Zod, because the schema is the only thing standing between a convenience field and a leak. And reading the clock during render is now a lint error, so relative-time components take `now` as a prop from a caller that read it in an effect.
 
-**5. LD-206 tracker transparency and browsing insight.** The remaining half of the "a new user gets something useful before contributing" criterion, and now the only Phase 2 spec left. The earlier note wondered whether the insight could be delivered without the extension. It cannot: seeing who collects from a page requires being on the page, and every server-side approximation would mean sending us browsing data, which is the thing this feature is supposed to expose. LD-205 built the tier that carries it.
+**5. LD-206 tracker transparency and browsing insight.** Delivered 2026-07-26. The earlier note wondered whether the insight could be delivered without the extension. It cannot: seeing who collects from a page requires being on the page, and every server-side approximation would mean sending us browsing data, which is the thing this feature exists to expose. Three things are worth carrying into LD-207. The sanitizer is the only route from a URL to something storable, and keeping it that way is what makes a single adversarial test meaningful. A sensitive site produces no record rather than a filtered one, because a filter is something a later change forgets to apply. And a test that reads the analysis source for `fetch` is worth more than any amount of prose about local processing, because it fails when someone adds one.
 
 **6. LD-205 extension foundation.** Delivered 2026-07-26. The estimate note was right: an extension is a separate artifact with its own manifest, its own permission model, and a store review this repository cannot perform. What made it worth doing first is that the permission model is the product claim. "We will not watch you browse" is unverifiable prose; `optional_permissions` makes the browser the enforcement point, and a user can confirm it without trusting us. Two rules follow for LD-206 and LD-207. Read enablement from `chrome.permissions.contains`, never from extension storage, or a permission revoked in browser settings leaves the feature claiming to be on. And when two tiers share a permission, removing it for one silently breaks the other, so revocation has to check what else is still enabled.
 
@@ -2433,7 +2435,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
-| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503, LD-604, LD-201, LD-202, LD-108, LD-205 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus nine found during the work |
+| Phase 2 implementation | Done | All twelve specs delivered 2026-07-26, with LD-602 delivered in part. Both open defects closed, plus nine found during the work |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

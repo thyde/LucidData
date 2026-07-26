@@ -12,6 +12,7 @@ import { RevenueDonut } from '@/components/dashboard/revenue-donut'
 import { DataMarketDonut } from '@/components/dashboard/data-market-donut'
 import { OffersList } from '@/components/dashboard/offers-list'
 import { LearnCenter } from '@/components/dashboard/learn-center'
+import { TrackerInsight } from '@/components/dashboard/tracker-insight'
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard'
 import { formatCents } from '@/components/dashboard/chart-theme'
 
@@ -59,6 +60,11 @@ export default async function DashboardPage() {
         <h1 className="text-3xl font-bold">Welcome back</h1>
         <p className="mt-1 text-muted-foreground">Your personal data bank at a glance</p>
       </div>
+
+      {/* LD-206: the one panel that is useful on day one with an empty vault,
+          because it reports something that already happened to the person.
+          Renders nothing without the extension. */}
+      <TrackerInsight />
 
       {/* Tracker + score */}
       <div className="grid gap-6 lg:grid-cols-3">

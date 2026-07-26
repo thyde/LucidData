@@ -41,6 +41,20 @@ window.addEventListener('message', async (event) => {
       return
     }
 
+    // LD-206. The page asks for the summary; the extension never pushes it,
+    // and there is no path that sends it anywhere else.
+    if (data.action === 'get-insight') {
+      const result = await chrome.runtime.sendMessage({ type: 'lucid:get-insight' })
+      reply(result)
+      return
+    }
+
+    if (data.action === 'clear-insight') {
+      const result = await chrome.runtime.sendMessage({ type: 'lucid:clear-insight' })
+      reply(result)
+      return
+    }
+
     reply({ ok: false, error: `Unknown action: ${data.action}` })
   } catch (error) {
     reply({ ok: false, error: String(error) })

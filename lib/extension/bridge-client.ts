@@ -77,3 +77,51 @@ export async function getPendingExport(): Promise<PendingExport | null> {
 export async function clearPendingExport(): Promise<void> {
   await ask('clear-pending-export')
 }
+
+/**
+ * LD-206 tracker insight, as the extension computed it on the device.
+ *
+ * Counts and company names. There is no field here that could hold a site, a
+ * path, or a title, because the extension never produced one.
+ */
+export interface InsightCompany {
+  company: string
+  identified: boolean
+  category: string
+  requests: number
+  sites: number
+  domains: string[]
+}
+
+export interface InsightSummary {
+  siteCount: number
+  pagesSeen: number
+  skipped: number
+  since: number | null
+  collectorCount: number
+  companies: InsightCompany[]
+  topCompany: InsightCompany | null
+  reach: number
+}
+
+export interface InsightState {
+  enabled: boolean
+  gpc?: boolean
+  summary?: InsightSummary
+  vaultRecord?: Record<string, unknown> | null
+}
+
+/**
+ * Returns null when there is no extension. Returns `{ enabled: false }` when
+ * the extension is installed but tracker insight has not been turned on, which
+ * is a different thing and gets different copy.
+ */
+export async function getInsight(): Promise<InsightState | null> {
+  const reply = await ask<InsightState>('get-insight')
+  if (!reply?.ok || !reply.payload) return null
+  return reply.payload
+}
+
+export async function clearInsight(): Promise<void> {
+  await ask('clear-insight')
+}

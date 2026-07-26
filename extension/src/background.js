@@ -12,8 +12,13 @@
  */
 
 import { EXPORT_SOURCES, matchExportSource } from './sources.js'
+import { analysePage, mergeIntoProfile, summariseProfile, toVaultRecord } from './insight.js'
+import { disableGpc, enableGpc, isGpcActive } from './gpc.js'
+import { readResourceUrls } from './reader.js'
+import { isTierEnabled } from './tiers.js'
 
 const PENDING_KEY = 'pendingExport'
+const PROFILE_KEY = 'insightProfile'
 /** A provider export can be large, but not this large. Refuse rather than hang. */
 const MAX_EXPORT_BYTES = 25 * 1024 * 1024
 
@@ -104,5 +109,85 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false
   }
 
+  if (message?.type === 'lucid:get-insight') {
+    readInsight()
+      .then((payload) => sendResponse({ ok: true, payload }))
+      .catch((error) => sendResponse({ ok: false, error: String(error) }))
+    return true
+  }
+
+  if (message?.type === 'lucid:clear-insight') {
+    chrome.storage.local
+      .remove(PROFILE_KEY)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: String(error) }))
+    return true
+  }
+
   return false
+})
+
+/**
+ * LD-206 tracker insight.
+ *
+ * The whole path is: the browser tells us a navigation finished, we ask the
+ * page what it already fetched, and we classify that here. Nothing is sent
+ * anywhere to do it, and nothing but a registrable domain is kept.
+ */
+chrome.webNavigation?.onCompleted.addListener(async (details) => {
+  // Sub-frames are already covered by the top document's resource timeline.
+  if (details.frameId !== 0) return
+  if (!(await isTierEnabled(1))) return
+
+  let resourceUrls = []
+  try {
+    // `func` rather than `files`: the injected function's return value comes
+    // back, and it has no imports, so Chrome can serialize it.
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId: details.tabId },
+      func: readResourceUrls,
+    })
+    resourceUrls = result?.result ?? []
+  } catch {
+    // A page we cannot read is a page we do not report on. Chrome internal
+    // pages and the store are the common cases and neither is interesting.
+    return
+  }
+
+  const analysis = analysePage(details.url, resourceUrls)
+  if (!analysis) return
+
+  const stored = await chrome.storage.local.get(PROFILE_KEY)
+  const profile = mergeIntoProfile(stored[PROFILE_KEY], analysis)
+  await chrome.storage.local.set({ [PROFILE_KEY]: profile })
+})
+
+async function readInsight() {
+  if (!(await isTierEnabled(1))) return { enabled: false }
+  const stored = await chrome.storage.local.get(PROFILE_KEY)
+  const profile = stored[PROFILE_KEY] ?? null
+  return {
+    enabled: true,
+    gpc: await isGpcActive(),
+    summary: summariseProfile(profile),
+    vaultRecord: profile ? toVaultRecord(profile) : null,
+  }
+}
+
+/**
+ * Keep the opt-out signal tied to the capability that reports on tracking.
+ * Turning insight on starts sending GPC; turning it off stops.
+ */
+chrome.permissions.onAdded.addListener(async () => {
+  if (await isTierEnabled(1)) await enableGpc().catch(() => undefined)
+})
+
+chrome.permissions.onRemoved.addListener(async () => {
+  if (!(await isTierEnabled(1))) {
+    await disableGpc().catch(() => undefined)
+    // Findings were only meaningful while the capability was on. Keeping them
+    // after it is revoked would be keeping browsing data the person withdrew
+    // permission for.
+    await chrome.storage.local.remove(PROFILE_KEY)
+  }
 })

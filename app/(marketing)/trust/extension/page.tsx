@@ -7,6 +7,7 @@ import {
   EXTENSION_TIERS,
   EXTENSION_VERSION,
   INSTALL_PERMISSION_REASONS,
+  LD206_COMMITMENTS,
 } from '@/lib/constants/extension'
 
 export const metadata: Metadata = {
@@ -131,6 +132,24 @@ export default function ExtensionTrustPage() {
           came from. It does not read the file. If you choose to import it, the file is handed to
           the vault page in your browser and encrypted there with your key before anything is
           stored. It is never uploaded by the extension.
+        </p>
+      </section>
+
+      <section className="mt-14 space-y-4">
+        <h2 className="text-2xl font-semibold">What tracker insight does, and does not, keep</h2>
+        <p className="text-muted-foreground">
+          Identifying who collects from a page happens on your device, against a list that ships
+          with the extension. No request is made to us or to anyone else to perform it, and a
+          test in the repository reads the analysis code to check it cannot make one.
+        </p>
+        <ul className="list-disc space-y-2 pl-6 text-muted-foreground">
+          {LD206_COMMITMENTS.map((commitment) => (
+            <li key={commitment}>{commitment}</li>
+          ))}
+        </ul>
+        <p className="text-muted-foreground">
+          Turning tracker insight off deletes the findings as well as removing the permission.
+          They were only meaningful while you had it on.
         </p>
       </section>
     </div>

@@ -139,6 +139,26 @@ export const FIELD_CLASSIFICATIONS: Record<string, SchemaClassification> = {
     resting_heart_rate: sensitive('Health data, and a cardiac risk indicator.'),
     sleep_minutes: sensitive('Health data, and a proxy for daily routine.'),
   },
+  browsing_insight: {
+    period_start: quasi('date', 'A start date narrows which weeks of activity this covers.'),
+    period_end: quasi('date', 'An end date narrows which weeks of activity this covers.'),
+    source: safe('The tool that produced the record.'),
+    top_collector: quasi(
+      'categorical',
+      'A single company name, drawn from a short list. Common on its own, distinguishing in combination.'
+    ),
+    sites_visited: sensitive('Browsing volume, and a proxy for how someone spends their time.'),
+    collectors_seen: sensitive('Browsing volume by another name.'),
+    sensitive_sites_skipped: sensitive(
+      'A count of visits to health, finance, legal, adult, or support sites. The count alone is disclosive, which is why it is never sold and only shown to the person.'
+    ),
+    top_collector_reach: sensitive('A behavioural measure of where someone browses.'),
+    advertising_collectors: sensitive('Behavioural, and a proxy for the kind of sites visited.'),
+    analytics_collectors: sensitive('Behavioural, and a proxy for the kind of sites visited.'),
+    fingerprinting_collectors: sensitive(
+      'Behavioural, and a proxy for visiting sites that resist automation, such as banking.'
+    ),
+  },
 }
 
 export interface ClassificationResult {

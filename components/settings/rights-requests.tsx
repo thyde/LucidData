@@ -46,13 +46,24 @@ function formatDate(value: string): string {
   })
 }
 
-export function RightsRequests({ cases }: { cases: RightsCaseView[] }) {
+export function RightsRequests({
+  cases,
+  collector = null,
+}: {
+  cases: RightsCaseView[]
+  /** LD-206: a collector the extension detected, escalated in one action. */
+  collector?: string | null
+}) {
   const router = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [type, setType] = useState<RightsRequestType>('access')
   const [jurisdiction, setJurisdiction] = useState<string>('eu')
-  const [detail, setDetail] = useState('')
+  const [detail, setDetail] = useState(
+    collector
+      ? `I saw ${collector} collecting data about me while I browsed. Please tell me what you hold about me and where it came from.`
+      : ''
+  )
   const [appealFor, setAppealFor] = useState<string | null>(null)
   const [appealDetail, setAppealDetail] = useState('')
 
@@ -114,6 +125,16 @@ export function RightsRequests({ cases }: { cases: RightsCaseView[] }) {
     <div className="space-y-10">
       <section className="space-y-4 rounded-lg border p-5">
         <h2 className="text-lg font-medium">File a request</h2>
+        {collector && (
+          <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+            <p className="text-sm font-medium">Asking {collector} what they hold</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              We have drafted the request below. Read it before you send it, and change it if
+              the wording is not what you mean. This goes to us, and we forward it, because a
+              request has to come from an account we can verify.
+            </p>
+          </div>
+        )}
         <form onSubmit={handleFile} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="rights-type">What do you want</Label>
