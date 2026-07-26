@@ -6,7 +6,7 @@
 // open on another. See lib/crypto/__tests__/vectors.test.ts for the pinned
 // vector that holds that guarantee in place.
 
-import { base64ToBytes, bytesToBase64, encodeUtf8, getSubtle, randomBytes } from './runtime'
+import { asBytes, base64ToBytes, bytesToBase64, encodeUtf8, getSubtle, randomBytes } from './runtime'
 
 async function derive(password: string, saltB64: string, extractable: boolean): Promise<CryptoKey> {
   const subtle = getSubtle()
@@ -39,7 +39,7 @@ export async function deriveMasterKeyExtractable(password: string, saltB64: stri
 
 // Import raw master-key bytes (e.g. recovered from escrow) as a non-extractable AES-GCM key.
 export async function importMasterKey(rawKey: ArrayBuffer): Promise<CryptoKey> {
-  return getSubtle().importKey('raw', rawKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
+  return getSubtle().importKey('raw', asBytes(rawKey), { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
 }
 
 export function generateKeySalt(): string {

@@ -5,6 +5,7 @@
 // the React Native app and the reverse.
 
 import {
+  asBytes,
   base64ToBytes,
   bytesToBase64,
   decodeUtf8,
@@ -53,7 +54,7 @@ export async function exportDEK(dek: CryptoKey): Promise<ArrayBuffer> {
 
 // Import raw bytes as AES-GCM CryptoKey
 export async function importDEK(rawKey: ArrayBuffer): Promise<CryptoKey> {
-  return getSubtle().importKey('raw', rawKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
+  return getSubtle().importKey('raw', asBytes(rawKey), { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
 }
 
 export interface EncryptedEntry {
@@ -89,7 +90,7 @@ export async function decryptVaultEntry(
 ): Promise<string> {
   // Decrypt the DEK with master key
   const dekIv = base64ToBytes(dek_salt)
-  const encryptedDekBytes = base64ToArrayBuffer(encrypted_dek)
+  const encryptedDekBytes = base64ToBytes(encrypted_dek)
   const rawDek = await getSubtle().decrypt({ name: 'AES-GCM', iv: dekIv }, masterKey, encryptedDekBytes)
   const dek = await importDEK(rawDek)
 
@@ -108,9 +109,9 @@ export async function rewrapDek(
 ): Promise<{ encrypted_dek: string; dek_salt: string }> {
   const subtle = getSubtle()
   const oldIv = base64ToBytes(dek_salt)
-  const rawDek = await subtle.decrypt({ name: 'AES-GCM', iv: oldIv }, oldMasterKey, base64ToArrayBuffer(encrypted_dek))
+  const rawDek = await subtle.decrypt({ name: 'AES-GCM', iv: oldIv }, oldMasterKey, base64ToBytes(encrypted_dek))
   const newIv = randomBytes(12)
-  const reEncrypted = await subtle.encrypt({ name: 'AES-GCM', iv: newIv }, newMasterKey, rawDek)
+  const reEncrypted = await subtle.encrypt({ name: 'AES-GCM', iv: newIv }, newMasterKey, asBytes(rawDek))
   return {
     encrypted_dek: arrayBufferToBase64(reEncrypted),
     dek_salt: bytesToBase64(newIv),

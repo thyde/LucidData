@@ -23,7 +23,8 @@
  * which the Node worker also performs.
  */
 
-import { arrayBufferToBase64, base64ToArrayBuffer } from '@/lib/crypto/client-crypto'
+import { arrayBufferToBase64 } from '@/lib/crypto/client-crypto'
+import { base64ToBytes } from '@/lib/crypto/runtime'
 
 const CURVE = 'P-256'
 const IV_BYTES = 12
@@ -54,7 +55,7 @@ export async function generateIngestionKeypair(): Promise<IngestionKeypair> {
 async function importPublicKey(publicKeyB64: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     'spki',
-    base64ToArrayBuffer(publicKeyB64),
+    base64ToBytes(publicKeyB64),
     { name: 'ECDH', namedCurve: CURVE },
     false,
     []
@@ -64,7 +65,7 @@ async function importPublicKey(publicKeyB64: string): Promise<CryptoKey> {
 async function importPrivateKey(privateKeyB64: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     'pkcs8',
-    base64ToArrayBuffer(privateKeyB64),
+    base64ToBytes(privateKeyB64),
     { name: 'ECDH', namedCurve: CURVE },
     false,
     ['deriveKey']
@@ -137,7 +138,7 @@ export async function openSealed(
   recipientPrivateKeyB64: string,
   sealedB64: string
 ): Promise<string> {
-  const bytes = new Uint8Array(base64ToArrayBuffer(sealedB64))
+  const bytes = base64ToBytes(sealedB64)
   if (bytes.length < 2 + IV_BYTES + 1) {
     throw new SealedBoxError('Sealed payload is truncated')
   }
@@ -154,10 +155,7 @@ export async function openSealed(
   const privateKey = await importPrivateKey(recipientPrivateKeyB64)
   const ephemeral = await crypto.subtle.importKey(
     'spki',
-    ephemeralPublic.buffer.slice(
-      ephemeralPublic.byteOffset,
-      ephemeralPublic.byteOffset + ephemeralPublic.byteLength
-    ) as ArrayBuffer,
+    ephemeralPublic,
     { name: 'ECDH', namedCurve: CURVE },
     false,
     []

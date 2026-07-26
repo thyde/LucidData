@@ -69,6 +69,31 @@ export function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes)
 }
 
+/**
+ * Present bytes to Web Crypto as a typed-array view.
+ *
+ * Web Crypto accepts a bare ArrayBuffer in the specification, but Node 20
+ * validates that argument with a realm-sensitive check. Under jsdom, and in any
+ * other setting where the buffer is created in a different realm from the crypto
+ * implementation, a perfectly valid ArrayBuffer is rejected with "not instance
+ * of ArrayBuffer". A typed-array view is validated through a V8-backed check
+ * that is not realm-sensitive, so it works everywhere.
+ *
+ * This is not theoretical: it is why the CI suite failed on Node 20 while
+ * passing on Node 25. Every crypto call in this directory passes bytes through
+ * here so the difference cannot reappear one call site at a time.
+ */
+export function asBytes(input: ArrayBuffer | ArrayBufferView): Uint8Array<ArrayBuffer> {
+  if (ArrayBuffer.isView(input)) {
+    return new Uint8Array(
+      input.buffer,
+      input.byteOffset,
+      input.byteLength
+    ) as Uint8Array<ArrayBuffer>
+  }
+  return new Uint8Array(input) as Uint8Array<ArrayBuffer>
+}
+
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
 const BASE64_LOOKUP = /* @__PURE__ */ (() => {

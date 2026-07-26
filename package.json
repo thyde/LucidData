@@ -2,6 +2,9 @@
   "name": "lucid-mvp",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "cross-env HOSTNAME=0.0.0.0 next dev --webpack",
     "dev:mail": "cross-env EMAIL_TRANSPORT=smtp EMAIL_SMTP_HOST=127.0.0.1 EMAIL_SMTP_PORT=54325 NEXT_PUBLIC_APP_URL=http://localhost:3000 HOSTNAME=0.0.0.0 next dev --webpack",

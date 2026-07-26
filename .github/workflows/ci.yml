@@ -16,10 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
+      # Pinned to the oldest Node we support, deliberately. Running CI on a
+      # newer version than the floor hides version-specific defects: Node 20
+      # rejects a cross-realm ArrayBuffer where Node 22 and later accept one,
+      # and that difference broke the crypto suite here while every developer
+      # machine stayed green.
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
