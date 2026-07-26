@@ -3,16 +3,18 @@
  *
  * Which downloads count as a data export, and how to ask for one.
  *
- * The walkthrough steps here are deliberately provider-neutral about parsing:
- * this spec's job is getting the file into the browser import pipeline. Making
- * sense of each provider's format is LD-203, and the matching adapters land
- * with it.
+ * Each source names the LD-203 adapter that reads its output. That link is
+ * checked by a test rather than left as a comment, because a walkthrough that
+ * talks someone through a multi-hour export request and then cannot read the
+ * file is worse than not offering the walkthrough at all.
  */
 
 export const EXPORT_SOURCES = [
   {
     id: 'google-takeout',
     label: 'Google Takeout',
+    adapterId: 'google-takeout',
+    fileTypes: ['.json'],
     requestUrl: 'https://takeout.google.com/',
     urlPatterns: ['takeout.google.com', 'takeout-download'],
     filenamePatterns: ['takeout'],
@@ -21,24 +23,28 @@ export const EXPORT_SOURCES = [
       'Pick only the products you actually want in your vault.',
       'Choose a one-off export, .zip, and the largest file size offered.',
       'Google emails you when the export is ready. That can take hours.',
-      'Download it here and this extension will offer to hand it over.',
+      'Unzip it and open the .json file for the product you want.',
     ],
   },
   {
     id: 'apple-health',
     label: 'Apple Health',
+    adapterId: 'apple-health',
+    fileTypes: ['.xml'],
     requestUrl: 'https://privacy.apple.com/',
     urlPatterns: ['privacy.apple.com'],
     filenamePatterns: ['apple', 'health', 'export.zip'],
     steps: [
       'On iPhone, open Health, tap your picture, then Export All Health Data.',
       'Save the export to Files or send it to this computer.',
-      'Open it here and this extension will offer to hand it over.',
+      'Unzip it and open export.xml. It is large, and only the first records are read.',
     ],
   },
   {
     id: 'bank-csv',
     label: 'Bank statement export',
+    adapterId: 'bank-csv',
+    fileTypes: ['.csv'],
     requestUrl: null,
     urlPatterns: [],
     filenamePatterns: ['statement', 'transactions', 'activity'],

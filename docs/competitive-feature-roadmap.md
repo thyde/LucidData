@@ -2,10 +2,11 @@
 
 Research date: 2026-07-25
 Last delivery update: 2026-07-27
-Status: active. **Phase 1 and Phase 2 are delivered. Phase 3 is in progress.**
+Status: active. **Phase 1 and Phase 2 are delivered. Phase 3 and Phase 4 are in progress.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Phase 3: [section 6.9](#69-phase-3-delivery-record) for the record.
+Phase 4: [section 6.10](#610-phase-4-delivery-record) for the record, and [section 6.11](#611-the-ci-failure-and-why-it-went-unnoticed) for a CI failure worth reading before trusting a green deployment.
 Owner: product
 Audience: agentic coding tools and the engineers reviewing their output
 
@@ -750,10 +751,10 @@ Scope. Adapters for Google Takeout, Apple Health export XML, and a generic bank 
 Implementation. Add `lib/vault/adapters/` with one pure module per provider exposing `detect(file)` and `parse(file)` returning the same shape [lib/vault/import-parsers.ts](../lib/vault/import-parsers.ts) already produces. Extend [components/vault/vault-import-dialog.tsx](../components/vault/vault-import-dialog.tsx) to auto-detect and preview.
 
 Acceptance criteria.
-- [ ] Each adapter parses a fixture export and produces typed entries.
-- [ ] Parsing happens entirely in the browser.
-- [ ] Files larger than the current 1000-record cap stream or chunk rather than failing.
-- [ ] Unrecognized files fall back to the existing mapping wizard.
+- [x] Each adapter parses a fixture export and produces typed entries.
+- [x] Parsing happens entirely in the browser.
+- [x] Files larger than the current 1000-record cap stream or chunk rather than failing.
+- [x] Unrecognized files fall back to the existing mapping wizard.
 
 Tests. Fixture-based unit tests per adapter, including a malformed file and a very large file.
 
@@ -891,7 +892,7 @@ Acceptance criteria.
 - [x] A fresh install holds no permission that permits reading general browsing activity.
 - [x] Enabling a tier triggers a browser permission prompt, and declining leaves the tier off.
 - [x] Revoking a tier removes the browser permission, verified by querying the permission state.
-- [ ] Walkthroughs complete an export request for each supported provider.
+- [x] Walkthroughs complete an export request for each supported provider.
 - [x] A completed export reaches the import flow without a server round trip.
 - [x] Uninstalling leaves no residual permission or stored data.
 
@@ -2252,11 +2253,14 @@ on status is a candidate defect, and the compiler will not point at any of them.
 
 ### Phase 4, months 9 to 12. Broaden and deepen
 
+Status: started 2026-07-27. LD-203 is delivered. The record is in
+[section 6.10](#610-phase-4-delivery-record).
+
 - LD-404 proximity credential presentation
 - LD-204 mobile application, stage B health capture
 - LD-104 account continuity for death and incapacity
 - LD-502 governed access, completed
-- LD-203 provider export adapters, with the LD-205 walkthroughs
+- LD-203 provider export adapters, with the LD-205 walkthroughs (delivered)
 - LD-207 opt-in browsing contribution
 - LD-103 client-side search
 - LD-403 delegation, subject to a threat model
@@ -2266,6 +2270,49 @@ Phase 4 is over-subscribed and will not fit in three months. It is listed in pri
 as a commitment. If capacity is limited, LD-404 and LD-204 stage B are the two that matter, because
 together they complete the in-person credential use case. LD-207 should slip rather than ship rushed,
 since it is the highest-risk path in the product.
+
+### 6.10 Phase 4 delivery record
+
+Sequencing note, because the phase headings imply an order the dependencies do not allow. LD-404 is the
+headline of this phase and cannot start: it depends on LD-401, LD-402, and LD-204 stage A, all of which
+sit in Phase 3 and none of which is built. Four more Phase 4 specs are blocked on decisions rather than
+code, and are listed below. What was available was LD-203, which depends only on LD-201.
+
+| Spec | Status | What landed | What did not |
+| --- | --- | --- | --- |
+| LD-203 provider export adapters | Delivered 2026-07-27 | `lib/vault/adapters/` holds one module per provider behind a shared `detect` and `parse`, and a registry that returns null when nothing matches, so an unrecognised file imports exactly as well as it did before. Apple Health is parsed by scanning rather than through `DOMParser`, which is a size decision: a year of Health data is routinely hundreds of megabytes and tens of millions of elements, and building a DOM of that ends the tab before any of it reaches the vault. Scanning also lets the record limit apply while reading, so a large file truncates instead of failing. Quantity samples are aggregated per calendar day, because one entry per sample would be tens of thousands of useless records. The bank adapter reconciles the column names, date orders, and debit-or-credit conventions that differ between every bank, and refuses to rewrite a genuinely ambiguous date rather than silently moving a transaction by a month. | No zip handling: the person unzips and picks the file, which the walkthroughs now say. The bank adapter claims no schema type, because `financial_summary` describes an account rather than a transaction and there is no transaction schema. Adding one is a deliberate decision rather than a side effect of an import adapter, since it would need a quasi-identifier classification before anything typed with it could be sold, and transaction data is about as re-identifying as data gets. |
+| LD-205 walkthroughs, last open criterion | Closed 2026-07-27 | The walkthroughs existed from Phase 2 with nothing behind them, which is what the criterion was really tracking. Each source now names the adapter that reads its output, and a test asserts the link. A walkthrough talks someone through a request that takes hours, and Google's takes days, so completing that and then failing to read the file is worse than never having offered. | Nothing in scope. |
+
+Blocked in Phase 4, and blocked on a decision rather than on work:
+
+- **LD-207 opt-in browsing contribution** waits on open decision 8, which asks whether LucidData wants to be in the browsing data market at all. LD-206 built the collection capability either way, so the decision is now live rather than hypothetical. It is also the highest-risk path in the product and the roadmap already says it should slip rather than ship rushed.
+- **LD-403 delegation** waits on open decision 3. The key-sharing model has to be chosen and threat-modelled first, because the obvious implementation quietly widens the trust model.
+- **LD-502 governed access** waits on open decisions 1, 4, and 10: the DGA intermediation role, whether export stays first-class, and how a recurring fee works when the LD-505 model is per-record and pinned at consent.
+- **LD-104 account continuity** has its LD-303 dependency satisfied, but its own spec says the policy question of whether an attested death claim is accepted at all is a legal decision to resolve before implementation. Inactivity-only is buildable now if that is the answer.
+
+### 6.11 The CI failure, and why it went unnoticed
+
+Every CI run since the connector work failed, thirty-four of them, while every developer machine stayed
+green and Vercel kept deploying. Worth recording because the shape of it is more instructive than the
+fix.
+
+**Vercel only runs the build.** Typecheck, lint, and the test suite are CI's job, so a red suite and a
+healthy production deployment are entirely compatible states. Deployment success is not evidence that
+the tests pass, and it was read that way for several days.
+
+**The defect was real, not a flaky test.** Web Crypto accepts a bare `ArrayBuffer` in the specification,
+but Node 20 validates that argument with a realm-sensitive check. Under jsdom the buffer is created in
+one realm and the crypto implementation lives in another, so a valid `ArrayBuffer` is rejected with
+"not instance of ArrayBuffer". Node 22 replaced the check with a V8-backed one, which is why it passed
+on a Node 25 workstation. Every failing call passed a bare buffer; every passing call already passed a
+typed-array view, which is validated through a check that is not realm-sensitive.
+
+Three things follow.
+
+- **Pass views, not buffers.** `lib/crypto/runtime.ts` gained `asBytes()` and every crypto call in the directory goes through it. This matters past CI: Node 20 is still supported, and React Native splits the page realm from a native implementation in exactly the same way, which is the portability LD-204 depends on.
+- **Pin CI to the oldest supported runtime.** Running CI above the floor is what hid this. The workflow stays on Node 20 with a comment saying why, and `package.json` now declares `engines.node >= 20` to match what AGENTS.md already told contributors.
+- **Reproduce the environment difference in a test rather than relying on CI to find it.** `lib/crypto/__tests__/realm-safety.test.ts` wraps `SubtleCrypto` in a proxy that refuses bare buffers the way Node 20 does, and runs the vault and sealed-box round trips through it. Two of its tests assert the wrapper rejects what it claims to, because a guard that cannot fail is not a guard.
+
 
 ### Capacity reality
 
@@ -2542,6 +2589,8 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
 | Phase 2 implementation | Done | All twelve specs delivered 2026-07-26, with LD-602 delivered in part. Both open defects closed, plus nine found during the work |
 | Phase 3 implementation | In progress | LD-506 delivered and LD-204 stage A started, 2026-07-27. See section 6.9. Two carried-over gaps closed on the way: the LD-602 SSRF guard now checks resolved addresses and refuses redirects, and the extension icons that blocked any store submission now exist |
+| Phase 4 implementation | In progress | LD-203 delivered 2026-07-27, which closed the last open LD-205 criterion. See section 6.10. LD-404 cannot start until Phase 3 supplies LD-401, LD-402, and LD-204 stage A, and four further Phase 4 specs are blocked on open decisions rather than on work |
+| Continuous integration | **Fixed 2026-07-27** | CI had failed on every run for thirty-four commits while production deployed cleanly, because Vercel runs only the build. The cause was a real portability defect in the crypto layer rather than a flaky test. See section 6.11 |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

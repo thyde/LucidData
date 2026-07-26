@@ -15,6 +15,7 @@ import {
   type ParsedImport,
   type FieldMapping,
 } from '@/lib/vault/import-parsers'
+import { parseWithAdapter } from '@/lib/vault/adapters'
 import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
 import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
 import {
@@ -66,6 +67,10 @@ export function VaultImportDialog() {
   const [mapping, setMapping] = useState<FieldMapping>({})
   const [importing, setImporting] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+  /** LD-203: which provider adapter read the file, if any. */
+  const [adapterLabel, setAdapterLabel] = useState<string | null>(null)
+  /** Records the file held when the adapter stopped short of all of them. */
+  const [truncatedFrom, setTruncatedFrom] = useState<number | null>(null)
 
   const sourceKeys = useMemo(() => {
     if (!parsed) return [] as string[]
@@ -87,6 +92,26 @@ export function VaultImportDialog() {
     setMapping({})
     setImporting(false)
     setProgress(null)
+    setAdapterLabel(null)
+    setTruncatedFrom(null)
+  }
+
+  /**
+   * Select a schema type and derive the column mapping and category from it.
+   *
+   * Takes the records rather than reading `parsed`, because an adapter sets the
+   * type in the same tick it sets the records and state has not settled yet.
+   */
+  const applyTargetType = (type: string, records: Record<string, unknown>[]) => {
+    setTargetType(type)
+    if (type !== 'custom' && SCHEMA_FORM_FIELDS[type]) {
+      const keys = new Set<string>()
+      for (const rec of records.slice(0, 50)) Object.keys(rec).forEach((k) => keys.add(k))
+      setMapping(autoGuessMapping(SCHEMA_FORM_FIELDS[type], Array.from(keys)))
+      setCategory(VAULT_SCHEMA_TYPES[type as keyof typeof VAULT_SCHEMA_TYPES].category)
+    } else {
+      setMapping({})
+    }
   }
 
   const handleFile = useCallback(async (file: File | undefined) => {
@@ -95,11 +120,32 @@ export function VaultImportDialog() {
     setParsed(null)
     setTargetType('custom')
     setMapping({})
+    setAdapterLabel(null)
+    setTruncatedFrom(null)
     setFileName(file.name)
     const base = file.name.replace(/\.[^.]+$/, '')
     setLabelPrefix(base || 'Imported')
     try {
       const text = await file.text()
+
+      // LD-203: a provider adapter goes first, because it knows the file's own
+      // shape. Anything it does not recognise falls through to the generic
+      // parser, so this stays additive.
+      const adapted = parseWithAdapter(file.name, text, { limit: MAX_RECORDS })
+      if (adapted) {
+        if (adapted.records.length === 0) {
+          setParseError(`This looks like a ${adapted.adapterLabel} export, but it holds no records we could read.`)
+          return
+        }
+        setAdapterLabel(adapted.adapterLabel)
+        setTruncatedFrom(adapted.truncated ? adapted.totalFound : null)
+        setParsed({ records: adapted.records, format: 'json' })
+        if (adapted.schemaType) {
+          applyTargetType(adapted.schemaType, adapted.records)
+        }
+        return
+      }
+
       const result = parseImportFile(file.name, text)
       if (result.records.length === 0) {
         setParseError('No records found in this file.')
@@ -113,13 +159,7 @@ export function VaultImportDialog() {
 
   // Choosing a schema type auto-guesses a column mapping and aligns the category.
   const handleTargetTypeChange = (type: string) => {
-    setTargetType(type)
-    if (type !== 'custom' && SCHEMA_FORM_FIELDS[type]) {
-      setMapping(autoGuessMapping(SCHEMA_FORM_FIELDS[type], sourceKeys))
-      setCategory(VAULT_SCHEMA_TYPES[type as keyof typeof VAULT_SCHEMA_TYPES].category)
-    } else {
-      setMapping({})
-    }
+    applyTargetType(type, parsed?.records ?? [])
   }
 
   const handleImport = async () => {
@@ -210,7 +250,7 @@ export function VaultImportDialog() {
             <Input
               id="import-file"
               type="file"
-              accept=".json,.csv,application/json,text/csv"
+              accept=".json,.csv,.xml,.tsv,application/json,text/csv,text/xml"
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
             {fileName && !parseError && (
@@ -226,13 +266,25 @@ export function VaultImportDialog() {
                   {parsed.records.length} {parsed.records.length === 1 ? 'entry' : 'entries'} found (
                   {parsed.format.toUpperCase()})
                 </p>
+                {adapterLabel && (
+                  <p className="mt-1 text-muted-foreground">
+                    Read as a {adapterLabel} export, so the fields have been named consistently for
+                    you. Change anything below that looks wrong.
+                  </p>
+                )}
                 {sampleKeys.length > 0 && (
                   <p className="mt-1 text-muted-foreground">
                     Fields: {sampleKeys.join(', ')}
                     {firstRecord && Object.keys(firstRecord).length > sampleKeys.length ? '…' : ''}
                   </p>
                 )}
-                {parsed.records.length > MAX_RECORDS && (
+                {truncatedFrom !== null && (
+                  <p className="mt-1 text-muted-foreground">
+                    The file holds {truncatedFrom.toLocaleString()} records. The first{' '}
+                    {MAX_RECORDS} were read.
+                  </p>
+                )}
+                {truncatedFrom === null && parsed.records.length > MAX_RECORDS && (
                   <p className="mt-1 text-muted-foreground">
                     Only the first {MAX_RECORDS} will be imported.
                   </p>

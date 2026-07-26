@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { EXPORT_SOURCES, matchExportSource } from '@/extension/src/sources.js'
+import { EXPORT_ADAPTERS } from '@/lib/vault/adapters'
 
 interface Source {
   id: string
   label: string
+  adapterId: string
+  fileTypes: string[]
   requestUrl: string | null
   urlPatterns: string[]
   filenamePatterns: string[]
@@ -105,6 +108,30 @@ describe('export walkthroughs', () => {
     for (const source of sources) {
       const joined = source.steps.join(' ').toLowerCase()
       expect(joined).not.toMatch(/we will (download|request|fetch)/)
+    }
+  })
+
+  it('backs every walkthrough with an adapter that can read the result', () => {
+    // LD-203 closing the last LD-205 criterion. A walkthrough talks someone
+    // through an export request that can take hours, and Google's takes days.
+    // Doing that and then failing to read the file is worse than never having
+    // offered, so the link is checked rather than assumed.
+    const adapterIds = new Set(EXPORT_ADAPTERS.map((adapter) => adapter.id))
+
+    for (const source of sources) {
+      expect(adapterIds, `${source.id} has no adapter`).toContain(source.adapterId)
+    }
+  })
+
+  it('tells the user which file type to end up with', () => {
+    // The download is usually a zip. Saying which file inside it matters is the
+    // difference between a walkthrough that completes and one that stops at the
+    // last step.
+    for (const source of sources) {
+      expect(source.fileTypes.length).toBeGreaterThan(0)
+      for (const type of source.fileTypes) {
+        expect(type).toMatch(/^\.[a-z]+$/)
+      }
     }
   })
 })
