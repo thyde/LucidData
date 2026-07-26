@@ -28,7 +28,7 @@ export function buildVaultExportDocument(input: VaultExportInput): Record<string
   return {
     '@context': [
       'https://www.w3.org/ns/credentials/v2',
-      { lucid: 'https://luciddata.app/ns#' },
+      { lucid: 'https://luciddatabank.com/ns#' },
     ],
     type: ['VerifiablePresentation', 'LucidVaultExport'],
     generatedAt: new Date().toISOString(),

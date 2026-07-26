@@ -212,7 +212,7 @@ export const REVOCATION_LIMIT =
   'Revoking consent stops future access immediately. It cannot recall data that was already delivered. If you granted export access, the recipient holds a copy that no revocation can reach.'
 
 export const VULNERABILITY_DISCLOSURE = {
-  email: 'security@luciddata.app',
+  email: 'security@luciddatabank.com',
   policy:
     'Report a suspected vulnerability to the address above. Tell us what you found and how to reproduce it. We will acknowledge within three working days. Do not access, modify, or exfiltrate other people accounts or data while testing.',
 }

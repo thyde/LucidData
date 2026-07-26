@@ -12,7 +12,7 @@
   ],
   "host_permissions": [
     "http://localhost:3000/*",
-    "https://lucid-data.vercel.app/*"
+    "https://luciddatabank.com/*"
   ],
   "optional_host_permissions": ["<all_urls>"],
   "background": {
@@ -26,7 +26,7 @@
   "options_page": "src/options.html",
   "content_scripts": [
     {
-      "matches": ["http://localhost:3000/*", "https://lucid-data.vercel.app/*"],
+      "matches": ["http://localhost:3000/*", "https://luciddatabank.com/*"],
       "js": ["src/bridge.js"],
       "run_at": "document_idle"
     }

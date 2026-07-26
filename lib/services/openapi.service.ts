@@ -52,7 +52,7 @@ export function buildOpenApiDocument(baseUrl: string): JsonSchema {
       version: ORG_API_VERSION,
       description:
         'Ask a person for consent, issue and verify credentials, and receive signed webhooks. This document is generated from the same schemas the endpoints validate against, so it cannot drift from the implementation.',
-      contact: { email: 'support@luciddata.app' },
+      contact: { email: 'support@luciddatabank.com' },
     },
     servers: [{ url: baseUrl }],
     security: [{ apiKey: [] }],

@@ -10,7 +10,7 @@ import { loadTiers } from './tiers.js'
 
 const APP_ORIGINS = {
   'http://localhost:3000/*': 'http://localhost:3000',
-  'https://lucid-data.vercel.app/*': 'https://lucid-data.vercel.app',
+  'https://luciddatabank.com/*': 'https://luciddatabank.com',
 }
 
 async function appOrigin() {

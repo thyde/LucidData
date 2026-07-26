@@ -6,7 +6,17 @@ import { recordUsage, assertIssuanceQuota } from '@/lib/services/billing.service
 import { createNotification } from '@/lib/services/notification.service'
 import type { IssuedCredential, Json } from '@/types/database.types'
 
-export const CREDENTIAL_CONTEXT = 'https://luciddata.app/credentials/v1'
+/**
+ * The context URI stamped into every signed credential.
+ *
+ * It has to resolve to a domain we control, because a consumer that
+ * dereferences it should reach our vocabulary and not a stranger's site. It is
+ * also a versioned identifier: changing it puts two values in the wild, so it
+ * moves only when the payload shape does. This was corrected from an
+ * unregistered domain while production held zero issued credentials, which is
+ * the only cost-free moment such a change has.
+ */
+export const CREDENTIAL_CONTEXT = 'https://luciddatabank.com/credentials/v1'
 
 export interface IssuerIdentity {
   id: string

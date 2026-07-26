@@ -24,7 +24,7 @@ export interface NotificationEmail {
 
 export type EmailTransport = 'none' | 'console' | 'smtp' | 'resend'
 
-const DEFAULT_FROM = 'LucidData <noreply@luciddata.app>'
+const DEFAULT_FROM = 'LucidData <noreply@luciddatabank.com>'
 
 export function resolveTransport(): EmailTransport {
   const configured = process.env.EMAIL_TRANSPORT?.toLowerCase().trim()

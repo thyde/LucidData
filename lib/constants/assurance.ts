@@ -96,7 +96,7 @@ export const SUPPORT_SEVERITIES: SupportSeverity[] = [
 export const SUPPORT_HOURS =
   'Monday to Friday, 09:00 to 17:00 UK time, excluding public holidays. Severity 1 reports are monitored outside those hours.'
 
-export const SUPPORT_CONTACT = 'support@luciddata.app'
+export const SUPPORT_CONTACT = 'support@luciddatabank.com'
 
 /**
  * Availability. Stated as a target rather than a contractual SLA with credits,
@@ -189,7 +189,7 @@ export const INCIDENT_STEPS: IncidentStep[] = [
   {
     step: 'Declare',
     detail:
-      'Anyone may raise a suspected incident to security@luciddata.app. The incident lead declares it and starts a timestamped log.',
+      'Anyone may raise a suspected incident to security@luciddatabank.com. The incident lead declares it and starts a timestamped log.',
     deadline: 'Immediately on suspicion. Declaring and standing down costs nothing.',
   },
   {
@@ -240,7 +240,7 @@ What happened: [plain description]
 What this means for your data: [state whether vault contents were reachable. Vault entries are encrypted in your browser with a key we never hold, so [state plainly whether that protection held]]
 What we have done: [containment]
 What you should do: [specific action, or "no action is needed" if that is true]
-Where to ask: security@luciddata.app`,
+Where to ask: security@luciddatabank.com`,
 }
 
 export interface ContinuityCommitment {
@@ -394,4 +394,4 @@ export const PROCESSING_TERMS: ProcessingTerm[] = [
   },
 ]
 
-export const PROCUREMENT_CONTACT = 'legal@luciddata.app'
+export const PROCUREMENT_CONTACT = 'legal@luciddatabank.com'

@@ -124,7 +124,7 @@ describe('the pack answers what procurement asks', () => {
 
   it('ships both notification templates', () => {
     expect(BREACH_NOTIFICATION_TEMPLATE.regulator).toContain('Article 33')
-    expect(BREACH_NOTIFICATION_TEMPLATE.user).toContain('security@luciddata.app')
+    expect(BREACH_NOTIFICATION_TEMPLATE.user).toContain('security@luciddatabank.com')
   })
 
   it('states a position on every processing clause', () => {

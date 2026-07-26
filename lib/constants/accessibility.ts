@@ -17,7 +17,7 @@ export const ACCESSIBILITY_STATEMENT_DATE = '2026-07-26'
 export const CONFORMANCE_SUMMARY =
   'LucidData partially conforms to WCAG 2.2 Level AA. Partially conforming means most of the product meets the standard, and the parts that do not are listed below by name.'
 
-export const ACCESSIBILITY_CONTACT = 'accessibility@luciddata.example'
+export const ACCESSIBILITY_CONTACT = 'accessibility@luciddatabank.com'
 
 /**
  * How the claim was arrived at. Naming the method matters, because an

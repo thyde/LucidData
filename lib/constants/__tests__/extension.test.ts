@@ -57,7 +57,7 @@ describe('extension manifest', () => {
   it('reaches only this application at install', () => {
     expect(manifest.host_permissions).toEqual([
       'http://localhost:3000/*',
-      'https://lucid-data.vercel.app/*',
+      'https://luciddatabank.com/*',
     ])
   })
 
