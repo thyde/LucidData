@@ -2,7 +2,7 @@
 
 Research date: 2026-07-25
 Last delivery update: 2026-07-26
-Status: active. **Phase 1 is delivered. Phase 2 is seven specs in.**
+Status: active. **Phase 1 is delivered. Phase 2 is eight specs in.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Owner: product
@@ -2020,11 +2020,11 @@ If sub-daily payout retries become necessary, the options are a Pro plan or a sc
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
-Status: seven of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
+Status: eight of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
 
 - LD-107 assurance and procurement pack (delivered)
 - LD-602 organization developer surface (delivered in part)
-- LD-201 connector framework
+- LD-201 connector framework (delivered)
 - LD-501 real anonymization guarantees (delivered)
 - LD-607 retention and deletion completeness (delivered)
 - LD-301 rights and DSAR engine (delivered)
@@ -2087,6 +2087,8 @@ Notes on LD-602 that affect later work.
 
 | LD-604 bulk and asynchronous organization operations | Delivered 2026-07-26 | `bulk_jobs` and `bulk_job_rows` make the row the unit of work, so one malformed address fails on its own and can be retried without repeating the rest. `lib/services/bulk-job.service.ts` covers issuance, revocation, and consent requests, with a content-derived idempotency key that stops a resumed or double-swept job from issuing twice, cancellation checked between rows so nothing is half issued, and a `retryFailedRows` that touches only failures. Quota runs inside `issueCredential`, so the bulk path cannot spend more allowance than the single one. Jobs start through `after()` and the scheduler is the resume path. Completion and failure emit LD-602 webhooks. | Upload is a JSON paste rather than a file picker with CSV parsing. The row shape and the limits are the hard part and are done; a file reader on top is presentation. |
 
+| LD-201 connector framework with zero-knowledge ingestion | Delivered 2026-07-26 | `lib/crypto/ingestion-keys.ts` is an ECDH P-256 sealed box: the browser mints a keypair, publishes the public half, and wraps the private half with the master key. `lib/services/connector.service.ts` runs on the LD-601 scheduler, fetches from Strava or Fitbit, normalizes with the existing pure functions, and seals each record to that public key. It writes ciphertext it cannot read, and it refuses to run at all when no ingestion key has been published rather than storing anything readable. `lib/hooks/usePendingIngest.ts` opens the queue after unlock and re-encrypts through the normal vault envelope. OAuth state is HMAC-signed, expires in ten minutes, and is checked against both the session user and the route's provider. Provider tokens are wrapped with `CONNECTOR_TOKEN_SECRET` and refreshed before expiry, and the trust centre discloses that custody. | Only the two fitness providers the repository already had metadata for. Financial connectors stay out while CFPB 1033 is stayed, and health platforms are LD-204. Disconnect revokes upstream for Strava only, because Fitbit has no equivalent endpoint. |
+
 ### 6.5 A defect found while building Phase 2
 
 `supabase/migrations/20260726160000_api_role_grants.sql`.
@@ -2109,11 +2111,7 @@ Seven specs remain. This is the order to take them in and what each one now depe
 
 **2. LD-604 bulk and asynchronous organization operations.** Delivered 2026-07-26. Worth noting for anything that follows: the row-level idempotency key and the `after()` start are the two things that make a long operation safe to resume, and both should be copied rather than reinvented.
 
-**3. LD-201 connector framework.** The largest remaining piece and the one with the most prerequisites now.
-- Adding `lib/crypto/ingestion-keys.ts`, or any other module under `lib/crypto/`, **will fail the build** until `lib/constants/trust-disclosures.ts` gains a matching `KEY_CUSTODY` entry.
-- A `data_sources` table **will fail the build** until it has a `DELETION_MANIFEST` entry, and it must add its own `REVOKE` if it is service-role only.
-- Any field a connector writes into a vault schema **will fail the build** until it is classified in `lib/privacy/quasi-identifiers.ts`. This is the constraint most likely to be discovered late, so classify as you map.
-- Token refresh belongs in `JOB_NAMES` on the LD-601 runner, which is where the comment in `scheduled-jobs.service.ts` already says it goes.
+**3. LD-201 connector framework.** Delivered 2026-07-26. Two things it proved worth recording. The build gates worked exactly as intended: adding `lib/crypto/ingestion-keys.ts` failed the suite until the trust centre disclosed it, and `data_sources` and `pending_ingest` failed until the deletion manifest covered them. And the LD-501 classification caught a leak in my own first draft, where the queue row carried the provider's free-text activity name in the clear. It is classified as an identifier for good reason, so the label is now sealed with the payload and the queue row shows a neutral placeholder.
 
 **4. LD-202 source health and provenance.** Follows LD-201 directly and should reuse the same `data_sources` rows rather than adding a parallel notion of a source.
 
@@ -2425,7 +2423,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
-| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503, LD-604 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus three found during the work |
+| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503, LD-604, LD-201 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus four found during the work |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

@@ -6,6 +6,7 @@ import { ChangePasswordForm } from '@/components/settings/change-password-form'
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog'
 import { NotificationPreferences } from '@/components/settings/notification-preferences'
 import { PrivacySignalSection } from '@/components/settings/privacy-signal-section'
+import { ConnectedSources } from '@/components/settings/connected-sources'
 import { SessionSecuritySection } from '@/components/settings/session-security-section'
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup'
 import { PasskeyList } from '@/components/settings/passkey-list'
@@ -56,6 +57,8 @@ export default async function SettingsPage() {
       />
 
       <PrivacySignalSection initial={optOut} />
+
+      <ConnectedSources />
 
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Passkeys</h2>

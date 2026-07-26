@@ -89,6 +89,24 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
     reason: 'Per-field sale settings describe the person and their vault entries.',
   },
   {
+    table: 'data_sources',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: 'user_id',
+    strippedColumns: [],
+    reason:
+      'A connected provider account, with tokens that would still work. Disconnecting revokes upstream; deletion removes the tokens with the account.',
+  },
+  {
+    table: 'pending_ingest',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: 'user_id',
+    strippedColumns: [],
+    reason:
+      'Records a sync sealed to the person and nobody opened yet. Unreadable to us, and deleted rather than kept as unopenable ciphertext.',
+  },
+  {
     table: 'sale_preferences',
     personalData: true,
     behaviour: 'cascade',

@@ -118,6 +118,15 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
     protects: 'The signed statement of what was erased when you deleted your account',
     note: 'The receipt holds counts, table names, and a hash of your email. Your address is not stored, and the hash cannot be reversed to recover it.',
   },
+  {
+    material: 'Ingestion keypair',
+    module: 'ingestion-keys.ts',
+    derivedOrGenerated:
+      'ECDH P-256 keypair generated in your browser. The public half is published; the private half is wrapped with your master key',
+    heldBy: 'user_browser',
+    protects: 'Records a connector fetches from a provider on your behalf',
+    note: 'A sync runs while you are away, so it gets the public half only. It can write records it cannot read, and they stay sealed until you next unlock.',
+  },
 ]
 
 /**

@@ -13,9 +13,11 @@
  *   retention_purge  destroy records past their stated retention window
  *   webhook_delivery send queued organization webhooks, with backoff
  *   bulk_operations  resume interrupted bulk jobs and purge finished ones
+ *   connector_sync   pull new provider records and seal them to the user's key
  *
- * Connector token refresh is intentionally absent: there is no data_sources
- * table yet. LD-201 adds that job to JOB_NAMES when it lands.
+ * Connector token refresh happens inside connector_sync, before each fetch,
+ * rather than as a job of its own: a token refreshed hours before it is used is
+ * a token that can still be stale when it matters.
  */
 
 import { createServiceClient } from '@/lib/supabase/service'
@@ -32,6 +34,7 @@ import { purgeExpiredRateLimits } from '@/lib/services/rate-limit.service'
 import { runRetentionPurges } from '@/lib/services/retention.service'
 import { dispatchDueDeliveries } from '@/lib/services/webhook.service'
 import { runBulkJobs, purgeOldBulkJobs } from '@/lib/services/bulk-job.service'
+import { runConnectorSync } from '@/lib/services/connector.service'
 import { PAYOUT_THRESHOLD_CENTS } from '@/lib/constants/marketplace-economics'
 
 export const JOB_NAMES = [
@@ -42,6 +45,7 @@ export const JOB_NAMES = [
   'retention_purge',
   'webhook_delivery',
   'bulk_operations',
+  'connector_sync',
 ] as const
 export type JobName = (typeof JOB_NAMES)[number]
 
@@ -273,6 +277,17 @@ export async function runBulkOperations(): Promise<JobResult> {
   return { job: 'bulk_operations', processed: processed + purged, failed }
 }
 
+/**
+ * LD-201: pull new records from every connected provider and seal them to the
+ * person's ingestion public key. This job is the reason the sealed-box design
+ * exists: it runs with nobody present, so it must not be able to read what it
+ * writes.
+ */
+export async function runConnectorSyncJob(): Promise<JobResult> {
+  const { imported, failed } = await runConnectorSync()
+  return { job: 'connector_sync', processed: imported, failed }
+}
+
 const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   payout_retries: runPayoutRetries,
   consent_expiry: runConsentExpiry,
@@ -281,6 +296,7 @@ const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   retention_purge: runRetentionPurge,
   webhook_delivery: runWebhookDelivery,
   bulk_operations: runBulkOperations,
+  connector_sync: runConnectorSyncJob,
 }
 
 async function recordRun(result: JobResult, startedAt: string): Promise<void> {

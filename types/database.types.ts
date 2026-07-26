@@ -781,6 +781,62 @@ export type Database = {
           },
         ]
       }
+      data_sources: {
+        Row: {
+          created_at: string
+          encrypted_access_token: string | null
+          encrypted_refresh_token: string | null
+          id: string
+          last_error: string | null
+          last_synced_at: string | null
+          provider: string
+          provider_account_id: string | null
+          scopes: string[]
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_access_token?: string | null
+          encrypted_refresh_token?: string | null
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          provider: string
+          provider_account_id?: string | null
+          scopes?: string[]
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_access_token?: string | null
+          encrypted_refresh_token?: string | null
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          provider_account_id?: string | null
+          scopes?: string[]
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_sources_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deletion_receipts: {
         Row: {
           id: string
@@ -1620,6 +1676,60 @@ export type Database = {
           },
         ]
       }
+      pending_ingest: {
+        Row: {
+          captured_at: string | null
+          category: string
+          created_at: string
+          data_source_id: string
+          id: string
+          label: string
+          provider_record_id: string
+          schema_type: string
+          sealed_payload: string
+          user_id: string
+        }
+        Insert: {
+          captured_at?: string | null
+          category?: string
+          created_at?: string
+          data_source_id: string
+          id?: string
+          label: string
+          provider_record_id: string
+          schema_type: string
+          sealed_payload: string
+          user_id: string
+        }
+        Update: {
+          captured_at?: string | null
+          category?: string
+          created_at?: string
+          data_source_id?: string
+          id?: string
+          label?: string
+          provider_record_id?: string
+          schema_type?: string
+          sealed_payload?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_ingest_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_ingest_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_keys: {
         Row: {
           alg: string
@@ -2048,6 +2158,8 @@ export type Database = {
           email: string
           email_notifications_enabled: boolean
           id: string
+          ingest_key_salt: string | null
+          ingest_public_key: string | null
           key_hint: string | null
           key_salt: string | null
           onboarding_completed: boolean
@@ -2060,6 +2172,7 @@ export type Database = {
           universal_opt_out_override_at: string | null
           universal_opt_out_source: string | null
           updated_at: string
+          wrapped_ingest_private_key: string | null
           wrapped_master_key: string | null
         }
         Insert: {
@@ -2068,6 +2181,8 @@ export type Database = {
           email: string
           email_notifications_enabled?: boolean
           id: string
+          ingest_key_salt?: string | null
+          ingest_public_key?: string | null
           key_hint?: string | null
           key_salt?: string | null
           onboarding_completed?: boolean
@@ -2080,6 +2195,7 @@ export type Database = {
           universal_opt_out_override_at?: string | null
           universal_opt_out_source?: string | null
           updated_at?: string
+          wrapped_ingest_private_key?: string | null
           wrapped_master_key?: string | null
         }
         Update: {
@@ -2088,6 +2204,8 @@ export type Database = {
           email?: string
           email_notifications_enabled?: boolean
           id?: string
+          ingest_key_salt?: string | null
+          ingest_public_key?: string | null
           key_hint?: string | null
           key_salt?: string | null
           onboarding_completed?: boolean
@@ -2100,6 +2218,7 @@ export type Database = {
           universal_opt_out_override_at?: string | null
           universal_opt_out_source?: string | null
           updated_at?: string
+          wrapped_ingest_private_key?: string | null
           wrapped_master_key?: string | null
         }
         Relationships: []
@@ -2625,3 +2744,5 @@ export type InsertRightsCase = Database['public']['Tables']['rights_cases']['Ins
 export type RightsCaseEvent = Database['public']['Tables']['rights_case_events']['Row']
 export type BulkJob = Database['public']['Tables']['bulk_jobs']['Row']
 export type BulkJobRow = Database['public']['Tables']['bulk_job_rows']['Row']
+export type DataSource = Database['public']['Tables']['data_sources']['Row']
+export type PendingIngest = Database['public']['Tables']['pending_ingest']['Row']
