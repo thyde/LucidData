@@ -19,6 +19,7 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { toFieldEntries, buildAnonymizedPayload } from '@/lib/crypto/anonymize'
 import { contributeAction } from '@/lib/actions/contribution.actions'
 import { formatCents } from '@/components/dashboard/chart-theme'
+import { formatFeePercent, splitEarnings } from '@/lib/constants/marketplace-economics'
 import type { DecryptedVaultData } from '@/types'
 import type { OpenDataPool } from '@/lib/services/marketplace.service'
 import { MARKETPLACE_PURPOSE_LABELS } from '@/lib/validations/marketplace'
@@ -40,6 +41,13 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
   const [isPending, startTransition] = useTransition()
 
   const fields = useMemo(() => (selected ? toFieldEntries(selected.data) : []), [selected])
+
+  // LD-505: what the buyer pays, what LucidData retains, and what the person
+  // actually earns, all shown before they agree to anything.
+  const earnings = useMemo(
+    () => splitEarnings(pool.price_per_record_cents),
+    [pool.price_per_record_cents]
+  )
 
   function selectEntry(entry: DecryptedVaultData) {
     setSelected(entry)
@@ -86,7 +94,7 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
         })
         toast({
           title: 'Shared to pool',
-          description: `You earn ${formatCents(pool.price_per_record_cents)} per purchase.`,
+          description: `You earn ${formatCents(earnings.netCents)} per purchase, after the ${formatFeePercent(earnings.feeBps)} LucidData fee.`,
         })
         reset()
         onOpenChange(false)
@@ -190,10 +198,24 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
                 </li>
               ))}
             </ul>
-            <div className="flex items-center gap-2 rounded-md bg-primary/5 p-3 text-xs text-muted-foreground">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              {checkedKeys.size} field(s) will be shared anonymously · earn{' '}
-              {formatCents(pool.price_per_record_cents)} per purchase.
+            <div className="space-y-2 rounded-md bg-primary/5 p-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                {checkedKeys.size} field(s) will be shared anonymously.
+              </div>
+              {/* LD-505: the fee is disclosed before consent, not discovered at payout. */}
+              <div className="flex justify-between">
+                <span>Buyer pays per purchase</span>
+                <span>{formatCents(earnings.grossCents)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>LucidData fee ({formatFeePercent(earnings.feeBps)})</span>
+                <span>{formatCents(earnings.platformFeeCents)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1 font-medium text-foreground">
+                <span>You earn</span>
+                <span>{formatCents(earnings.netCents)}</span>
+              </div>
             </div>
             <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
               <Checkbox

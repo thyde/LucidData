@@ -18,6 +18,8 @@ export const rewrapEntriesSchema = z.object({
 
 export const deleteAccountSchema = z.object({
   confirmPhrase: z.string(),
+  // LD-106: a single-use grant proving the password was re-entered just now.
+  stepUpToken: z.string().min(1, 'Confirm your password to continue'),
 })
 
 export const emailNotificationPreferenceSchema = z.object({

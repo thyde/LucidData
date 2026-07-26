@@ -8,6 +8,11 @@ import {
   notifyDataSold,
   notifyPayoutPaid,
 } from '@/lib/services/marketplace-notification.service'
+import {
+  PAYOUT_THRESHOLD_CENTS,
+  PLATFORM_FEE_BPS,
+  splitEarnings,
+} from '@/lib/constants/marketplace-economics'
 import type { DataOrder, Payout, PayoutAccount } from '@/types/database.types'
 
 function appUrl(): string {
@@ -20,6 +25,12 @@ export interface PayoutOverview {
   detailsSubmitted: boolean
   paidCents: number
   pendingCents: number
+  /** Total the buyers paid for this contributor's records, before the fee. */
+  grossCents: number
+  /** Total LucidData retained. */
+  platformFeeCents: number
+  /** Balance still needed before the next transfer is sent. */
+  thresholdCents: number
   payouts: Payout[]
 }
 
@@ -100,17 +111,23 @@ export async function recordOrderPayouts(order: DataOrder): Promise<void> {
   const userIds = new Set<string>()
   for (const record of records) {
     if (!record.source_user_id || record.payout_cents <= 0) continue
+    // LD-505: the fee is taken here, from the gross the buyer paid, and all three
+    // numbers are recorded so the contributor sees what happened.
+    const split = splitEarnings(record.payout_cents, PLATFORM_FEE_BPS)
     await payoutRepo.createPayout({
       user_id: record.source_user_id,
       contribution_id: record.source_contribution_id,
       data_order_id: order.id,
       pool_id: order.pool_id,
-      amount_cents: record.payout_cents,
+      gross_cents: split.grossCents,
+      platform_fee_cents: split.platformFeeCents,
+      fee_bps: split.feeBps,
+      amount_cents: split.netCents,
       status: 'pending',
     })
     await notifyDataSold(record.source_user_id, {
       poolName,
-      amountCents: record.payout_cents,
+      amountCents: split.netCents,
       orderId: order.id,
     })
     userIds.add(record.source_user_id)
@@ -123,13 +140,26 @@ export async function recordOrderPayouts(order: DataOrder): Promise<void> {
   }
 }
 
-/** Transfer all pending payouts for a user whose connected account can receive them. */
-export async function processPendingPayouts(userId: string): Promise<void> {
+/**
+ * Transfer pending payouts for a user whose connected account can receive them.
+ *
+ * LD-505: earnings accrue in the ledger and only move once the balance clears
+ * the threshold, because sending a few cents costs several times what it moves.
+ * `force` overrides that, and is used when an account closes: a balance is owed
+ * on demand and must never expire.
+ */
+export async function processPendingPayouts(
+  userId: string,
+  options: { force?: boolean } = {}
+): Promise<void> {
   if (!isStripeConfigured()) return
   const account = await payoutRepo.findAccount(userId)
   if (!account || !account.payouts_enabled) return
 
   const pending = await payoutRepo.findPendingPayouts(userId)
+  const balance = pending.reduce((sum, payout) => sum + payout.amount_cents, 0)
+  if (!options.force && balance < PAYOUT_THRESHOLD_CENTS) return
+
   const poolNames = new Map<string, string>()
   for (const payout of pending) {
     try {
@@ -181,9 +211,13 @@ export async function getPayoutOverview(userId: string): Promise<PayoutOverview>
   const payouts = await payoutRepo.findPayoutsByUser(userId)
   let paidCents = 0
   let pendingCents = 0
+  let grossCents = 0
+  let platformFeeCents = 0
   for (const p of payouts) {
     if (p.status === 'paid') paidCents += p.amount_cents
     else if (p.status === 'pending') pendingCents += p.amount_cents
+    grossCents += p.gross_cents
+    platformFeeCents += p.platform_fee_cents
   }
 
   return {
@@ -192,6 +226,17 @@ export async function getPayoutOverview(userId: string): Promise<PayoutOverview>
     detailsSubmitted: account?.details_submitted ?? false,
     paidCents,
     pendingCents,
+    grossCents,
+    platformFeeCents,
+    thresholdCents: PAYOUT_THRESHOLD_CENTS,
     payouts,
   }
+}
+
+/**
+ * Pay out whatever is owed regardless of the threshold. Used when an account is
+ * closing: an outstanding balance is owed on demand and must never expire.
+ */
+export async function flushOwedBalance(userId: string): Promise<void> {
+  await processPendingPayouts(userId, { force: true })
 }

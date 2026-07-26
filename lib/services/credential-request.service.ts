@@ -4,6 +4,7 @@ import { createShare } from '@/lib/services/share.service'
 import { verifyIssuedCredential, type CredentialVerification } from '@/lib/services/credential.service'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { createNotification } from '@/lib/services/notification.service'
+import { pendingRequestCountReached } from '@/lib/middleware/requireVerifiedOrg'
 import type { CredentialRequest, CredentialShare, IssuedCredential } from '@/types/database.types'
 
 export interface CreateCredentialRequestParams {
@@ -41,6 +42,13 @@ export async function createCredentialRequest(
     .ilike('email', email)
     .maybeSingle()
   if (!user) return null
+
+  // LD-109: cap how many requests one organization may leave open with one
+  // person. Returning null keeps the caller's response identical to the
+  // no-such-user case, so the cap does not confirm the account exists.
+  if (await pendingRequestCountReached('credential_requests', organizationId, user.id)) {
+    return null
+  }
 
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + params.expiresInDays)
@@ -272,7 +280,11 @@ export async function getRequestFulfillment(
       issuerName: (issuer as { name: string } | null)?.name ?? 'Unknown issuer',
       issuerVerified: Boolean((issuer as { verified_at: string | null } | null)?.verified_at),
       disclosedClaims: disclosed,
-      verification: { valid: verification.valid && !share.revoked, reasons },
+      verification: {
+        valid: verification.valid && !share.revoked,
+        reasons,
+        warnings: verification.warnings,
+      },
       revoked: share.revoked,
       sharedAt: share.created_at,
     })

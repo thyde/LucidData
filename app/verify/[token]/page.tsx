@@ -54,6 +54,11 @@ export default async function VerifyPage({
                   {result.verification.reasons.map((r, i) => <li key={i}>{r}</li>)}
                 </ul>
               )}
+              {result.verification.warnings.length > 0 && (
+                <ul className="mt-2 text-sm text-amber-800 list-disc list-inside">
+                  {result.verification.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+              )}
             </div>
 
             <div className="p-5 space-y-4">

@@ -2,6 +2,7 @@ import * as userRepo from '@/lib/repositories/user.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { createServiceClient } from '@/lib/supabase/service'
 import { notifySecurityEvent } from '@/lib/services/security-notification.service'
+import { flushOwedBalance } from '@/lib/services/payout.service'
 import { createClient } from '@/lib/supabase/server'
 
 export interface AccountSecurity {
@@ -120,6 +121,11 @@ export async function setEmailNotificationPreference(
 
 // Hard-delete the auth user; all user-owned tables cascade via foreign keys.
 export async function deleteAccount(userId: string): Promise<void> {
+  // LD-505: a balance is owed on demand and must never expire, so pay out
+  // anything outstanding before the account goes away. Best-effort: a payment
+  // provider outage must not block the person's right to delete.
+  await flushOwedBalance(userId).catch(() => undefined)
+
   await createAuditEntry({
     userId,
     eventType: 'account_deleted',

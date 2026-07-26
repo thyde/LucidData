@@ -1,5 +1,6 @@
 import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { assertRecoveryReadyForFirstWrite } from '@/lib/services/recovery-factor.service'
 import type { VaultData, InsertVaultData, UpdateVaultData } from '@/types/database.types'
 
 export interface CreateVaultPayload {
@@ -27,6 +28,11 @@ export interface UpdateVaultPayload {
 }
 
 export async function createVaultData(userId: string, payload: CreateVaultPayload): Promise<VaultData> {
+  // LD-105: refuse the first write until the user has a recovery factor or has
+  // explicitly accepted that their data will be unrecoverable. Existing vaults
+  // are unaffected.
+  await assertRecoveryReadyForFirstWrite(userId)
+
   const entry = await vaultRepo.createVaultEntry({ user_id: userId, ...payload } as InsertVaultData)
   await createAuditEntry({
     userId,

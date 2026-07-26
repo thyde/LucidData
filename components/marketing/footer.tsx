@@ -18,12 +18,19 @@ const FOOTER_GROUPS = [
       { href: '/org/register', label: 'Register an organization' },
     ],
   },
+  {
+    title: 'Trust',
+    links: [
+      { href: '/trust', label: 'Trust centre' },
+      { href: '/trust/threat-model', label: 'Threat model' },
+    ],
+  },
 ]
 
 export function Footer() {
   return (
     <footer className="border-t bg-muted/30">
-      <div className="container mx-auto grid gap-8 px-4 py-12 md:grid-cols-4">
+      <div className="container mx-auto grid gap-8 px-4 py-12 md:grid-cols-5">
         <div className="md:col-span-2">
           <Logo />
           <p className="mt-3 max-w-sm text-sm text-muted-foreground">

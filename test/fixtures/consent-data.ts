@@ -22,6 +22,7 @@ export const mockConsent: Consent = {
   ip_address: '192.168.1.1',
   user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   terms_version: '1.0',
+  expired_at: null,
   created_at: '2026-01-01T00:00:00.000Z',
   updated_at: '2026-01-01T00:00:00.000Z',
 };

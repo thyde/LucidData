@@ -24,7 +24,12 @@ export async function rotateOrganizationApiKeyAction(
   organizationId: string,
   name: string
 ): Promise<RotatedOrganizationApiKey> {
-  await requireOrgMembership(organizationId, ['owner'])
+  const { organization } = await requireOrgMembership(organizationId, ['owner'])
+  // LD-109: no usable key exists until the organization proves it controls its
+  // domain, so a stranger cannot mint credentials under someone else's name.
+  if (!organization.verified_at) {
+    throw new Error('Verify your domain before creating an API key')
+  }
   return rotateOrganizationApiKey(organizationId, keyNameSchema.parse(name))
 }
 

@@ -1,7 +1,10 @@
 # Competitive feature roadmap
 
 Research date: 2026-07-25
-Status: active
+Last delivery update: 2026-07-26
+Status: active. **Phase 1 is delivered.** See [section 6.1](#61-phase-1-delivery-record) for the
+record and [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining
+specs.
 Owner: product
 Audience: agentic coding tools and the engineers reviewing their output
 
@@ -63,6 +66,10 @@ this document rather than a note elsewhere.
 
 ## 2. Verified baseline
 
+> This section records the baseline **as it was on 2026-07-25, before Phase 1**. It is kept as the
+> reference point the gap analysis in section 4 was scored against. For what has shipped since, read
+> [section 6.1](#61-phase-1-delivery-record). Where a line below is now out of date, it says so.
+
 LucidData is further along than its README implies. The audit found 24 product pages, 19 server-action domains, 24 services, and 22 migrations. The following are confirmed present in the workspace.
 
 Individual-facing:
@@ -96,9 +103,9 @@ Three claims in the internal audit were wrong and are corrected here: credential
 
 Confirmed absent, verified by search:
 
-- No `data_sources` table and no `users.ingest_public_key`, so server-side connectors cannot write data the server cannot read.
-- No Global Privacy Control or universal opt-out handling anywhere in `lib/`.
-- No k-anonymity or differential privacy. The only cohort protection is a `minimum_contributors` count checked at purchase time in [lib/services/data-order.service.ts](../lib/services/data-order.service.ts).
+- No `data_sources` table and no `users.ingest_public_key`, so server-side connectors cannot write data the server cannot read. **Still true.** LD-201 remains unbuilt.
+- ~~No Global Privacy Control or universal opt-out handling anywhere in `lib/`.~~ **Closed by LD-302 on 2026-07-26.**
+- No k-anonymity or differential privacy. The only cohort protection is a `minimum_contributors` count checked at purchase time in [lib/services/data-order.service.ts](../lib/services/data-order.service.ts). **Still true.** LD-501 remains unbuilt and is the single largest open risk in the marketplace.
 
 ## 3. Competitor matrix
 
@@ -1484,6 +1491,19 @@ Stories.
 Scope. An explicit platform fee. Price floors that prevent a sale from being unprofitable. Fee
 transparency to both sides. A pricing model that holds as pools scale.
 
+Validated parameters from section 7. Implement these values unless a business decision changes them,
+and keep them in one typed constants module so they cannot drift:
+
+| Parameter | Value | Why |
+|---|---|---|
+| Platform fee | 25% of gross | Profitable at every pool size tested from 1 to 100,000 records |
+| Minimum order value | $50 | Validated floor is $1.36; $50 also matches how buyers actually buy |
+| Payout threshold | $25 | Brings payout cost to 9% of the amount moved, against 375% at $0.60 |
+| Zero-margin categories | Reprice or withdraw | `interests` and `other` have a zero access fee and cannot cover processing |
+
+Earnings must accrue in a ledger between payouts. A balance is owed on demand when an account closes and
+must never expire.
+
 Implementation.
 - Take the platform fee on the transfer using Stripe's `application_fee_amount`, rather than by silently reducing the contributor's stated payout. The contributor should see the gross, the fee, and the net.
 - Refuse to create an order whose total cannot cover processing plus the minimum margin. Surface this to the buyer as a minimum order value rather than a failure.
@@ -1498,9 +1518,12 @@ Acceptance criteria.
 - [ ] A platform fee is applied and recorded on every marketplace transaction.
 - [ ] No order can be created that is unprofitable after processing costs, asserted by test at several pool sizes.
 - [ ] Contributors see gross, fee, and net before consenting and on every payout.
+- [ ] Earnings accrue in a ledger and pay out only above the threshold, and the pending balance is visible.
+- [ ] A closing account is paid any outstanding balance regardless of the threshold.
 - [ ] Categories with no viable margin are either repriced or withdrawn from sale.
 - [ ] A fee change does not retroactively alter existing contributions.
 - [ ] A test asserts profitability across pool sizes from the minimum to ten thousand contributors.
+- [ ] User-facing copy about earnings matches the modelled amounts in section 7 and does not promise income.
 
 Tests. A table-driven margin test across categories and pool sizes, including the current failing cases,
 so the regression cannot return. A test that consented terms survive a later fee change.
@@ -1851,6 +1874,10 @@ Sequencing is driven by dependencies and by the fact that trust and acquisition 
 
 ### Phase 1, months 1 to 3. Make the claim credible and the vault non-empty
 
+**Status: delivered 2026-07-26.** All eleven specs are implemented and verified. The per-spec record,
+including the two acceptance criteria that could not be met and why, is in
+[section 6.1](#61-phase-1-delivery-record).
+
 - LD-102 production notification delivery
 - LD-101 trust centre and key custody disclosure
 - LD-303 signed consent receipts
@@ -1865,11 +1892,116 @@ Sequencing is driven by dependencies and by the fact that trust and acquisition 
 
 Exit criteria: a new user cannot create a vault they will irreversibly lose, only real organizations can contact users, an organization can add colleagues, a compromised issuer key can be contained, and no marketplace sale loses money.
 
+**Exit criteria met.** The one criterion the phase heading claims but the phase does not deliver is a
+non-empty vault: that is LD-201, which the capacity rebalance moved to phase 2. The heading is left
+unchanged for traceability, but read the exit criteria rather than the heading.
+
 Sequencing note. LD-303 and LD-601 have the highest fan-out in the whole plan, blocking five and three
 other specs respectively, so they should start first regardless of their individual priority. LD-107,
 LD-201, and LD-501 were moved to phase 2 because the capacity analysis showed phase 1 at roughly double
 a two-engineer team's throughput. LD-505 stays here despite being unglamorous, because every spec that
 increases marketplace volume makes the current pricing worse.
+
+### 6.1 Phase 1 delivery record
+
+Verified on 2026-07-26: typecheck clean, lint clean at `--max-warnings=0`, 567 of 567 Vitest tests
+(up from 470), production build green across 45 routes, and 57 of 57 Playwright specs with retries
+disabled. Ten migrations were applied to the local database. **They have not been applied to
+production.** See [section 6.3](#63-deployment-prerequisites) before shipping.
+
+| Spec | Delivered | Notes worth carrying forward |
+|---|---|---|
+| LD-102 | Yes | Deep links already existed, so the work was failure logging and visibility. Delivery failures now log through the error logger with no recipient, subject, body, or token in the entry. `isEmailDeliveryConfigured()` drives a warning in the org portal when no transport is set. A transport still has to be configured per deployment; the code is ready, the secret is not set |
+| LD-101 | Yes | [lib/constants/trust-disclosures.ts](../lib/constants/trust-disclosures.ts) is the single source. A Vitest test fails the build if any module in `lib/crypto/` has no key-custody entry, which makes the page self-maintaining rather than a document that rots |
+| LD-303 | Yes | Receipts are append-only and chained by `supersedes_receipt_id`. A new `platform_keys` table holds the receipt signing key under the same custody model as issuer keys. **This makes `ISSUER_KEY_SECRET` required for consent, not just credential issuance** |
+| LD-601 | Yes, with one criterion unmet | Jobs: payout retries with exponential backoff, consent expiry, share expiry, rate-limit purge. **Connector token refresh was not implemented** because there is no `data_sources` table until LD-201. The runner has a job registry so it slots in without restructuring |
+| LD-603 | Yes | Single-use hashed invitation tokens bound to the invited address. Last-owner protection on both demote and remove. This is the first time the owner / issuer_admin / verifier / member role model has been reachable at all |
+| LD-109 | Yes | Organization registration now requires a session and issues no API key; keys come only after domain verification. `assertIssuanceQuota` moved inside `issueCredential` so no path bypasses it. Rate limiting is Postgres-backed and fails open with a log rather than taking the product offline |
+| LD-302 | Yes | Signal recorded once and audited once, from either the header or `navigator.globalPrivacyControl`. A deliberate opt-in afterwards is recorded as a distinct event so it is never confused with the signal going away |
+| LD-105 | Yes | Two independent factors: the printed recovery code and a downloadable recovery kit. The first-write block only fires when recovery setup actually failed, because registration already enrolls a code. That is the intended safety net rather than a new speed bump |
+| LD-106 | Yes | Idle lock clears the key itself, not a flag. Step-up grants are single use, expire in 120 seconds, and name one action, so a confirmation cannot be reused. Session listing and revocation run through `auth.uid()`-scoped `SECURITY DEFINER` functions because PostgREST does not expose the auth schema |
+| LD-406 | Yes | `verifyIssuedCredential` now selects the key by the credential's `key_id` rather than by whichever key is active, so rotation no longer invalidates history. The result shape changed to `{valid, reasons, warnings}` |
+| LD-505 | Yes, with one mechanism substituted | 25% platform fee, $50 minimum order enforced in both the service and a database constraint, $25 payout threshold with the balance paid out on account closure. `interests` and `other` were repriced off a zero access fee. Profitability is asserted by a table-driven test across eight pool sizes and every category |
+
+Two acceptance criteria were not met as written. Both are recorded here rather than quietly dropped.
+
+1. **LD-601, connector token refresh.** Blocked, not skipped. There is no `data_sources` table to
+   refresh tokens for. Add the job to `JOB_NAMES` in
+   [lib/services/scheduled-jobs.service.ts](../lib/services/scheduled-jobs.service.ts) as part of LD-201.
+2. **LD-505, `application_fee_amount`.** The spec instructed taking the fee with Stripe's
+   `application_fee_amount`. That parameter does not exist on separate charges and transfers, which is
+   the model LucidData uses. The fee is instead the difference between the gross the buyer paid and the
+   net transferred, with `gross_cents`, `platform_fee_cents`, and `fee_bps` all recorded on the payout
+   row and all three shown to the contributor before consent and at payout. This satisfies the
+   acceptance criterion, which asks that the contributor see gross, fee, and net. It does not satisfy
+   the implementation instruction, which assumed an unavailable mechanism.
+
+One implementation decision went beyond the spec and is worth a review. The fee rate is **pinned per
+contribution** in `pool_contributions.platform_fee_bps` at consent time. That is the reading of "a fee
+change does not retroactively alter existing contributions" that costs money if the fee ever rises,
+because old contributions keep earning at the old rate. The alternative reading, applying the current
+rate to every future sale, is cheaper and defensible, but it means the terms someone agreed to can
+change without them agreeing again. If product prefers the cheaper reading, change it before volume
+accumulates, not after.
+
+### 6.2 Implications for later phases
+
+Phase 1 changed foundations that later specs were written against. Read this before starting any phase
+2 spec. Each item names the spec it affects.
+
+**LD-201 connector framework, phase 2.**
+- The trust-disclosure test asserts that every module in `lib/crypto/` has a key-custody entry. Adding `lib/crypto/ingestion-keys.ts` **will fail the build** until [lib/constants/trust-disclosures.ts](../lib/constants/trust-disclosures.ts) gains a matching entry in the same pull request. This is intended: the spec already requires disclosing `CONNECTOR_TOKEN_SECRET` as a server-held key, and the test now enforces it.
+- Token refresh is a scheduled job, not new infrastructure. Register it in `JOB_NAMES` and it is picked up by the existing cron endpoint, backoff, and run history.
+- Sync failures should raise notifications through the LD-102 path, which now logs delivery failures rather than swallowing them.
+
+**LD-501 anonymization, phase 2.**
+- The economics inverted. Under the old fixed access fee, larger cohorts lost money, so k-anonymity fought the business model. Under the 25% fee, larger cohorts earn more, so the privacy gate and the revenue model now point the same way.
+- A release refused by the k-gate must not leave a paid order behind. The order path now enforces a $50 minimum and a matching database CHECK, so the refusal has to happen before the Stripe Checkout session is created, not after payment.
+
+**LD-607 deletion completeness, phase 2.**
+- The deletion manifest must cover the tables Phase 1 added: `consent_receipts`, `recovery_factors`, `step_up_grants`, `revoked_sessions`, `org_invitations`, and the new fee columns on `payouts`.
+- `rate_limit_counters` stores bucket keys that embed user and organization ids. It is a retention item, not just a cache. The LD-601 purge job already drops windows older than a day, which is the behaviour LD-607 should formalize rather than replace.
+- `deleteAccount` now pays out any owed balance before deleting, per LD-505. LD-607's explicit ordered deletion must preserve that step, and must run it before the account rows disappear.
+- `job_runs` holds no personal data and can be excluded, but say so in the manifest rather than omitting it.
+
+**LD-602 organization developer surface, phase 2.**
+- **The org API contract changed and the OpenAPI document must describe the new behaviour, not the old.** `POST /api/org/register` requires a session and no longer returns `api_key`. `POST /api/org/consent-request` returns `202` with a fixed neutral body instead of `201` with the created request. Both are breaking changes for any existing integrator.
+- Rate limits exist now, so `429` is a documented response on registration, consent requests, credential requests, issuance, and verification.
+- Webhook payloads must respect the same enumeration rule as the endpoints: an event must not confirm that an email maps to an account.
+
+**LD-301 rights engine, phase 2.**
+- Use the LD-303 signing path for rights artifacts rather than introducing a second receipt format. LD-607 already assumes this for deletion receipts.
+- Rights actions that destroy or export data should sit behind LD-106 step-up, which already covers export and deletion.
+
+**LD-206 tracker transparency, phase 2.**
+- The extension's obligation to send Global Privacy Control is already served server side. LD-302 records a `gpc_navigator` source, so the extension only needs to report the signal, not build the recording path.
+
+**LD-405 credential correction, phase 3.**
+- The verification precedence list in LD-405 was written before LD-406 shipped. `verifyIssuedCredential` now returns `{valid, reasons, warnings}` and already implements the revoked, compromised, and expired branches. LD-405 must extend that result shape and slot `superseded` into the existing precedence rather than introducing a parallel verification path.
+
+**LD-401 standards formats, phase 3.**
+- Verification selects the signing key by the credential's `key_id`. Any new format module must preserve that, or rotation will start invalidating history again. `getIssuerPublicKeyHistory` already publishes retired public keys, which is what an external verifier needs.
+
+**LD-104 account continuity, phase 4.**
+- Its dependency on LD-303 is satisfied.
+- `recovery_factors` already models exactly what a nominee needs: an independently wrapped copy of the master key that the server cannot open. Extend that table with a nominee factor type rather than building a parallel escrow.
+
+**LD-605 insider controls, phase 3.**
+- The service-role wrapper it proposes now has more call sites than when it was written, because rate limiting, step-up, session revocation, and org team management all use the service role. Scope the wrapper accordingly.
+- `job_runs` gives scheduled work a provenance record that the attribution work can reuse.
+
+**LD-502 governed access, phases 3 and 4.**
+- The fee model is per-record and pinned at consent. Recurring governed access is not a per-record snapshot, so it needs its own fee decision. This is unresolved and should be settled with open decision 10 rather than assumed.
+
+### 6.3 Deployment prerequisites
+
+Phase 1 introduced hard requirements that will cause user-visible failures if a deployment misses them.
+
+1. **`ISSUER_KEY_SECRET` is now required for consent, not only for credential issuance.** Every consent grant, extension, and revocation signs a receipt with a platform key wrapped by this secret. If it is unset, granting consent throws. This is the single most likely way to break production with this change set.
+2. **`CRON_SECRET` must be set or no scheduled job runs.** The cron endpoint fails closed by design, so an unset secret rejects every request. The visible symptom is the problem LD-601 existed to fix: payouts stall silently.
+3. **Ten migrations are applied locally only.** Production has not been migrated.
+4. **LD-109 is a breaking API change.** Any integration that registers organizations programmatically, or that reads `api_key` from the registration response, will break. Migrate integrators before applying the change set.
+5. **An email transport should be configured.** The code path is complete and the org portal warns when it is not, but with no transport nothing is delivered.
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
@@ -1946,7 +2078,215 @@ Registrations alone will hide the adoption problem visible across this category.
 - Extension installs, tier 1 enablement, and whether extension arrivals retain better than direct signups.
 - Credential presentations performed, and signups attributable to having been on the verifying side of one.
 
-## 7. Open decisions
+## 7. Financial model
+
+Modelled and arithmetically validated on 2026-07-25. Stripe and infrastructure figures are external
+assumptions using US standard list pricing and are labelled where used. Everything about LucidData's own
+behaviour is read from the code.
+
+### 7.1 What is broken
+
+LucidData retains a fixed access fee while Stripe charges a percentage of the entire transaction. Margin
+is therefore constant while cost grows linearly, so every category has a pool size beyond which the sale
+loses money.
+
+Net to LucidData per sale under the current model:
+
+| Category | 5 records | 500 | 2,000 | 10,000 | Loses money above |
+|---|---|---|---|---|---|
+| financial | $48.03 | $26.50 | -$38.75 | -$386.75 | 1,109 records |
+| credentials | $48.08 | $30.85 | -$21.35 | -$299.75 | 1,386 records |
+| personal | $23.89 | $15.27 | -$10.83 | -$150.02 | 1,377 records |
+| location | $23.90 | $16.00 | -$7.92 | -$135.52 | 1,503 records |
+| browsing | $9.34 | $2.16 | -$19.59 | -$135.59 | 648 records |
+| health | $48.19 | $42.45 | $25.05 | -$67.75 | 4,159 records |
+| interests | -$0.31 | -$1.75 | -$6.10 | -$29.30 | never profitable |
+| other | -$0.31 | -$1.02 | -$3.20 | -$14.80 | never profitable |
+
+Two consequences follow. Success makes it worse, because LD-201, LD-203, and LD-204 all exist to grow
+pools. And LD-501 makes it worse too, because k-anonymity forces larger cohorts.
+
+A second problem is independent of the first. Paying a contributor costs roughly $2.25 a month once the
+Connect active-account fee and a payout are counted, both assumptions. Against a typical per-sale
+payout, that is not viable:
+
+| Payout | Cost as share of payout |
+|---|---|
+| $0.60 | 375% |
+| $1.50 | 150% |
+| $5.00 | 45% |
+| $25.00 | 9% |
+
+Paying people the moment they earn 60 cents destroys more value than it delivers.
+
+### 7.2 Proposed model
+
+Four changes, each addressing a specific failure above.
+
+**A percentage platform fee replaces the fixed access fee as the margin source.** LucidData retains 25%
+of gross. Cost and revenue then scale together, so pool size stops being a risk. The access fee stays as
+a floor, not as the margin.
+
+**A minimum order value of $50.** Validated minimum for profitability is $1.36 at a 25% take, so $50 is
+conservative and also matches how buyers actually purchase, since a five-record cohort is not a useful
+dataset and LD-501 will refuse it anyway.
+
+**An earnings ledger with a $25 payout threshold.** Contributors accrue continuously and are paid when
+the balance clears $25, which brings payout cost to 9% of the amount moved. Balances must be visible,
+owed on demand at account closure, and never expire.
+
+**Repricing.** `interests` and `other` cannot support a viable transaction and should be withdrawn from
+sale or repriced. `health` at 40 cents a record sits below `browsing` at 50, which does not reflect its
+sensitivity or its market value.
+
+Net to LucidData under the proposed model, same pool sizes:
+
+| Category | 5 | 500 | 2,000 | 10,000 |
+|---|---|---|---|---|
+| financial | $12.41 | $176.50 | $673.75 | $3,325.75 |
+| credentials | $12.08 | $143.35 | $541.15 | $2,662.75 |
+| health | $11.19 | $54.95 | $187.55 | $894.75 |
+| browsing | $10.75 | $57.16 | $222.91 | $1,106.91 |
+
+Positive at every category and every pool size tested from 1 to 100,000 records. The relationship is now
+the right way round: bigger pools earn more, which aligns the commercial incentive with LD-201 and with
+the privacy requirement in LD-501.
+
+### 7.3 The uncomfortable result
+
+The take rate comes out of the contributor's share, so people earn less per sale than the current code
+promises. At a 25% take and a 500-contributor pool:
+
+| Category | Per sale | 4 sales/yr | 12 sales/yr | 24 sales/yr |
+|---|---|---|---|---|
+| financial | $1.20 | $4.80 | $14.40 | $28.80 |
+| credentials | $0.97 | $3.90 | $11.70 | $23.40 |
+| health | $0.38 | $1.50 | $4.50 | $9.00 |
+| browsing | $0.39 | $1.56 | $4.68 | $9.36 |
+
+A realistic contributor earns somewhere between a few dollars and thirty dollars a year. Many will not
+reach the $25 payout threshold within a year.
+
+The reason is not cohort dilution. Each record is priced separately, so a contributor receives roughly
+75% of the per-record price no matter how large the pool is. Earnings are low simply because the
+per-record price is low. Section 7.6 tests whether raising it fixes the problem.
+
+The reference figure of $150 per person per year for financial data is the value across the entire
+economy and every use, not what one buyer pays for one snapshot.
+
+This has a direct product consequence. **The marketplace cannot honestly be sold as income.** Copy
+promising that people will earn from their data will be contradicted by the first payout screen, and
+LD-101 exists precisely to stop the product making claims it cannot support. The marketplace should be
+positioned as a dividend on data the person is storing anyway, with the amount shown before consent, per
+LD-505.
+
+### 7.4 Where the business actually is
+
+Modelled monthly, assuming a fully loaded three-engineer team at $45,000 and infrastructure at $200 plus
+five cents per active user, all assumptions:
+
+| Scenario | Orgs | Consumer premium | Marketplace GMV | Revenue | Net |
+|---|---|---|---|---|---|
+| Year 1 pilot | 10 starter, 2 growth | 500 | $2,000 | $3,530 | -$41,945 |
+| Year 2 growth | 60 starter, 15 growth | 5,000 | $25,000 | $32,950 | -$14,500 |
+| Sustainable | 120 starter, 60 growth | 12,000 | $80,000 | $89,500 | +$38,700 |
+| Year 3 scale | 200 starter, 120 growth | 30,000 | $200,000 | $209,880 | +$150,680 |
+
+At the sustainable point the revenue mix is roughly 27% organization subscriptions, 54% consumer
+subscriptions, and 20% marketplace take. The marketplace is the smallest line even when it is working.
+
+The conclusion the numbers support: **the marketplace is a supply and retention mechanism, not the
+revenue engine.** It gives people a reason to fill a vault and a reason to keep it current. The revenue
+comes from organizations paying for verification, issuance, and governed access, and from consumers
+paying a small subscription for the things they actually value, which the persona work suggests are
+continuity under LD-104, tracker insight under LD-206, and credential presentation under LD-404.
+
+A consumer tier around $4 a month sits sensibly against Optery at $3.25, Cozy at about €4, and Incogni
+at $7.99, all of which sell narrower value than a vault plus credentials plus rights handling.
+
+Two further observations from the model. A 25% take is not aggressive for this category; 15% still
+yields $1,210 on $10,000 of monthly volume and would be defensible if a lower take were preferred for
+positioning. And the $49 and $299 organization plans look under-priced against comparables such as
+Terra's $499 entry point, particularly once LD-602, LD-604, and LD-404 add real integration value. The
+per-org marginal cost is small, so these plans are not loss-making, contrary to an earlier estimate that
+mistakenly attributed whole-platform infrastructure to a single customer.
+
+### 7.5 Decisions this forces
+
+1. The take rate. 25% is the modelled recommendation. Anything below about 5% cannot cover processing on small orders.
+2. Whether to reprice or withdraw `interests` and `other`.
+3. Whether consumer subscription is part of the model. The break-even mix depends heavily on it, and it is the largest single line at the sustainable point.
+4. How marketplace earnings are described to users, given the numbers above. This is a claims-accuracy question and belongs with LD-101.
+5. Whether to raise organization subscription prices and introduce per-verification pricing. See 7.6.
+
+### 7.6 Can the problem be fixed by charging businesses more?
+
+Partly, and the answer differs by revenue type. Modelled separately because the intuition is right about
+the mechanism but runs into a market ceiling.
+
+**The mechanism does work.** Raising the per-record price flows through to contributors almost one for
+one, since they receive about 75% of it. There is no dilution to overcome.
+
+**The ceiling is what a buyer will pay for bulk data.** Reaching $100 a year per contributor at four
+sales a year requires about $33 per record, which prices a 500-record dataset at roughly $16,550.
+
+| Price multiple | Per record | Buyer pays for 500 records | Contributor per year | LucidData per sale |
+|---|---|---|---|---|
+| 1x, current | $1.50 | $800 | $4.50 | $176.50 |
+| 2x | $3.00 | $1,550 | $9.00 | $342.25 |
+| 5x | $7.50 | $3,800 | $22.50 | $839.50 |
+| 10x | $15.00 | $7,550 | $45.00 | $1,668.25 |
+| 22x | $33.00 | $16,550 | $99.00 | $3,657.25 |
+
+The problem is what that competes against. Bulk anonymized data is a commodity sold by brokers at cents
+per record, and consented profile data trades closer to fifty cents. At $33 a record LucidData would be
+charging survey-panel prices for data the buyer did not commission and cannot follow up on. There is
+room to raise bulk prices, plausibly to a few dollars a record for high-value verified categories, but
+not by the order of magnitude that would turn data sales into income for the individual.
+
+**Two revenue types escape the ceiling entirely, and both are already in the roadmap.**
+
+Verification fees are not pooled. The subject earns from every check performed about them, and the buyer
+is comparing the price to a manual verification rather than to a data feed.
+
+| Fee per check | 4 checks/yr | 12 | 24 | 52 |
+|---|---|---|---|---|
+| $2 | $6 | $18 | $36 | $78 |
+| $5 | $15 | $45 | $90 | $195 |
+| $10 | $30 | $90 | $180 | $390 |
+| $15 | $45 | $135 | $270 | $585 |
+
+A tradesperson whose insurance is checked weekly earns about $390 a year at a $10 fee, against roughly
+$5 a year from pool sales. This is the LD-404 use case, and it turns out to be worth an order of
+magnitude more to the individual than the marketplace is.
+
+Recurring governed access under LD-502 has the other useful property: the same cohort can be licensed to
+several buyers at once, which a snapshot sale cannot, because the buyer keeps the copy. Five buyers at
+$500 a month against a 500-person cohort yields about $45 a year per contributor and $7,500 a year to
+LucidData from a single cohort.
+
+**Organization subscriptions should go up.** Moving from $49 and $299 to $99 and $499 adds roughly
+$18,000 a month at the sustainable scenario, and the comparables support it, with Terra starting at $499
+for a narrower product. Note that verification vendors do not publish per-check pricing at all; Truework,
+now part of Checkr Group, quotes rather than lists. That is itself evidence this is a negotiated market
+with real willingness to pay, and a reason to treat the fee figures above as assumptions to confirm.
+
+**What an engaged individual could actually earn per year:**
+
+| Source | Annual |
+|---|---|
+| Pool sales across three categories, four sales a year | $7.50 |
+| Verification fees, twelve checks a year at $10 | $90.00 |
+| Governed access share, three concurrent buyers | $27.00 |
+| Total | $124.50 |
+
+So the answer is yes, charge businesses more, but not mainly for bulk data. The revenue that pays
+individuals properly comes from verification and recurring access, where LucidData is selling something
+scarce rather than competing with data brokers on price. That also points the product at its strongest
+position: verified claims about a specific person, delivered instantly with consent, rather than
+anonymized behavioural data where scale wins and LucidData has none.
+
+## 8. Open decisions
 
 These need a human decision before the dependent specs can be executed.
 
@@ -1959,41 +2299,46 @@ These need a human decision before the dependent specs can be executed.
 7. Issuer onboarding vertical. LD-404 only answers "is this tradesperson insured" if an insurer or trade body issues that credential. Pick one vertical and secure a launch issuer before building the presentation flow, otherwise it ships with nothing authoritative to present. Trade licensing and professional indemnity are the closest fit to the existing issuer tooling.
 8. Browsing data appetite. LD-207 is the highest-return and highest-risk item here. Decide whether LucidData wants to be in the browsing data market at all before LD-206 ships, because LD-206 builds the collection capability either way and the answer changes what is said to users at that point.
 9. Platform fee level. LD-505 requires a number. A fee high enough to fund the service reduces what contributors earn, and contributor earnings are already modest: at current guidance a person in the financial category earns roughly 1.50 dollars per sale. Decide whether the marketplace is a revenue line or an acquisition feature funded by organization subscriptions, because that answer sets the fee and changes how the product should be described to users.
+10. Verification pricing. Section 7.6 shows per-check fees are worth roughly twelve times more to an individual than pool sales, and the buyer compares them to a manual check rather than to a data feed. Decide the fee, the subject's share, and whether verification is metered separately from the organization subscription. This is the single highest-leverage pricing decision in the document and it should be settled before LD-404 is built, because it changes what that feature is for.
 
-## 8. Validation status
+## 9. Validation status
 
 This spec is not final. The table records which validation exercises have been run against it and which
 remain. Treat an unchecked row as a reason to hold the affected specs rather than build them.
 
 | Exercise | Status | What it found |
 |---|---|---|
-| Competitor and adjacent market research | Done | Sections 3 and 8 |
+| Competitor and adjacent market research | Done | Sections 3 and 10 |
 | Standards and regulatory review | Done | Section 3, regulatory drivers |
 | Implementation baseline audit | Done | Section 2 |
 | Persona scenario walkthrough, 32 personas | Done | Section 4.1, produced LD-104 to LD-108, LD-405, LD-406, LD-603 to LD-605 |
-| Unit economics and pricing model | Done | Produced LD-505 and open decision 9 |
+| Unit economics and pricing model | Done | Produced section 7 and LD-505, and open decision 9 |
 | Abuse and coercion modelling | Done | Produced LD-109, LD-506, LD-606 |
 | Threat model | Done | Confirmed LD-605 and LD-406; residual risks recorded in LD-101 and LD-107 |
 | Data lifecycle and deletion mapping | Done | Produced LD-607 |
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
+| Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |
 
 ### Defects found during validation
 
-These are live defects in the current codebase rather than missing features. They were found while
-validating the roadmap and are worth fixing regardless of what happens to this plan.
+These were live defects in the codebase rather than missing features. Status updated 2026-07-26.
 
-| Defect | Evidence | Owned by |
-|---|---|---|
-| Organization registration is unauthenticated and returns a working API key | [app/api/org/register/route.ts](../app/api/org/register/route.ts) | LD-109 |
-| `assertIssuanceQuota` is defined but never called, so plan limits are unenforced | [lib/services/billing.service.ts](../lib/services/billing.service.ts) | LD-109 |
-| Issued credentials survive account deletion with claims intact | `ON DELETE SET NULL` in [20260616000007_credentials.sql](../supabase/migrations/20260616000007_credentials.sql) | LD-607 |
-| Order records survive account deletion with payload intact | `ON DELETE SET NULL` in [20260725150000_marketplace_transaction_integrity.sql](../supabase/migrations/20260725150000_marketplace_transaction_integrity.sql) | LD-607 |
-| Marketplace sales become loss-making above a computable pool size | Fixed access fee in [data-order.service.ts](../lib/services/data-order.service.ts) against percentage processing costs | LD-505 |
-| `interests` and `other` categories have a zero access fee, so every sale loses money | [lib/constants/data-pricing.ts](../lib/constants/data-pricing.ts) | LD-505 |
+| Defect | Evidence | Owned by | Status |
+|---|---|---|---|
+| Organization registration is unauthenticated and returns a working API key | [app/api/org/register/route.ts](../app/api/org/register/route.ts) | LD-109 | **Fixed.** Registration requires a session and issues no key; keys come only after domain verification |
+| `assertIssuanceQuota` is defined but never called, so plan limits are unenforced | [lib/services/billing.service.ts](../lib/services/billing.service.ts) | LD-109 | **Fixed.** Moved inside `issueCredential`, so the portal and API paths cannot diverge |
+| Issued credentials survive account deletion with claims intact | `ON DELETE SET NULL` in [20260616000007_credentials.sql](../supabase/migrations/20260616000007_credentials.sql) | LD-607 | **Open.** Phase 2 |
+| Order records survive account deletion with payload intact | `ON DELETE SET NULL` in [20260725150000_marketplace_transaction_integrity.sql](../supabase/migrations/20260725150000_marketplace_transaction_integrity.sql) | LD-607 | **Open.** Phase 2 |
+| Marketplace sales become loss-making above a computable pool size | Fixed access fee in [data-order.service.ts](../lib/services/data-order.service.ts) against percentage processing costs | LD-505 | **Fixed.** 25% fee plus a minimum order, asserted profitable across eight pool sizes and every category |
+| `interests` and `other` categories have a zero access fee, so every sale loses money | [lib/constants/data-pricing.ts](../lib/constants/data-pricing.ts) | LD-505 | **Fixed.** Both repriced off zero |
+
+Two defects remain open, both owned by LD-607 in phase 2. They are the highest-severity items left in
+the backlog, because a deleted account currently keeps credential claims and contributed record
+payloads, which is a GDPR Article 17 defect rather than a missing feature.
 
 ### Before this spec is considered final
 
@@ -2001,7 +2346,7 @@ validating the roadmap and are worth fixing regardless of what happens to this p
 2. Interviews with prospective users and at least one institutional buyer, to test the LD-404 and LD-107 assumptions before funding them.
 3. A team pre-mortem.
 
-## 9. Source index
+## 10. Source index
 
 All sources checked 2026-07-25. Vendor claims are labelled as reported in the sections above.
 

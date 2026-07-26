@@ -77,12 +77,10 @@ test.describe('Organization credentials and consent', () => {
       await issuerPage.getByLabel('Organization name').fill('Synthetic Credential Lab')
       await issuerPage.getByLabel('Contact email').fill(organizationEmail)
       await issuerPage.getByLabel('Organization type').selectOption('both')
-      await issuerPage.getByRole('button', { name: 'Register and get API key' }).click()
+      await issuerPage.getByRole('button', { name: 'Register organization' }).click()
       await expect(
-        issuerPage.getByRole('heading', { name: 'Registration successful' })
+        issuerPage.getByRole('heading', { name: 'Organization created' })
       ).toBeVisible({ timeout: 15000 })
-      const apiKey = (await issuerPage.locator('code').first().textContent())?.trim()
-      if (!apiKey) throw new Error('Organization API key was not displayed')
 
       const { data: organization, error: organizationError } = await service
         .from('organizations')
@@ -92,8 +90,8 @@ test.describe('Organization credentials and consent', () => {
       if (organizationError) throw organizationError
       organizationId = organization.id
 
+      // Registration now lands directly on the organization it created.
       await issuerPage.getByRole('link', { name: 'Go to organization portal' }).click()
-      await issuerPage.getByRole('link', { name: 'Synthetic Credential Lab' }).click()
       await issuerPage.getByLabel('Issuing domain').fill('synthetic-credential.invalid')
       await issuerPage.getByRole('button', { name: 'Start', exact: true }).click()
       await expect(issuerPage.getByText('Add this DNS TXT record')).toBeVisible()
@@ -108,6 +106,22 @@ test.describe('Organization credentials and consent', () => {
         .eq('id', organizationId)
       if (verifyFixtureError) throw verifyFixtureError
       await issuerPage.reload()
+
+      // LD-109: no API key exists until the domain is verified, so the first key
+      // is created here rather than handed out at registration.
+      await issuerPage.getByRole('button', { name: 'Rotate key' }).click()
+      const firstKeyDialog = issuerPage.getByRole('alertdialog', {
+        name: 'Rotate this API key?',
+      })
+      await firstKeyDialog.getByRole('button', { name: 'Rotate key' }).click()
+      await expect(issuerPage.getByText('API key rotated', { exact: true })).toBeVisible({
+        timeout: 15000,
+      })
+      const apiKey = (
+        await issuerPage.locator('code').filter({ hasText: 'lk_live_' }).textContent()
+      )?.trim()
+      if (!apiKey) throw new Error('Organization API key was not displayed')
+
       await issuerPage.getByRole('button', { name: 'Create signing key' }).click()
       await expect(issuerPage.getByText('Signing key ready', { exact: true })).toBeVisible({
         timeout: 15000,
@@ -236,7 +250,7 @@ test.describe('Organization credentials and consent', () => {
           },
         }
       )
-      expect(consentResponse.status()).toBe(201)
+      expect(consentResponse.status()).toBe(202)
       await waitForMail(holderEmail, 'New data access request')
 
       await holderPage.reload()

@@ -1,10 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { SignOutButton } from '@/components/auth/sign-out-button';
 import { DesktopNav } from '@/components/layout/desktop-nav';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { GpcDetector } from '@/components/settings/gpc-detector';
+import { recordUniversalOptOut } from '@/lib/services/privacy-signal.service';
+import { decodeSessionId, isSessionRevoked } from '@/lib/services/session-security.service';
+import { GPC_FORWARD_HEADER } from '@/lib/supabase/middleware';
 import { Building2, Settings } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -26,8 +31,27 @@ export default async function DashboardLayout({
     redirect('/two-factor');
   }
 
+  // LD-106: a session ended from another device stops working immediately, not
+  // whenever its access token happens to expire.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const sessionId = decodeSessionId(session?.access_token ?? null);
+  if (sessionId && (await isSessionRevoked(sessionId))) {
+    await supabase.auth.signOut();
+    redirect('/login');
+  }
+
+  // LD-302: honour a universal opt-out signal. The service records and audits it
+  // once, so this stays a no-op on every subsequent request.
+  const requestHeaders = await headers();
+  if (requestHeaders.get(GPC_FORWARD_HEADER) === '1') {
+    await recordUniversalOptOut(user.id, 'gpc_header').catch(() => undefined);
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      <GpcDetector />
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4 md:space-x-8">

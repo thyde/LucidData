@@ -1,7 +1,25 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+/**
+ * LD-302: forward a detected Global Privacy Control signal to server code as a
+ * normalized request header. Middleware runs on every request and cannot write
+ * to the database, so detection happens here and recording happens once in the
+ * dashboard layout.
+ */
+const GPC_FORWARD_HEADER = 'x-lucid-gpc';
+
+export { GPC_FORWARD_HEADER };
+
+export function detectGpc(request: NextRequest): boolean {
+  return request.headers.get('sec-gpc')?.trim() === '1';
+}
+
 export async function updateSession(request: NextRequest) {
+  // Carry the normalized signal on the request the app sees. Every request is
+  // stamped, so a stale value from a client-supplied header cannot leak through.
+  request.headers.set(GPC_FORWARD_HEADER, detectGpc(request) ? '1' : '0');
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -46,11 +64,13 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/for-individuals') &&
     !request.nextUrl.pathname.startsWith('/for-business') &&
     !request.nextUrl.pathname.startsWith('/pricing') &&
+    !request.nextUrl.pathname.startsWith('/trust') &&
     !request.nextUrl.pathname.startsWith('/api/auth') &&
     !request.nextUrl.pathname.startsWith('/api/supabase') &&
     !request.nextUrl.pathname.startsWith('/api/org') &&
     !request.nextUrl.pathname.startsWith('/api/issuers') &&
     !request.nextUrl.pathname.startsWith('/api/stripe') &&
+    !request.nextUrl.pathname.startsWith('/api/cron') &&
     request.nextUrl.pathname !== '/'
   ) {
     // Redirect to login if accessing protected route, preserve original path

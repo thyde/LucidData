@@ -1,7 +1,11 @@
 import { after } from 'next/server'
 import * as repo from '@/lib/repositories/notification.repository'
 import { getEmailNotificationsEnabled } from '@/lib/repositories/user.repository'
-import { sendNotificationEmail } from '@/lib/services/notification-email.service'
+import {
+  resolveTransport,
+  sendNotificationEmail,
+} from '@/lib/services/notification-email.service'
+import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import type { Notification } from '@/types/database.types'
 
 export interface CreateNotificationInput {
@@ -72,8 +76,18 @@ export async function createNotification(input: CreateNotificationInput): Promis
           message: input.message,
           deepLinkPath,
         })
-      } catch {
-        // Best-effort: the in-app notification already landed.
+      } catch (error) {
+        // Best-effort: the in-app notification already landed. Log the failure so
+        // silent non-delivery is visible, with no recipient address, subject,
+        // body, or token in the log entry.
+        errorLogger.log(error, ErrorSeverity.MEDIUM, {
+          action: 'NOTIFICATION_EMAIL_DELIVERY_FAILED',
+          resource: 'notification',
+          metadata: {
+            notificationType: input.type,
+            transport: resolveTransport(),
+          },
+        })
       }
     })
   }

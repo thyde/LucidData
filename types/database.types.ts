@@ -119,6 +119,70 @@ export type Database = {
           },
         ]
       }
+      consent_receipts: {
+        Row: {
+          consent_id: string
+          created_at: string
+          event: string
+          id: string
+          key_id: string
+          payload: Json
+          recipient: string
+          recipient_email: string | null
+          signature: string
+          supersedes_receipt_id: string | null
+          user_id: string
+        }
+        Insert: {
+          consent_id: string
+          created_at?: string
+          event: string
+          id?: string
+          key_id: string
+          payload: Json
+          recipient: string
+          recipient_email?: string | null
+          signature: string
+          supersedes_receipt_id?: string | null
+          user_id: string
+        }
+        Update: {
+          consent_id?: string
+          created_at?: string
+          event?: string
+          id?: string
+          key_id?: string
+          payload?: Json
+          recipient?: string
+          recipient_email?: string | null
+          signature?: string
+          supersedes_receipt_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_receipts_consent_id_fkey"
+            columns: ["consent_id"]
+            isOneToOne: false
+            referencedRelation: "consents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_receipts_supersedes_receipt_id_fkey"
+            columns: ["supersedes_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "consent_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_receipts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_requests: {
         Row: {
           access_level: string
@@ -193,6 +257,7 @@ export type Database = {
           created_at: string
           data_category: string | null
           end_date: string | null
+          expired_at: string | null
           granted_to: string
           granted_to_email: string | null
           granted_to_name: string | null
@@ -215,6 +280,7 @@ export type Database = {
           created_at?: string
           data_category?: string | null
           end_date?: string | null
+          expired_at?: string | null
           granted_to: string
           granted_to_email?: string | null
           granted_to_name?: string | null
@@ -237,6 +303,7 @@ export type Database = {
           created_at?: string
           data_category?: string | null
           end_date?: string | null
+          expired_at?: string | null
           granted_to?: string
           granted_to_email?: string | null
           granted_to_name?: string | null
@@ -336,6 +403,7 @@ export type Database = {
           credential_id: string
           credential_request_id: string | null
           disclosed_claims: string[]
+          expired_at: string | null
           expires_at: string | null
           id: string
           last_viewed_at: string | null
@@ -351,6 +419,7 @@ export type Database = {
           credential_id: string
           credential_request_id?: string | null
           disclosed_claims?: string[]
+          expired_at?: string | null
           expires_at?: string | null
           id?: string
           last_viewed_at?: string | null
@@ -366,6 +435,7 @@ export type Database = {
           credential_id?: string
           credential_request_id?: string | null
           disclosed_claims?: string[]
+          expired_at?: string | null
           expires_at?: string | null
           id?: string
           last_viewed_at?: string | null
@@ -671,6 +741,7 @@ export type Database = {
       issuer_keys: {
         Row: {
           alg: string
+          compromised_at: string | null
           created_at: string
           encrypted_private_key: string
           id: string
@@ -678,11 +749,16 @@ export type Database = {
           organization_id: string
           private_key_iv: string
           public_key: string
+          retired_at: string | null
           revoked_at: string | null
+          rotation_reason: string | null
           status: string
+          valid_from: string
+          valid_until: string | null
         }
         Insert: {
           alg?: string
+          compromised_at?: string | null
           created_at?: string
           encrypted_private_key: string
           id?: string
@@ -690,11 +766,16 @@ export type Database = {
           organization_id: string
           private_key_iv: string
           public_key: string
+          retired_at?: string | null
           revoked_at?: string | null
+          rotation_reason?: string | null
           status?: string
+          valid_from?: string
+          valid_until?: string | null
         }
         Update: {
           alg?: string
+          compromised_at?: string | null
           created_at?: string
           encrypted_private_key?: string
           id?: string
@@ -702,8 +783,12 @@ export type Database = {
           organization_id?: string
           private_key_iv?: string
           public_key?: string
+          retired_at?: string | null
           revoked_at?: string | null
+          rotation_reason?: string | null
           status?: string
+          valid_from?: string
+          valid_until?: string | null
         }
         Relationships: [
           {
@@ -714,6 +799,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      job_runs: {
+        Row: {
+          error: string | null
+          failed: number
+          finished_at: string | null
+          id: string
+          job: string
+          processed: number
+          started_at: string
+        }
+        Insert: {
+          error?: string | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          job: string
+          processed?: number
+          started_at?: string
+        }
+        Update: {
+          error?: string | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          job?: string
+          processed?: number
+          started_at?: string
+        }
+        Relationships: []
       }
       mfa_backup_codes: {
         Row: {
@@ -896,6 +1011,56 @@ export type Database = {
           {
             foreignKeyName: "offers_buyer_org_id_fkey"
             columns: ["buyer_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          organization_id: string
+          role: string
+          status: string
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by?: string | null
+          organization_id: string
+          role?: string
+          status?: string
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          organization_id?: string
+          role?: string
+          status?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_invitations_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -1156,10 +1321,16 @@ export type Database = {
       payouts: {
         Row: {
           amount_cents: number
+          attempts: number
           contribution_id: string | null
           created_at: string
           data_order_id: string | null
+          fee_bps: number
+          gross_cents: number
           id: string
+          last_error: string | null
+          next_attempt_at: string | null
+          platform_fee_cents: number
           pool_id: string | null
           status: string
           stripe_transfer_id: string | null
@@ -1168,10 +1339,16 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          attempts?: number
           contribution_id?: string | null
           created_at?: string
           data_order_id?: string | null
+          fee_bps?: number
+          gross_cents?: number
           id?: string
+          last_error?: string | null
+          next_attempt_at?: string | null
+          platform_fee_cents?: number
           pool_id?: string | null
           status?: string
           stripe_transfer_id?: string | null
@@ -1180,10 +1357,16 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          attempts?: number
           contribution_id?: string | null
           created_at?: string
           data_order_id?: string | null
+          fee_bps?: number
+          gross_cents?: number
           id?: string
+          last_error?: string | null
+          next_attempt_at?: string | null
+          platform_fee_cents?: number
           pool_id?: string | null
           status?: string
           stripe_transfer_id?: string | null
@@ -1221,6 +1404,45 @@ export type Database = {
           },
         ]
       }
+      platform_keys: {
+        Row: {
+          alg: string
+          created_at: string
+          encrypted_private_key: string
+          id: string
+          key_id: string
+          private_key_iv: string
+          public_key: string
+          purpose: string
+          retired_at: string | null
+          status: string
+        }
+        Insert: {
+          alg?: string
+          created_at?: string
+          encrypted_private_key: string
+          id?: string
+          key_id: string
+          private_key_iv: string
+          public_key: string
+          purpose: string
+          retired_at?: string | null
+          status?: string
+        }
+        Update: {
+          alg?: string
+          created_at?: string
+          encrypted_private_key?: string
+          id?: string
+          key_id?: string
+          private_key_iv?: string
+          public_key?: string
+          purpose?: string
+          retired_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       pool_contributions: {
         Row: {
           anonymized_payload: Json
@@ -1231,6 +1453,7 @@ export type Database = {
           declared_purpose: string
           id: string
           payout_cents: number
+          platform_fee_bps: number
           pool_id: string
           status: string
           updated_at: string
@@ -1246,6 +1469,7 @@ export type Database = {
           declared_purpose?: string
           id?: string
           payout_cents?: number
+          platform_fee_bps?: number
           pool_id: string
           status?: string
           updated_at?: string
@@ -1261,6 +1485,7 @@ export type Database = {
           declared_purpose?: string
           id?: string
           payout_cents?: number
+          platform_fee_bps?: number
           pool_id?: string
           status?: string
           updated_at?: string
@@ -1287,6 +1512,91 @@ export type Database = {
             columns: ["vault_data_id"]
             isOneToOne: false
             referencedRelation: "vault_data"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rate_limit_counters: {
+        Row: {
+          bucket: string
+          count: number
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          count?: number
+          window_start: string
+        }
+        Update: {
+          bucket?: string
+          count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
+      recovery_factors: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          last_confirmed_at: string | null
+          salt: string
+          type: string
+          user_id: string
+          wrapped_master_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          last_confirmed_at?: string | null
+          salt: string
+          type: string
+          user_id: string
+          wrapped_master_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          last_confirmed_at?: string | null
+          salt?: string
+          type?: string
+          user_id?: string
+          wrapped_master_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_factors_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revoked_sessions: {
+        Row: {
+          revoked_at: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          revoked_at?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          revoked_at?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revoked_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1324,6 +1634,44 @@ export type Database = {
             foreignKeyName: "sale_preferences_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      step_up_grants: {
+        Row: {
+          action: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          token_hash: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "step_up_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1376,6 +1724,12 @@ export type Database = {
           onboarding_completed: boolean
           recovery_code_salt: string | null
           recovery_codes_generated_at: string | null
+          recovery_last_confirmed_at: string | null
+          recovery_setup_declined_at: string | null
+          universal_opt_out: boolean
+          universal_opt_out_at: string | null
+          universal_opt_out_override_at: string | null
+          universal_opt_out_source: string | null
           updated_at: string
           wrapped_master_key: string | null
         }
@@ -1390,6 +1744,12 @@ export type Database = {
           onboarding_completed?: boolean
           recovery_code_salt?: string | null
           recovery_codes_generated_at?: string | null
+          recovery_last_confirmed_at?: string | null
+          recovery_setup_declined_at?: string | null
+          universal_opt_out?: boolean
+          universal_opt_out_at?: string | null
+          universal_opt_out_override_at?: string | null
+          universal_opt_out_source?: string | null
           updated_at?: string
           wrapped_master_key?: string | null
         }
@@ -1404,6 +1764,12 @@ export type Database = {
           onboarding_completed?: boolean
           recovery_code_salt?: string | null
           recovery_codes_generated_at?: string | null
+          recovery_last_confirmed_at?: string | null
+          recovery_setup_declined_at?: string | null
+          universal_opt_out?: boolean
+          universal_opt_out_at?: string | null
+          universal_opt_out_override_at?: string | null
+          universal_opt_out_source?: string | null
           updated_at?: string
           wrapped_master_key?: string | null
         }
@@ -1521,6 +1887,24 @@ export type Database = {
       approve_consent_request_atomic: {
         Args: { request_id: string; response_note?: string }
         Returns: Json
+      }
+      consume_rate_limit: {
+        Args: { p_bucket: string; p_window_seconds: number; p_limit: number }
+        Returns: boolean
+      }
+      list_my_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          created_at: string
+          updated_at: string | null
+          user_agent: string | null
+          ip: string | null
+        }[]
+      }
+      revoke_my_session: {
+        Args: { p_session_id: string }
+        Returns: boolean
       }
       claim_offer_atomic: {
         Args: { p_offer_id: string }
@@ -1790,6 +2174,10 @@ export type OrganizationApiKey = Database['public']['Tables']['organization_api_
 export type InsertOrganizationApiKey = Database['public']['Tables']['organization_api_keys']['Insert']
 export type UpdateOrganizationApiKey = Database['public']['Tables']['organization_api_keys']['Update']
 export type ConsentRequest = Database['public']['Tables']['consent_requests']['Row']
+export type ConsentReceipt = Database['public']['Tables']['consent_receipts']['Row']
+export type InsertConsentReceipt = Database['public']['Tables']['consent_receipts']['Insert']
+export type PlatformKey = Database['public']['Tables']['platform_keys']['Row']
+export type JobRun = Database['public']['Tables']['job_runs']['Row']
 export type Passkey = Database['public']['Tables']['passkeys']['Row']
 export type OrgMember = Database['public']['Tables']['org_members']['Row']
 export type IssuerKey = Database['public']['Tables']['issuer_keys']['Row']

@@ -44,6 +44,7 @@ const contributions = Array.from({ length: 5 }, (_, index) => ({
   category: 'interests',
   anonymized_payload: { topic: `synthetic-${index}` },
   payout_cents: 0,
+  platform_fee_bps: 2500,
   pool_id: pool.id,
   vault_data_id: null,
   status: 'active',

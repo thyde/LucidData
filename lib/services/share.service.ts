@@ -167,6 +167,7 @@ export async function resolveShareToken(token: string): Promise<PublicShareView 
     verification: {
       valid: credVerification.valid && reasons.length === 0,
       reasons: [...credVerification.reasons, ...reasons],
+      warnings: credVerification.warnings,
     },
   }
 }

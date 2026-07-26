@@ -1,8 +1,8 @@
 import crypto from 'crypto'
 import { createServiceClient } from '@/lib/supabase/service'
-import { signCredentialForOrg, getIssuerPublicKey } from '@/lib/services/issuer-key.service'
+import { signCredentialForOrg, getIssuerKeyById } from '@/lib/services/issuer-key.service'
 import { verifyCredentialSignature } from '@/lib/crypto/credential-verify'
-import { recordUsage } from '@/lib/services/billing.service'
+import { recordUsage, assertIssuanceQuota } from '@/lib/services/billing.service'
 import { createNotification } from '@/lib/services/notification.service'
 import type { IssuedCredential, Json } from '@/types/database.types'
 
@@ -38,6 +38,8 @@ export interface CredentialPayload {
 export interface CredentialVerification {
   valid: boolean
   reasons: string[]
+  /** Non-fatal notes, e.g. a key later reported compromised. */
+  warnings: string[]
 }
 
 /**
@@ -49,6 +51,10 @@ export async function issueCredential(
   issuer: IssuerIdentity,
   input: IssueCredentialInput
 ): Promise<IssuedCredential> {
+  // LD-109: enforce the plan allowance here, in the one place every issuance
+  // path goes through, so the portal and the API cannot diverge.
+  await assertIssuanceQuota(issuer.id)
+
   const id = crypto.randomUUID()
   const issuedAt = new Date().toISOString()
   const subjectEmail = input.subjectEmail.trim().toLowerCase()
@@ -212,23 +218,41 @@ export async function linkCredentialVaultEntry(
 
 /**
  * Verify a credential cryptographically and by lifecycle: issuer signature,
- * revocation/suspension status, and expiry.
+ * revocation or suspension status, and expiry.
+ *
+ * LD-406: the key is selected by the identifier recorded on the credential, not
+ * by whichever key is current, so rotation does not invalidate history. A key
+ * later declared compromised fails everything signed after the compromise
+ * moment, and warns on anything signed before it.
  */
 export async function verifyIssuedCredential(
   credential: IssuedCredential
 ): Promise<CredentialVerification> {
   const reasons: string[] = []
+  const warnings: string[] = []
 
-  const publicKey = await getIssuerPublicKey(credential.organization_id)
-  if (!publicKey) {
-    reasons.push('Issuer has no active signing key')
+  const key = credential.key_id ? await getIssuerKeyById(credential.key_id) : null
+  if (!key || key.organization_id !== credential.organization_id) {
+    reasons.push('Signing key is not known for this issuer')
   } else {
     const sigValid = verifyCredentialSignature(
-      publicKey.publicKey,
+      key.public_key,
       credential.signed_payload,
       credential.signature
     )
     if (!sigValid) reasons.push('Signature does not match issuer key')
+
+    if (key.compromised_at) {
+      const signedAt = new Date(credential.issued_at).getTime()
+      const compromisedAt = new Date(key.compromised_at).getTime()
+      if (signedAt >= compromisedAt) {
+        reasons.push('Signed with a key that was compromised at the time of signing')
+      } else {
+        warnings.push(
+          'The signing key was later reported compromised. This credential predates the compromise, so ask the issuer to confirm it.'
+        )
+      }
+    }
   }
 
   if (credential.status !== 'active') reasons.push(`Credential is ${credential.status}`)
@@ -236,7 +260,7 @@ export async function verifyIssuedCredential(
     reasons.push('Credential has expired')
   }
 
-  return { valid: reasons.length === 0, reasons }
+  return { valid: reasons.length === 0, reasons, warnings }
 }
 
 /**

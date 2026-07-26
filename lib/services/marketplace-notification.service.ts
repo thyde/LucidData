@@ -72,3 +72,30 @@ export async function notifyPayoutPaid(
     // Best-effort: the payout ledger and audit log are the durable records.
   }
 }
+
+/**
+ * A payout could not be sent after the maximum number of retries. The amount is
+ * still owed; this tells the contributor rather than leaving the payout silently
+ * stuck. No provider error text is included, since it can carry account detail.
+ */
+export async function notifyPayoutFailed(
+  userId: string,
+  params: PayoutNotification
+): Promise<void> {
+  try {
+    const email = await getUserEmail(userId).catch(() => null)
+    await createNotification({
+      userId,
+      type: 'marketplace_payout_failed',
+      title: 'A payout could not be sent',
+      message: `We could not send your payout of ${formatUsd(params.amountCents)} for the "${
+        params.poolName
+      }" pool. The amount is still owed to you. Check your payout account details on the marketplace page.`,
+      relatedEntityId: params.payoutId ?? null,
+      relatedEntityType: 'payout',
+      email,
+    })
+  } catch {
+    // Best-effort: the payout ledger and audit log are the durable records.
+  }
+}

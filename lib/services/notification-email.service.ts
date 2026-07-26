@@ -37,6 +37,15 @@ export function resolveTransport(): EmailTransport {
   return 'none'
 }
 
+/**
+ * Whether outbound email can actually leave this deployment. Used to surface a
+ * configuration warning in the org portal, since every organization-to-user
+ * workflow depends on delivery reaching the person.
+ */
+export function isEmailDeliveryConfigured(): boolean {
+  return resolveTransport() !== 'none'
+}
+
 function appUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 }

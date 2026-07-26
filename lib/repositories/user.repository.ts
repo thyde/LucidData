@@ -20,6 +20,8 @@ export async function updateUser(id: string, updates: {
   wrapped_master_key?: string | null
   recovery_code_salt?: string | null
   recovery_codes_generated_at?: string | null
+  recovery_setup_declined_at?: string | null
+  recovery_last_confirmed_at?: string | null
   onboarding_completed?: boolean
   email_notifications_enabled?: boolean
 }): Promise<User> {

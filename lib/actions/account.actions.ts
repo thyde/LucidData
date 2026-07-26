@@ -9,6 +9,7 @@ import {
   emailNotificationPreferenceSchema,
   DELETE_CONFIRM_PHRASE,
 } from '@/lib/validations/account'
+import { consumeStepUp } from '@/lib/services/session-security.service'
 import { z } from 'zod'
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -59,9 +60,11 @@ export async function removePasskeyAction(input: unknown): Promise<void> {
 
 export async function deleteAccountAction(input: unknown): Promise<void> {
   const userId = await getAuthenticatedUserId()
-  const { confirmPhrase } = deleteAccountSchema.parse(input)
+  const { confirmPhrase, stepUpToken } = deleteAccountSchema.parse(input)
   if (confirmPhrase !== DELETE_CONFIRM_PHRASE) {
     throw new Error('Confirmation phrase does not match')
   }
+  // LD-106: a warm session is not enough to destroy an account.
+  await consumeStepUp(userId, 'delete_account', stepUpToken)
   return account.deleteAccount(userId)
 }

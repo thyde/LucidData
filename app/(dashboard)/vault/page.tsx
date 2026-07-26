@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEncryption } from '@/lib/context/encryption-context';
 import { VaultList } from '@/components/vault/vault-list';
+import { RecoverySetupGate } from '@/components/vault/recovery-setup-gate';
 import { Button } from '@/components/ui/button';
 
 export default function VaultPage() {
@@ -22,5 +23,9 @@ export default function VaultPage() {
     );
   }
 
-  return <VaultList />;
+  return (
+    <RecoverySetupGate>
+      <VaultList />
+    </RecoverySetupGate>
+  );
 }

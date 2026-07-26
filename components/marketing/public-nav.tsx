@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: '/for-individuals', label: 'For individuals' },
   { href: '/for-business', label: 'For business' },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/trust', label: 'Trust' },
 ]
 
 export function PublicNav() {

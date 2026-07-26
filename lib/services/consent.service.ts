@@ -1,5 +1,6 @@
 import * as consentRepo from '@/lib/repositories/consent.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { issueConsentReceipt } from '@/lib/services/consent-receipt.service'
 import type { Consent, InsertConsent } from '@/types/database.types'
 
 export interface CreateConsentPayload {
@@ -26,6 +27,7 @@ export async function createConsent(userId: string, payload: CreateConsentPayloa
     consentId: consent.id,
     vaultDataId: payload.vault_data_id,
   })
+  await issueConsentReceipt(consent, 'granted')
   return consent
 }
 
@@ -45,11 +47,20 @@ export async function revokeConsent(id: string, userId: string, reason: string):
     action: `Revoked consent for ${consent.granted_to_name ?? consent.granted_to}: ${reason}`,
     consentId: id,
   })
+  await issueConsentReceipt(consent, 'revoked')
   return consent
 }
 
 export async function extendConsent(id: string, userId: string, newEndDate: string): Promise<Consent> {
-  return consentRepo.updateConsent(id, userId, { end_date: newEndDate })
+  const consent = await consentRepo.updateConsent(id, userId, { end_date: newEndDate })
+  await createAuditEntry({
+    userId,
+    eventType: 'consent_extended',
+    action: `Extended consent for ${consent.granted_to_name ?? consent.granted_to} to ${newEndDate}`,
+    consentId: id,
+  })
+  await issueConsentReceipt(consent, 'extended')
+  return consent
 }
 
 export function getConsentStatus(consent: Consent): 'active' | 'revoked' | 'expired' {

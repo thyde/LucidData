@@ -165,6 +165,13 @@ test.describe('Account security settings', () => {
       const deletionDialog = page.getByRole('dialog', { name: 'Delete your account?' })
       await deletionDialog.getByLabel('Confirmation').fill('DELETE MY ACCOUNT')
       await deletionDialog.getByRole('button', { name: 'Permanently delete account' }).click()
+
+      // LD-106: destroying an account needs fresh authentication, not just a
+      // warm session.
+      const stepUpDialog = page.getByRole('dialog', { name: 'Confirm your password' })
+      await expect(stepUpDialog).toBeVisible({ timeout: 15000 })
+      await stepUpDialog.getByLabel('Password').fill(newPassword)
+      await stepUpDialog.getByRole('button', { name: 'Confirm' }).click()
       await page.waitForURL('/', { timeout: 30000, waitUntil: 'commit' })
 
       const { data: deletedProfile } = await service

@@ -6,12 +6,21 @@ import { listIssuedCredentialsAction } from '@/lib/actions/credential.actions'
 import { getBillingOverviewAction } from '@/lib/actions/billing.actions'
 import { getOrganizationApiKeysAction } from '@/lib/actions/organization-api-key.actions'
 import { IssuerSetup } from '@/components/org/issuer-setup'
+import { IssuerKeyManager } from '@/components/org/issuer-key-manager'
+import {
+  getKeyLifecycleStatusAction,
+  listIssuerPublicKeysAction,
+} from '@/lib/actions/issuer-key.actions'
 import { IssueCredential } from '@/components/org/issue-credential'
 import { VerifyTool } from '@/components/org/verify-tool'
 import { RequestCredentials } from '@/components/org/request-credentials'
 import { PlanBilling } from '@/components/org/plan-billing'
 import { ApiKeyManager } from '@/components/org/api-key-manager'
+import { TeamManager } from '@/components/org/team-manager'
+import { listOrgTeamAction } from '@/lib/actions/org-team.actions'
+import { createClient } from '@/lib/supabase/server'
 import { isStripeConfigured } from '@/lib/stripe/client'
+import { isEmailDeliveryConfigured } from '@/lib/services/notification-email.service'
 
 export default async function OrgDetailPage({
   params,
@@ -31,10 +40,18 @@ export default async function OrgDetailPage({
   const isIssuer = organization.org_type === 'issuer' || organization.org_type === 'both'
   const isVerifier = organization.org_type === 'verifier' || organization.org_type === 'both'
   const overview = isIssuer ? await getIssuerOverviewAction(orgId) : null
+  const keyStatus = isIssuer ? await getKeyLifecycleStatusAction(orgId) : null
+  const issuerKeys = isIssuer ? await listIssuerPublicKeysAction(orgId) : []
   const issued = overview?.domainVerified ? await listIssuedCredentialsAction(orgId) : []
   const usage = await getBillingOverviewAction(orgId)
   const stripeEnabled = isStripeConfigured()
+  const emailConfigured = isEmailDeliveryConfigured()
   const apiKeys = role === 'owner' ? await getOrganizationApiKeysAction(orgId) : []
+  const team = role === 'owner' ? await listOrgTeamAction(orgId) : null
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   return (
     <div className="space-y-8">
@@ -53,12 +70,35 @@ export default async function OrgDetailPage({
         </div>
       </div>
 
+      {!emailConfigured && (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+        >
+          <p className="font-medium">Email delivery is not configured</p>
+          <p className="mt-1">
+            People still see your requests inside LucidData, but no email is sent, so they may not
+            know a request is waiting. Set an email transport in this deployment to turn delivery on.
+          </p>
+        </div>
+      )}
+
       {isIssuer && overview && (
         <div className="space-y-8">
           <div className="space-y-4">
             <h2 className="text-lg font-medium">Issuer setup</h2>
             <IssuerSetup orgId={orgId} overview={overview} />
           </div>
+          {keyStatus && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-medium">Signing keys</h2>
+              <IssuerKeyManager
+                orgId={orgId}
+                initialStatus={keyStatus}
+                initialKeys={issuerKeys}
+              />
+            </div>
+          )}
           {overview.domainVerified && (
             <div className="space-y-4">
               <h2 className="text-lg font-medium">Credentials</h2>
@@ -93,6 +133,18 @@ export default async function OrgDetailPage({
               Open buyer portal →
             </Link>
           </div>
+        </div>
+      )}
+
+      {role === 'owner' && team && user && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-medium">Team</h2>
+          <TeamManager
+            orgId={orgId}
+            currentUserId={user.id}
+            initialMembers={team.members}
+            initialInvitations={team.invitations}
+          />
         </div>
       )}
 

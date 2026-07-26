@@ -103,6 +103,24 @@ export async function findPendingPayouts(userId: string): Promise<Payout[]> {
   return data
 }
 
+/**
+ * Pending payouts across all users that are due for another attempt: either
+ * never attempted (next_attempt_at is NULL) or past their backoff deadline.
+ * Service role only; used by the scheduled job runner.
+ */
+export async function findDuePayouts(now: string, limit = 200): Promise<Payout[]> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('payouts')
+    .select('*')
+    .eq('status', 'pending')
+    .or(`next_attempt_at.is.null,next_attempt_at.lte.${now}`)
+    .order('created_at', { ascending: true })
+    .limit(limit)
+  if (error) throw error
+  return data
+}
+
 /** The current user's payouts (RLS-scoped). */
 export async function findPayoutsByUser(userId: string): Promise<Payout[]> {
   const supabase = await createClient()

@@ -1,12 +1,18 @@
 import { RegisterPasskeyButton } from '@/components/auth/register-passkey-button'
 import { VaultExportButton } from '@/components/settings/vault-export-button'
 import { RecoveryCodesSection } from '@/components/settings/recovery-codes-section'
+import { RecoveryFactorsSection } from '@/components/settings/recovery-factors-section'
 import { ChangePasswordForm } from '@/components/settings/change-password-form'
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog'
 import { NotificationPreferences } from '@/components/settings/notification-preferences'
+import { PrivacySignalSection } from '@/components/settings/privacy-signal-section'
+import { SessionSecuritySection } from '@/components/settings/session-security-section'
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup'
 import { PasskeyList } from '@/components/settings/passkey-list'
 import { getAccountSecurity } from '@/lib/services/account.service'
+import { getRecoveryStatus } from '@/lib/services/recovery-factor.service'
+import { listSessions } from '@/lib/services/session-security.service'
+import { getUniversalOptOut } from '@/lib/services/privacy-signal.service'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -15,13 +21,16 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: passkeys }, security] = await Promise.all([
+  const [{ data: passkeys }, security, optOut, recovery, sessions] = await Promise.all([
     supabase
       .from('passkeys')
       .select('id, device_name, created_at, last_used_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
     getAccountSecurity(user.id),
+    getUniversalOptOut(user.id),
+    getRecoveryStatus(user.id),
+    listSessions(user.id),
   ])
 
   return (
@@ -38,9 +47,15 @@ export default async function SettingsPage() {
         generatedAt={security?.recovery_codes_generated_at ?? null}
       />
 
+      <RecoveryFactorsSection keySalt={security?.key_salt ?? null} initial={recovery} />
+
+      <SessionSecuritySection initial={sessions} />
+
       <NotificationPreferences
         emailNotificationsEnabled={security?.email_notifications_enabled ?? true}
       />
+
+      <PrivacySignalSection initial={optOut} />
 
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Passkeys</h2>

@@ -6,6 +6,7 @@ import * as poolRepo from '@/lib/repositories/pool.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { recordOrderPayouts } from '@/lib/services/payout.service'
+import { assertOrderMeetsMinimum } from '@/lib/constants/marketplace-economics'
 import type { DataOrder } from '@/types/database.types'
 import {
   isMarketplaceCategoryAllowed,
@@ -98,6 +99,10 @@ export async function startPoolPurchase(
     recordCount,
     input.order_type
   )
+  // LD-505: an order below the minimum cannot cover its own processing cost, so
+  // it would lose money no matter how the pool grows.
+  assertOrderMeetsMinimum(totalCents)
+
   const exportToken = randomBytes(24).toString('base64url')
   const exportExpiresAt = new Date(
     Date.now() + EXPORT_WINDOW_DAYS * 24 * 60 * 60 * 1000

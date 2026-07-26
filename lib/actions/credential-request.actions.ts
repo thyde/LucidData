@@ -17,6 +17,7 @@ import {
   createCredentialRequestSchema,
   fulfillCredentialRequestSchema,
 } from '@/lib/validations/credential-request'
+import { assertRateLimit } from '@/lib/services/rate-limit.service'
 import type { CredentialRequest } from '@/types/database.types'
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -56,7 +57,13 @@ export async function createCredentialRequestAction(
   organizationId: string,
   input: unknown
 ): Promise<{ created: boolean }> {
-  await requireOrgMembership(organizationId, ['owner', 'verifier'])
+  const { organization } = await requireOrgMembership(organizationId, ['owner', 'verifier'])
+  // LD-109: an unverified organization may not reach a person at all.
+  if (!organization.verified_at) {
+    throw new Error('Verify your domain before requesting credentials from people')
+  }
+  await assertRateLimit('credentialRequest', organizationId)
+
   const data = createCredentialRequestSchema.parse(input)
   const request = await createCredentialRequest(organizationId, {
     subjectEmail: data.subjectEmail,

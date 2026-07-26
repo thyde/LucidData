@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConsentRevokeDialog } from './consent-revoke-dialog';
 import { ConsentExtendDialog } from './consent-extend-dialog';
+import { ConsentReceipts } from './consent-receipts';
 import { formatDate, formatDateTime } from '@/lib/utils/date-formatter';
 import { Shield, Calendar, User, AlertTriangle } from 'lucide-react';
 
@@ -185,6 +186,9 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
                 )}
               </div>
             </div>
+
+            {/* Signed receipts */}
+            <ConsentReceipts consentId={consentId} />
 
             {/* Actions */}
             {status === 'active' && (

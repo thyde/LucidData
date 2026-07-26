@@ -22,11 +22,16 @@ vi.mock('@/lib/services/audit.service', () => ({
   createAuditEntry: vi.fn(),
 }))
 
+vi.mock('@/lib/services/privacy-signal.service', () => ({
+  assertNotUniversallyOptedOut: vi.fn(),
+}))
+
 import * as contributionRepo from '@/lib/repositories/contribution.repository'
 import * as monetizationRepo from '@/lib/repositories/monetization.repository'
 import * as payoutRepo from '@/lib/repositories/payout.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { assertNotUniversallyOptedOut } from '@/lib/services/privacy-signal.service'
 import { contribute, getEarnings } from '@/lib/services/contribution.service'
 import type { DataPool, PoolContribution, Payout, SalePreferences } from '@/types/database.types'
 
@@ -112,6 +117,17 @@ describe('contribute sale preferences', () => {
       'The contribution contains a direct identifier'
     )
     expect(contributionRepo.createContribution).not.toHaveBeenCalled()
+  })
+
+  it('refuses before touching the pool when a universal opt-out is active', async () => {
+    vi.mocked(assertNotUniversallyOptedOut).mockRejectedValueOnce(
+      new Error('Your browser sends a universal opt-out signal')
+    )
+
+    await expect(contribute(userId, input)).rejects.toThrow('universal opt-out signal')
+    expect(poolRepo.findOpenPoolById).not.toHaveBeenCalled()
+    expect(contributionRepo.createContribution).not.toHaveBeenCalled()
+    expect(createAuditEntry).not.toHaveBeenCalled()
   })
 })
 

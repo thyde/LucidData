@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
   resolveTransport,
   renderNotificationEmail,
+  isEmailDeliveryConfigured,
 } from '@/lib/services/notification-email.service'
 
 const ENV_KEYS = ['EMAIL_TRANSPORT', 'RESEND_API_KEY', 'NEXT_PUBLIC_APP_URL'] as const
@@ -45,6 +46,12 @@ describe('resolveTransport', () => {
   it('ignores an unknown transport and falls back to none', () => {
     process.env.EMAIL_TRANSPORT = 'carrier-pigeon'
     expect(resolveTransport()).toBe('none')
+  })
+
+  it('reports delivery as unconfigured only when the transport is none', () => {
+    expect(isEmailDeliveryConfigured()).toBe(false)
+    process.env.EMAIL_TRANSPORT = 'smtp'
+    expect(isEmailDeliveryConfigured()).toBe(true)
   })
 })
 

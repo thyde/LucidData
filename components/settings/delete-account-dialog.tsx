@@ -11,6 +11,7 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { createClient } from '@/lib/supabase/client'
 import { deleteAccountAction } from '@/lib/actions/account.actions'
+import { StepUpDialog } from '@/components/auth/step-up-dialog'
 import { DELETE_CONFIRM_PHRASE } from '@/lib/validations/account'
 
 export function DeleteAccountDialog() {
@@ -18,14 +19,21 @@ export function DeleteAccountDialog() {
   const { toast } = useToast()
   const { lock } = useEncryption()
   const [open, setOpen] = useState(false)
+  const [stepUpOpen, setStepUpOpen] = useState(false)
   const [phrase, setPhrase] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function handleDelete(e: React.FormEvent) {
+  function requestDelete(e: React.FormEvent) {
     e.preventDefault()
+    // LD-106: an active session is not enough to destroy an account.
+    setOpen(false)
+    setStepUpOpen(true)
+  }
+
+  async function handleDelete(stepUpToken: string) {
     setBusy(true)
     try {
-      await deleteAccountAction({ confirmPhrase: phrase })
+      await deleteAccountAction({ confirmPhrase: phrase, stepUpToken })
       lock()
       try {
         await createClient().auth.signOut()
@@ -72,7 +80,7 @@ export function DeleteAccountDialog() {
               This permanently erases everything. Type <span className="font-mono">{DELETE_CONFIRM_PHRASE}</span> to confirm.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleDelete} className="space-y-4">
+          <form onSubmit={requestDelete} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="delete-confirm">Confirmation</Label>
               <Input
@@ -89,11 +97,20 @@ export function DeleteAccountDialog() {
               className="w-full"
               disabled={busy || phrase !== DELETE_CONFIRM_PHRASE}
             >
-              {busy ? 'Deleting…' : 'Permanently delete account'}
+              {busy ? 'Deleting...' : 'Permanently delete account'}
             </Button>
           </form>
         </DialogContent>
       </Dialog>
+
+      <StepUpDialog
+        action="delete_account"
+        title="Confirm your password"
+        description="Deleting your account erases everything, so we ask for your password one more time."
+        open={stepUpOpen}
+        onOpenChange={setStepUpOpen}
+        onConfirmed={handleDelete}
+      />
     </section>
   )
 }

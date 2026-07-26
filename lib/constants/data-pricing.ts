@@ -72,7 +72,9 @@ export const DATA_TYPE_PRICING: Record<DataCategory, DataTypePricing> = {
     label: 'Health',
     sensitivity: 'high',
     annualValueCents: 3800,
-    perRecordCents: 40,
+    // LD-505: health previously sat below browsing per record, which reflected
+    // neither its sensitivity nor what buyers pay for it.
+    perRecordCents: 60,
     accessFeeCents: 5000,
   },
   interests: {
@@ -81,7 +83,9 @@ export const DATA_TYPE_PRICING: Record<DataCategory, DataTypePricing> = {
     sensitivity: 'low',
     annualValueCents: 500,
     perRecordCents: 10,
-    accessFeeCents: 0,
+    // LD-505: previously zero, which made every sale in this category a
+    // guaranteed loss once processing costs were counted.
+    accessFeeCents: 1000,
   },
   other: {
     category: 'other',
@@ -89,7 +93,8 @@ export const DATA_TYPE_PRICING: Record<DataCategory, DataTypePricing> = {
     sensitivity: 'low',
     annualValueCents: 300,
     perRecordCents: 5,
-    accessFeeCents: 0,
+    // LD-505: previously zero. See the note on interests.
+    accessFeeCents: 1000,
   },
 }
 

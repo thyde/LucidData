@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { startPayoutOnboardingAction } from '@/lib/actions/payout.actions'
 import { formatCents } from '@/components/dashboard/chart-theme'
+import { formatFeePercent } from '@/lib/constants/marketplace-economics'
 import type { PayoutOverview } from '@/lib/services/payout.service'
 
 function formatDate(iso: string): string {
@@ -72,6 +73,31 @@ export function PayoutsPanel({ overview }: { overview: PayoutOverview }) {
             <p className="text-muted-foreground">Pending</p>
             <p className="text-lg font-medium">{formatCents(overview.pendingCents)}</p>
           </div>
+        </div>
+
+        {/* LD-505: show the whole split, so the fee is never a surprise at payout. */}
+        <div className="rounded-md border p-3 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Buyers paid</span>
+            <span>{formatCents(overview.grossCents)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">
+              LucidData fee ({formatFeePercent()})
+            </span>
+            <span>{formatCents(overview.platformFeeCents)}</span>
+          </div>
+          <div className="mt-1 flex justify-between border-t pt-1 font-medium">
+            <span>Your earnings</span>
+            <span>{formatCents(overview.paidCents + overview.pendingCents)}</span>
+          </div>
+          {overview.pendingCents > 0 && overview.pendingCents < overview.thresholdCents && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Earnings are sent once your balance reaches{' '}
+              {formatCents(overview.thresholdCents)}. Paying out smaller amounts costs more
+              than it moves. Your balance is always owed to you and never expires.
+            </p>
+          )}
         </div>
 
         {status !== 'enabled' && (

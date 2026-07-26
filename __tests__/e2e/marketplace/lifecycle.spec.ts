@@ -79,9 +79,9 @@ test.describe('Marketplace lifecycle', () => {
       await buyerPage.getByLabel('Contact email').fill(organizationEmail)
       await buyerPage.getByLabel('Organization type').selectOption('both')
       await buyerPage.getByRole('checkbox').check()
-      await buyerPage.getByRole('button', { name: 'Register and get API key' }).click()
+      await buyerPage.getByRole('button', { name: 'Register organization' }).click()
       await expect(
-        buyerPage.getByRole('heading', { name: 'Registration successful' })
+        buyerPage.getByRole('heading', { name: 'Organization created' })
       ).toBeVisible({ timeout: 15000 })
 
       const { data: organization, error: organizationError } = await service

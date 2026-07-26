@@ -68,3 +68,32 @@ export async function unwrapMasterKeyForRecovery(wrappedB64: string, recoveryKey
   const rawB64 = await decryptWithKey(recoveryKey, wrappedB64)
   return base64ToArrayBuffer(rawB64)
 }
+
+// LD-105: a second, independent recovery factor.
+//
+// A recovery kit is a 256-bit random secret the user downloads and keeps
+// somewhere separate from the printed code (a password manager, another
+// device). It wraps the master key through exactly the same PBKDF2 + AES-GCM
+// path, so there is no new primitive here, only a second thing that can open
+// the escrow if the first one is lost.
+const KIT_SECRET_BYTES = 32
+const KIT_GROUP_SIZE = 8
+
+// Generate a formatted recovery kit secret, e.g. "A1B2C3D4-E5F6G7H8-...".
+export function generateRecoveryKitSecret(): string {
+  const bytes = new Uint8Array(KIT_SECRET_BYTES)
+  crypto.getRandomValues(bytes)
+  let out = ''
+  for (let i = 0; i < bytes.length; i++) {
+    out += ALPHABET[bytes[i] % 32]
+    if (i % KIT_GROUP_SIZE === KIT_GROUP_SIZE - 1 && i < bytes.length - 1) out += '-'
+  }
+  return out
+}
+
+// Kit secrets use the same alphabet and normalization rules as recovery codes,
+// so a user typing one back in gets the same forgiveness for 0/O and 1/I/L.
+export const normalizeRecoveryKitSecret = normalizeRecoveryCode
+
+// Derive an AES-GCM key from a recovery kit secret + stored salt (PBKDF2, 600k).
+export const deriveRecoveryKitKey = deriveRecoveryKey
