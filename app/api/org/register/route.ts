@@ -3,15 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { addOrgMember } from '@/lib/middleware/withOrgMember'
 import { assertRateLimit, RateLimitError } from '@/lib/services/rate-limit.service'
-import { z } from 'zod'
-
-const RegisterSchema = z.object({
-  name: z.string().min(2).max(100),
-  email: z.string().email(),
-  website: z.string().url().optional(),
-  org_type: z.enum(['issuer', 'verifier', 'both']).optional(),
-  data_buyer: z.boolean().optional(),
-})
+// LD-602: the OpenAPI document is generated from this exact schema, so the
+// specification cannot drift from what the handler accepts.
+import { organizationRegisterSchema as RegisterSchema } from '@/lib/validations/org-api'
 
 /**
  * LD-109: organization registration requires a signed-in account.

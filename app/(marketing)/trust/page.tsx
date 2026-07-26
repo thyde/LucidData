@@ -313,6 +313,21 @@ export default function TrustPage() {
           Read the threat model
         </Link>
       </section>
+
+      <section className="mt-6 rounded-lg border bg-muted/30 p-6">
+        <h2 className="text-xl font-semibold">Assurance and procurement</h2>
+        <p className="mt-2 text-muted-foreground">
+          Processing terms, support commitments, data residency, recovery objectives, the
+          incident runbook, and answers to the standard security questionnaire. Including where
+          we do not yet meet a requirement.
+        </p>
+        <Link
+          href="/trust/assurance"
+          className="mt-4 inline-block font-medium text-primary hover:underline"
+        >
+          Read the assurance pack
+        </Link>
+      </section>
     </div>
   )
 }

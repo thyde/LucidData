@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { enqueueEvent } from '@/lib/services/webhook.service'
 import type { ConsentRequest } from '@/types/database.types'
 
 const consentAccessLevelSchema = z.enum(['read', 'export', 'verify'])
@@ -69,6 +70,12 @@ export async function respondToConsentRequestAction(
         data_category: existing.data_category,
       },
     })
+    // LD-602: tell the organization instead of making it poll. Queued and
+    // best-effort: a webhook problem must never fail the person's decision.
+    await enqueueEvent(existing.organization_id, 'consent_request.approved', {
+      type: 'consent_request',
+      id: requestId,
+    }).catch(() => undefined)
     return result.request
   }
 
@@ -84,5 +91,9 @@ export async function respondToConsentRequestAction(
     .select()
     .single()
   if (error) throw error
+  await enqueueEvent(existing.organization_id, 'consent_request.denied', {
+    type: 'consent_request',
+    id: requestId,
+  }).catch(() => undefined)
   return data as ConsentRequest
 }

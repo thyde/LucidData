@@ -329,6 +329,24 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
     reason: 'Billing state belongs to the organization.',
   },
   {
+    table: 'org_webhooks',
+    personalData: false,
+    behaviour: 'no_personal_data',
+    userColumn: null,
+    strippedColumns: [],
+    reason:
+      'An endpoint an organization owns, plus a hashed secret. It names no person.',
+  },
+  {
+    table: 'webhook_deliveries',
+    personalData: false,
+    behaviour: 'no_personal_data',
+    userColumn: null,
+    strippedColumns: [],
+    reason:
+      'Delivery attempts carry identifiers and timestamps only. A payload that named a person would be rejected before it was queued.',
+  },
+  {
     table: 'issuer_keys',
     personalData: false,
     behaviour: 'no_personal_data',

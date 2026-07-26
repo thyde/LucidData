@@ -36,6 +36,23 @@ test.describe('Trust centre', () => {
     await expect(page.getByText('What is still exposed').first()).toBeVisible()
   })
 
+  test('links to an assurance pack that states what we do not meet', async ({ page }) => {
+    await page.goto('/trust')
+    await page.getByRole('link', { name: 'Read the assurance pack' }).click()
+    await expect(page).toHaveURL('/trust/assurance')
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Assurance and procurement' })
+    ).toBeVisible()
+    // LD-107: the limits are stated, not softened or omitted.
+    await expect(
+      page.getByText('We do not offer EU or UK data residency', { exact: false })
+    ).toBeVisible()
+    await expect(
+      page.getByText('No recovery drill has been performed', { exact: false })
+    ).toBeVisible()
+    await expect(page.getByText('72 hours from becoming aware', { exact: false })).toBeVisible()
+  })
+
   test('is linked from the public navigation', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('link', { name: 'Trust', exact: true }).first().click()

@@ -11,6 +11,7 @@
  *   share_expiry     mark credential share tokens whose window has closed
  *   rate_limit_purge drop counters from windows that can no longer be consulted
  *   retention_purge  destroy records past their stated retention window
+ *   webhook_delivery send queued organization webhooks, with backoff
  *
  * Connector token refresh is intentionally absent: there is no data_sources
  * table yet. LD-201 adds that job to JOB_NAMES when it lands.
@@ -28,6 +29,7 @@ import {
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import { purgeExpiredRateLimits } from '@/lib/services/rate-limit.service'
 import { runRetentionPurges } from '@/lib/services/retention.service'
+import { dispatchDueDeliveries } from '@/lib/services/webhook.service'
 import { PAYOUT_THRESHOLD_CENTS } from '@/lib/constants/marketplace-economics'
 
 export const JOB_NAMES = [
@@ -36,6 +38,7 @@ export const JOB_NAMES = [
   'share_expiry',
   'rate_limit_purge',
   'retention_purge',
+  'webhook_delivery',
 ] as const
 export type JobName = (typeof JOB_NAMES)[number]
 
@@ -247,12 +250,22 @@ export async function runRetentionPurge(): Promise<JobResult> {
   return { job: 'retention_purge', processed, failed }
 }
 
+/**
+ * LD-602: send every webhook delivery that is due. Queued rather than sent
+ * inline, so a slow or dead endpoint cannot make a user-facing action hang.
+ */
+export async function runWebhookDelivery(): Promise<JobResult> {
+  const { processed, failed } = await dispatchDueDeliveries()
+  return { job: 'webhook_delivery', processed, failed }
+}
+
 const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   payout_retries: runPayoutRetries,
   consent_expiry: runConsentExpiry,
   share_expiry: runShareExpiry,
   rate_limit_purge: runRateLimitPurge,
   retention_purge: runRetentionPurge,
+  webhook_delivery: runWebhookDelivery,
 }
 
 async function recordRun(result: JobResult, startedAt: string): Promise<void> {

@@ -54,6 +54,10 @@ vi.mock('@/lib/services/retention.service', () => ({
   runRetentionPurges: () => Promise.resolve({ results: [], failed: 0 }),
 }))
 
+vi.mock('@/lib/services/webhook.service', () => ({
+  dispatchDueDeliveries: () => Promise.resolve({ processed: 0, failed: 0 }),
+}))
+
 vi.mock('@/lib/supabase/service', () => ({
   createServiceClient: () => ({
     from: (table: string) => {
@@ -272,14 +276,15 @@ describe('runScheduledJobs', () => {
       'share_expiry',
       'rate_limit_purge',
       'retention_purge',
+      'webhook_delivery',
     ])
-    expect(jobRunInsert).toHaveBeenCalledTimes(5)
+    expect(jobRunInsert).toHaveBeenCalledTimes(6)
   })
 
   it('reports a failing job without stopping the sweep', async () => {
     findDuePayouts.mockRejectedValue(new Error('database unreachable'))
     const results = await runScheduledJobs()
-    expect(results).toHaveLength(5)
+    expect(results).toHaveLength(6)
     expect(results[0].error).toBe('database unreachable')
     expect(results[1].error).toBeUndefined()
   })

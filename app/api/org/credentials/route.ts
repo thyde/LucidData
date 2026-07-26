@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { withOrgAuth, type OrgContext } from '@/lib/middleware/withOrgAuth'
 import { requireVerifiedOrg } from '@/lib/middleware/requireVerifiedOrg'
 import { assertRateLimit, RateLimitError } from '@/lib/services/rate-limit.service'
 import { issueCredential } from '@/lib/services/credential.service'
-
-const IssueSchema = z.object({
-  subject_email: z.string().email(),
-  schema_type: z.string().min(1),
-  label: z.string().min(1).max(200),
-  claims: z.record(z.string(), z.unknown()),
-  expires_at: z.string().datetime().optional(),
-})
+// LD-602: the OpenAPI document is generated from this exact schema.
+import { organizationCredentialIssueSchema as IssueSchema } from '@/lib/validations/org-api'
 
 async function handler(req: NextRequest, ctx: OrgContext): Promise<NextResponse> {
   // Confirm the org is a verified issuer before signing anything.

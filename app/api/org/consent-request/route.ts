@@ -8,16 +8,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createNotification } from '@/lib/services/notification.service'
 import { assertRateLimit, RateLimitError } from '@/lib/services/rate-limit.service'
 import { NEUTRAL_LOOKUP_RESPONSE, withConstantTime } from '@/lib/utils/enumeration'
-import { z } from 'zod'
-import { dataCategorySchema } from '@/lib/validations/marketplace'
-
-const ConsentRequestSchema = z.object({
-  user_email: z.string().email(),
-  purpose: z.string().min(10).max(500),
-  access_level: z.enum(['read', 'export', 'verify']),
-  data_category: dataCategorySchema.optional(),
-  expires_in_days: z.number().min(1).max(365).default(30),
-})
+// LD-602: the OpenAPI document is generated from this exact schema.
+import { organizationConsentRequestSchema as ConsentRequestSchema } from '@/lib/validations/org-api'
 
 /**
  * Ask a person for access to their data.
