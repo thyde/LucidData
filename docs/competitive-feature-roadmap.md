@@ -2012,7 +2012,7 @@ Status: in progress. Delivery is tracked in [section 6.4](#64-phase-2-delivery-r
 - LD-201 connector framework
 - LD-501 real anonymization guarantees (delivered)
 - LD-607 retention and deletion completeness (delivered)
-- LD-301 rights and DSAR engine
+- LD-301 rights and DSAR engine (delivered)
 - LD-202 source health and provenance
 - LD-503 buyer evaluation surface
 - LD-205 extension foundation
@@ -2030,6 +2030,7 @@ This phase is also over capacity. LD-108 and LD-604 are the most deferrable if i
 | --- | --- | --- | --- |
 | LD-607 retention and deletion completeness | Delivered 2026-07-26 | `lib/constants/deletion-manifest.ts` covers all 36 public tables with a behaviour and a reason, and a Vitest test derives the live table list from the migrations so a new table without a deletion decision fails the build. `lib/services/deletion.service.ts` replaces cascade-only deletion: it deletes issued credentials about the subject, strips `data_order_records` to an empty payload with both source links cleared and `redacted_at` set, deletes invitations keyed by email, deletes rate-limit counters whose bucket embeds the subject id, closes the Stripe connected account, verifies the result with a residue sweep, and signs a deletion receipt. `lib/services/retention.service.ts` adds five purges wired into the LD-601 runner as `retention_purge`. The trust centre publishes both the retention table and the four residual disclosures. | Nothing in scope. Both open defects in section 9 are closed. |
 | LD-501 real anonymization guarantees | Delivered 2026-07-26 | `lib/privacy/quasi-identifiers.ts` classifies every field of all seven built-in schemas as identifier, quasi-identifier, sensitive, or safe, each with a written reason, and a test derives the field list from the Zod schemas so an unclassified field fails the build. `lib/privacy/k-anonymity.ts` does full-domain generalization with ladders for dates, years, numerics, and categories, computes equivalence classes, suppresses records below k, and refuses rather than warns. `lib/privacy/differential-privacy.ts` adds seeded Laplace noise and a per-pool epsilon budget that blocks aggregate release on exhaustion. The gate runs in `startPoolPurchase` before pricing and before Checkout, and every order stores its privacy report. `pool_contributions.schema_type` now travels with each contribution, because a broad data category is not enough to classify a field. | Governed access instead of copies is LD-502 and unchanged. The epsilon budget is implemented and tested but has no aggregate query surface to spend it on yet; that arrives with LD-502. |
+| LD-301 rights and data subject request engine | Delivered 2026-07-26 | `lib/utils/rights-deadlines.ts` is a pure deadline engine covering EU, UK, and California, with calendar-month arithmetic that clamps to month end, permitted extensions, and a clock that stops only where the jurisdiction allows it. `rights_cases` and `rights_case_events` carry the case model and its append-only evidence, with a database trigger that rejects UPDATE and a REVOKE that stops any API-role delete, while still permitting the cascade from an erased account. `lib/services/rights.service.ts` handles file, pause, resume, extend, resolve, withdraw, and appeal; a refusal must state its reason, and an appeal becomes its own case with its own clock. `app/(dashboard)/privacy/page.tsx` is the user surface, linked from both navigations. | There is no operator queue UI. Pause, resume, extend, and resolve exist as service functions with no action or screen behind them, deliberately: a person must not be able to advance their own case, and an operator console is its own piece of work. Verification of identity is not modelled beyond the `verifying` status. |
 
 Notes on LD-607 that affect later work.
 
@@ -2047,6 +2048,25 @@ Notes on LD-501 that affect later work, and one finding that needs a decision.
 - The epsilon budget exists and is enforced, but nothing spends it yet. LD-502 is where `spendEpsilon` gets wired to a real aggregate query, and it must persist `data_pools.epsilon_spent` rather than holding the budget in memory.
 - `data_pools.k_anonymity_target` is clamped so `minimum_contributors` is never lower than it. Any later code that sets one must set the other, or the purchase check will pass a release the privacy gate then refuses.
 - Adding a field to any schema in `lib/schemas/vault-schemas.ts` now requires a classification in the same change, the same way a new table requires a deletion-manifest entry.
+
+Notes on LD-301 that affect later work.
+
+- The next piece of work this needs is an operator console. Pause, resume, extend, and resolve are implemented and tested as service functions with no screen and no server action, because a person marking their own request fulfilled would make the evidence worthless. Until that console exists, an operator has to advance a case through the service role directly.
+- `rights_case_events` is append-only in the database, not just by convention. A trigger rejects UPDATE, and DELETE is revoked from the API roles. The one delete that still works is the cascade from an erased account, which is deliberate: the right to erasure outranks our wish to keep evidence about someone.
+- Deadlines are recomputed from `received_at`, `extended_to`, and `paused_ms` on every read rather than trusted from `due_at`, so a stored value cannot drift. Anything that writes those columns must keep them consistent.
+- There is exactly one deletion path, `account.service.deleteAccount`. A `deletion` rights case tracks the request and its deadline; it does not delete anything itself, because erasure requires step-up re-authentication. The privacy page says so plainly rather than implying otherwise.
+
+### 6.5 A defect found while building Phase 2
+
+`supabase/migrations/20260726160000_api_role_grants.sql`.
+
+Resetting a local database from the migrations produced an application that could not read its own tables: every request failed with `permission denied for table vault_data` for the `authenticated` role. The cause is that tables here are created by `postgres`, and the default privileges for `postgres` in the public schema grant only TRUNCATE, REFERENCES, TRIGGER, and MAINTAIN to the API roles. The Supabase default that grants SELECT, INSERT, UPDATE, and DELETE belongs to `supabase_admin`, so it never applied to anything these migrations created.
+
+Existing deployments work because they were provisioned before this, which is precisely why it went unnoticed: the schema was not reproducible from the migrations alone. Anyone bootstrapping the project from a clean database got a broken application, and the failure looked like an auth problem rather than a privilege one.
+
+The migration grants the privileges explicitly, sets matching default privileges so the next migration does not reintroduce the gap, and re-applies every closure the blanket grant would otherwise have undone. Row level security remains the guardrail; table privileges only decide whether PostgREST can reach RLS at all.
+
+Two things follow. Any migration that adds a table meant to be service-role only must add its own `REVOKE ALL ... FROM anon, authenticated`, because the default privileges now grant DML to new tables. And `npx supabase db reset --local` is worth running before a release, since it is the only thing that would have caught this.
 
 ### Phase 3, months 6 to 9. Make credentials portable and access governed
 
@@ -2345,7 +2365,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
-| Phase 2 implementation | In progress | LD-607 and LD-501 delivered 2026-07-26. Both open defects closed. See section 6.4 |
+| Phase 2 implementation | In progress | LD-607, LD-501, and LD-301 delivered 2026-07-26. Both open defects closed, plus one found during the work. See section 6.4 |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

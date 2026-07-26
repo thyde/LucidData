@@ -12,6 +12,7 @@ const links = [
   { href: '/consent', label: 'Consents' },
   { href: '/audit', label: 'Audit Log' },
   { href: '/requests', label: 'Requests' },
+  { href: '/privacy', label: 'Privacy' },
 ]
 
 export function DesktopNav() {

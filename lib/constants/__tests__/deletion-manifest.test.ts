@@ -80,7 +80,19 @@ describe('deletion manifest shape', () => {
   it('names a user column for every table holding personal data', () => {
     for (const entry of DELETION_MANIFEST) {
       if (!entry.personalData) continue
-      expect(entry.userColumn, `${entry.table} claims personal data with no user column`).toBeTruthy()
+      // A child table may instead name the parent that takes it with it.
+      const reachable = entry.userColumn ?? entry.cascadesVia
+      expect(reachable, `${entry.table} claims personal data with no route to a user`).toBeTruthy()
+    }
+  })
+
+  it('only names a cascade parent that is itself in the manifest', () => {
+    for (const entry of DELETION_MANIFEST) {
+      if (!entry.cascadesVia) continue
+      expect(
+        manifestEntryFor(entry.cascadesVia),
+        `${entry.table} cascades via ${entry.cascadesVia}, which has no manifest entry`
+      ).toBeDefined()
     }
   })
 

@@ -1663,6 +1663,116 @@ export type Database = {
           },
         ]
       }
+      rights_case_events: {
+        Row: {
+          actor: string
+          case_id: string
+          created_at: string
+          detail: string | null
+          event: string
+          id: string
+        }
+        Insert: {
+          actor: string
+          case_id: string
+          created_at?: string
+          detail?: string | null
+          event: string
+          id?: string
+        }
+        Update: {
+          actor?: string
+          case_id?: string
+          created_at?: string
+          detail?: string | null
+          event?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rights_case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "rights_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rights_cases: {
+        Row: {
+          appeal_of_case_id: string | null
+          created_at: string
+          detail: string | null
+          due_at: string
+          extended_to: string | null
+          id: string
+          jurisdiction: string
+          paused_at: string | null
+          paused_ms: number
+          received_at: string
+          resolution: string | null
+          resolution_note: string | null
+          resumed_at: string | null
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appeal_of_case_id?: string | null
+          created_at?: string
+          detail?: string | null
+          due_at: string
+          extended_to?: string | null
+          id?: string
+          jurisdiction: string
+          paused_at?: string | null
+          paused_ms?: number
+          received_at?: string
+          resolution?: string | null
+          resolution_note?: string | null
+          resumed_at?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appeal_of_case_id?: string | null
+          created_at?: string
+          detail?: string | null
+          due_at?: string
+          extended_to?: string | null
+          id?: string
+          jurisdiction?: string
+          paused_at?: string | null
+          paused_ms?: number
+          received_at?: string
+          resolution?: string | null
+          resolution_note?: string | null
+          resumed_at?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rights_cases_appeal_of_case_id_fkey"
+            columns: ["appeal_of_case_id"]
+            isOneToOne: false
+            referencedRelation: "rights_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rights_cases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_preferences: {
         Row: {
           allowed_purposes: string[]
@@ -2282,3 +2392,6 @@ export type UpdateOffer = Database['public']['Tables']['offers']['Update']
 export type OfferClaim = Database['public']['Tables']['offer_claims']['Row']
 export type InsertOfferClaim = Database['public']['Tables']['offer_claims']['Insert']
 
+export type RightsCase = Database['public']['Tables']['rights_cases']['Row']
+export type InsertRightsCase = Database['public']['Tables']['rights_cases']['Insert']
+export type RightsCaseEvent = Database['public']['Tables']['rights_case_events']['Row']

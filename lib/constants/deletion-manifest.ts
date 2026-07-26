@@ -31,6 +31,12 @@ export interface DeletionManifestEntry {
   behaviour: DeletionBehaviour
   /** The column that ties a row to the user, when there is one. */
   userColumn: string | null
+  /**
+   * For a child table with no user column of its own: the parent whose
+   * deletion takes it with it. Stops the residue sweep from querying a column
+   * that does not mean what it looks like it means.
+   */
+  cascadesVia?: string
   /** For 'strip', the columns cleared. Empty otherwise. */
   strippedColumns: string[]
   /** Why this behaviour is the correct one. */
@@ -198,6 +204,25 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
     userColumn: 'user_id',
     strippedColumns: [],
     reason: 'A request names the person and the credential types asked of them.',
+  },
+  {
+    table: 'rights_cases',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: 'user_id',
+    strippedColumns: [],
+    reason:
+      'A rights request states what the person asked for and how it was resolved. Deleting the account resolves any open case by removing it.',
+  },
+  {
+    table: 'rights_case_events',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: null,
+    cascadesVia: 'rights_cases',
+    strippedColumns: [],
+    reason:
+      'Case evidence cascades with its case. The log is append-only while the case lives, which is what makes it evidence, and a DELETE is permitted only through that cascade.',
   },
   {
     table: 'credential_shares',
