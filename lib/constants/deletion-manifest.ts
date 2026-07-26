@@ -347,6 +347,25 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
       'Delivery attempts carry identifiers and timestamps only. A payload that named a person would be rejected before it was queued.',
   },
   {
+    table: 'bulk_jobs',
+    personalData: false,
+    behaviour: 'no_personal_data',
+    userColumn: null,
+    strippedColumns: [],
+    reason:
+      'An operation an organization ran, with counts and timings. The person who started it is linked by a key that nulls on deletion, and the job is purged on a retention clock regardless.',
+  },
+  {
+    table: 'bulk_job_rows',
+    personalData: true,
+    behaviour: 'strip',
+    userColumn: null,
+    cascadesVia: 'bulk_jobs',
+    strippedColumns: ['payload'],
+    reason:
+      'An uploaded row names a person, who may be the one erasing their account and may have had no say in being uploaded. The payload is cleared when the row succeeds and again on erasure, and the whole job is purged after 30 days. The row itself survives as an outcome record for the organization that ran the job.',
+  },
+  {
     table: 'issuer_keys',
     personalData: false,
     behaviour: 'no_personal_data',

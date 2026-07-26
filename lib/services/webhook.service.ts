@@ -35,6 +35,8 @@ export const WEBHOOK_EVENTS = [
   'credential_request.denied',
   'credential.revoked',
   'data_order.completed',
+  'bulk_job.completed',
+  'bulk_job.failed',
 ] as const
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
 

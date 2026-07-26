@@ -116,6 +116,36 @@ async function deleteRateLimitCounters(userId: string): Promise<number> {
 }
 
 /**
+ * Clear any bulk-upload row that still names this person.
+ *
+ * An organization can upload someone's address without them ever agreeing to
+ * it, so an unprocessed row is personal data the subject never chose to give
+ * us. Successful rows were already cleared when they ran; this catches the
+ * pending and failed ones. The row survives as an outcome record for the
+ * organization, with nothing left in it that points at anybody.
+ */
+async function redactBulkJobRows(email: string): Promise<number> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('bulk_job_rows')
+    .update({ payload: {} as Json, status: 'skipped', error: 'Subject erased their account' })
+    .in('status', ['pending', 'failed'])
+    .contains('payload', { subject_email: email })
+    .select('id')
+  if (error) throw error
+
+  const { data: byUserEmail, error: secondError } = await service
+    .from('bulk_job_rows')
+    .update({ payload: {} as Json, status: 'skipped', error: 'Subject erased their account' })
+    .in('status', ['pending', 'failed'])
+    .contains('payload', { user_email: email })
+    .select('id')
+  if (secondError) throw secondError
+
+  return (data ?? []).length + (byUserEmail ?? []).length
+}
+
+/**
  * Close the connected payment account. Best-effort: a provider outage must not
  * block a person's right to erasure. What the provider keeps afterwards is
  * disclosed on the receipt rather than quietly ignored.
@@ -208,6 +238,7 @@ export async function eraseUser(
   record('data_order_records', await redactOrderRecords(userId))
   record('org_invitations', await deleteOrgInvitations(email))
   record('rate_limit_counters', await deleteRateLimitCounters(userId))
+  record('bulk_job_rows', await redactBulkJobRows(email))
 
   // 2. Third-party cleanup, before the local link disappears.
   const connectedAccountDeleted = await deleteConnectedAccount(userId)

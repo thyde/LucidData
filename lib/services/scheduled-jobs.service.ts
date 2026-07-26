@@ -12,6 +12,7 @@
  *   rate_limit_purge drop counters from windows that can no longer be consulted
  *   retention_purge  destroy records past their stated retention window
  *   webhook_delivery send queued organization webhooks, with backoff
+ *   bulk_operations  resume interrupted bulk jobs and purge finished ones
  *
  * Connector token refresh is intentionally absent: there is no data_sources
  * table yet. LD-201 adds that job to JOB_NAMES when it lands.
@@ -30,6 +31,7 @@ import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import { purgeExpiredRateLimits } from '@/lib/services/rate-limit.service'
 import { runRetentionPurges } from '@/lib/services/retention.service'
 import { dispatchDueDeliveries } from '@/lib/services/webhook.service'
+import { runBulkJobs, purgeOldBulkJobs } from '@/lib/services/bulk-job.service'
 import { PAYOUT_THRESHOLD_CENTS } from '@/lib/constants/marketplace-economics'
 
 export const JOB_NAMES = [
@@ -39,6 +41,7 @@ export const JOB_NAMES = [
   'rate_limit_purge',
   'retention_purge',
   'webhook_delivery',
+  'bulk_operations',
 ] as const
 export type JobName = (typeof JOB_NAMES)[number]
 
@@ -259,6 +262,17 @@ export async function runWebhookDelivery(): Promise<JobResult> {
   return { job: 'webhook_delivery', processed, failed }
 }
 
+/**
+ * LD-604: advance any bulk operation that is still running, and purge the ones
+ * that finished long enough ago. Jobs are normally driven immediately after
+ * creation; this is the resume path for anything interrupted.
+ */
+export async function runBulkOperations(): Promise<JobResult> {
+  const { processed, failed } = await runBulkJobs()
+  const purged = await purgeOldBulkJobs().catch(() => 0)
+  return { job: 'bulk_operations', processed: processed + purged, failed }
+}
+
 const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   payout_retries: runPayoutRetries,
   consent_expiry: runConsentExpiry,
@@ -266,6 +280,7 @@ const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   rate_limit_purge: runRateLimitPurge,
   retention_purge: runRetentionPurge,
   webhook_delivery: runWebhookDelivery,
+  bulk_operations: runBulkOperations,
 }
 
 async function recordRun(result: JobResult, startedAt: string): Promise<void> {

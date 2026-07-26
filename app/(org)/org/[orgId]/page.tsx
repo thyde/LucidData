@@ -17,7 +17,9 @@ import { RequestCredentials } from '@/components/org/request-credentials'
 import { PlanBilling } from '@/components/org/plan-billing'
 import { ApiKeyManager } from '@/components/org/api-key-manager'
 import { TeamManager } from '@/components/org/team-manager'
+import { BulkOperations } from '@/components/org/bulk-operations'
 import { listOrgTeamAction } from '@/lib/actions/org-team.actions'
+import { listBulkJobsAction } from '@/lib/actions/bulk-job.actions'
 import { createClient } from '@/lib/supabase/server'
 import { isStripeConfigured } from '@/lib/stripe/client'
 import { isEmailDeliveryConfigured } from '@/lib/services/notification-email.service'
@@ -43,6 +45,7 @@ export default async function OrgDetailPage({
   const keyStatus = isIssuer ? await getKeyLifecycleStatusAction(orgId) : null
   const issuerKeys = isIssuer ? await listIssuerPublicKeysAction(orgId) : []
   const issued = overview?.domainVerified ? await listIssuedCredentialsAction(orgId) : []
+  const bulkJobs = overview?.domainVerified ? await listBulkJobsAction(orgId) : []
   const usage = await getBillingOverviewAction(orgId)
   const stripeEnabled = isStripeConfigured()
   const emailConfigured = isEmailDeliveryConfigured()
@@ -104,6 +107,9 @@ export default async function OrgDetailPage({
               <h2 className="text-lg font-medium">Credentials</h2>
               <IssueCredential orgId={orgId} issued={issued} />
             </div>
+          )}
+          {overview.domainVerified && (
+            <BulkOperations orgId={orgId} jobs={bulkJobs} />
           )}
         </div>
       )}

@@ -2,7 +2,7 @@
 
 Research date: 2026-07-25
 Last delivery update: 2026-07-26
-Status: active. **Phase 1 is delivered. Phase 2 is six specs in.**
+Status: active. **Phase 1 is delivered. Phase 2 is seven specs in.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Owner: product
@@ -2020,7 +2020,7 @@ If sub-daily payout retries become necessary, the options are a Pro plan or a sc
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
-Status: six of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
+Status: seven of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record), and what remains is sequenced in [section 6.6](#66-what-is-left-in-phase-2).
 
 - LD-107 assurance and procurement pack (delivered)
 - LD-602 organization developer surface (delivered in part)
@@ -2032,7 +2032,7 @@ Status: six of twelve delivered. Delivery is tracked in [section 6.4](#64-phase-
 - LD-503 buyer evaluation surface (delivered)
 - LD-205 extension foundation
 - LD-206 tracker transparency and browsing insight
-- LD-604 bulk and asynchronous organization operations
+- LD-604 bulk and asynchronous organization operations (delivered)
 - LD-108 accessibility conformance
 
 Exit criteria: no release can leave the platform without passing a k-anonymity gate, deletion actually deletes, EU and UK rights handling is defensible, an organization can operate at institutional volume, and a new user gets something useful before contributing any data.
@@ -2085,6 +2085,8 @@ Notes on LD-602 that affect later work.
 
 | LD-503 buyer evaluation surface | Delivered 2026-07-26 | `lib/services/pool-evaluation.service.ts` shows a buyer what a purchase would actually deliver before they pay: contributor band, record count, per-field coverage, freshness buckets, and a privacy panel reporting the cohort size the release would achieve, how many records would be withheld, and how far each field would be generalized. It calls the same `prepareRelease` the purchase path calls, so a quote cannot disagree with a charge, and `computeOrderTotal` moved into `lib/constants/marketplace-economics.ts` for the same reason. Coverage, freshness, and schema mix come from three Postgres functions that aggregate keys and timestamps without ever returning a contributed value. Samples are invented from the schema by `lib/services/synthetic-samples.ts`, which a test proves cannot even import a repository. | Nothing in scope. Distribution-shape quality metrics were left out deliberately, because the useful ones are themselves disclosive on a small pool. |
 
+| LD-604 bulk and asynchronous organization operations | Delivered 2026-07-26 | `bulk_jobs` and `bulk_job_rows` make the row the unit of work, so one malformed address fails on its own and can be retried without repeating the rest. `lib/services/bulk-job.service.ts` covers issuance, revocation, and consent requests, with a content-derived idempotency key that stops a resumed or double-swept job from issuing twice, cancellation checked between rows so nothing is half issued, and a `retryFailedRows` that touches only failures. Quota runs inside `issueCredential`, so the bulk path cannot spend more allowance than the single one. Jobs start through `after()` and the scheduler is the resume path. Completion and failure emit LD-602 webhooks. | Upload is a JSON paste rather than a file picker with CSV parsing. The row shape and the limits are the hard part and are done; a file reader on top is presentation. |
+
 ### 6.5 A defect found while building Phase 2
 
 `supabase/migrations/20260726160000_api_role_grants.sql`.
@@ -2105,7 +2107,7 @@ Seven specs remain. This is the order to take them in and what each one now depe
 
 **1. LD-503 buyer evaluation surface.** Delivered 2026-07-26. Kept here because the reasoning still applies to anything that quotes a price or a volume: call `prepareRelease`, do not estimate.
 
-**2. LD-604 bulk and asynchronous organization operations.** An exit criterion, and the groundwork is already there. The LD-601 runner takes a new job by adding a name to `JOB_NAMES` and a function to `JOB_RUNNERS`, and LD-602 added the webhook that tells a buyer a long job finished. Bulk operations should reuse both rather than inventing a second queue.
+**2. LD-604 bulk and asynchronous organization operations.** Delivered 2026-07-26. Worth noting for anything that follows: the row-level idempotency key and the `after()` start are the two things that make a long operation safe to resume, and both should be copied rather than reinvented.
 
 **3. LD-201 connector framework.** The largest remaining piece and the one with the most prerequisites now.
 - Adding `lib/crypto/ingestion-keys.ts`, or any other module under `lib/crypto/`, **will fail the build** until `lib/constants/trust-disclosures.ts` gains a matching `KEY_CUSTODY` entry.
@@ -2423,7 +2425,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
-| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus three found during the work. See sections 6.4 and 6.5 |
+| Phase 2 implementation | In progress | LD-607, LD-501, LD-301, LD-107, LD-503, LD-604 delivered and LD-602 delivered in part, 2026-07-26. Both open defects closed, plus three found during the work |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

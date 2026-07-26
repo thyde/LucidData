@@ -47,6 +47,14 @@ function chain(
       call.filters.push(['like', column, value])
       return api
     },
+    in(column: string, value: unknown) {
+      call.filters.push(['in', column, value])
+      return api
+    },
+    contains(column: string, value: unknown) {
+      call.filters.push(['contains', column, value])
+      return api
+    },
     select() {
       return Promise.resolve(settle())
     },

@@ -119,6 +119,116 @@ export type Database = {
           },
         ]
       }
+      bulk_job_rows: {
+        Row: {
+          error: string | null
+          id: string
+          idempotency_key: string
+          job_id: string
+          payload: Json
+          processed_at: string | null
+          result_id: string | null
+          row_index: number
+          status: string
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          idempotency_key: string
+          job_id: string
+          payload: Json
+          processed_at?: string | null
+          result_id?: string | null
+          row_index: number
+          status?: string
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          idempotency_key?: string
+          job_id?: string
+          payload?: Json
+          processed_at?: string | null
+          result_id?: string | null
+          row_index?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_job_rows_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bulk_jobs: {
+        Row: {
+          cancel_requested_at: string | null
+          created_at: string
+          created_by: string | null
+          error: string | null
+          failed_rows: number
+          finished_at: string | null
+          id: string
+          kind: string
+          organization_id: string
+          processed_rows: number
+          started_at: string | null
+          status: string
+          succeeded_rows: number
+          total_rows: number
+        }
+        Insert: {
+          cancel_requested_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          failed_rows?: number
+          finished_at?: string | null
+          id?: string
+          kind: string
+          organization_id: string
+          processed_rows?: number
+          started_at?: string | null
+          status?: string
+          succeeded_rows?: number
+          total_rows?: number
+        }
+        Update: {
+          cancel_requested_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          failed_rows?: number
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          organization_id?: string
+          processed_rows?: number
+          started_at?: string | null
+          status?: string
+          succeeded_rows?: number
+          total_rows?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_jobs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bulk_jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_receipts: {
         Row: {
           consent_id: string
@@ -2513,3 +2623,5 @@ export type InsertOfferClaim = Database['public']['Tables']['offer_claims']['Ins
 export type RightsCase = Database['public']['Tables']['rights_cases']['Row']
 export type InsertRightsCase = Database['public']['Tables']['rights_cases']['Insert']
 export type RightsCaseEvent = Database['public']['Tables']['rights_case_events']['Row']
+export type BulkJob = Database['public']['Tables']['bulk_jobs']['Row']
+export type BulkJobRow = Database['public']['Tables']['bulk_job_rows']['Row']
