@@ -2033,7 +2033,7 @@ Phase 1 introduced hard requirements that will cause user-visible failures if a 
 2. **`CRON_SECRET` must be set or no scheduled job runs.** The cron endpoint fails closed by design, so an unset secret rejects every request. It was missing in production and was set on 2026-07-26; before that, nothing scheduled could have run even once the code was live.
 3. **Migrations must be applied before the code that uses them.** All sixteen Phase 1 and Phase 2 migrations are applied to production. Every one was additive, which is why production kept working while it ran an older build.
 4. **LD-109 is a breaking API change.** Any integration that registers organizations programmatically, or that reads `api_key` from the registration response, will break. Migrate integrators before applying the change set.
-5. **An email transport should be configured.** The code path is complete and the org portal warns when it is not, but with no transport nothing is delivered. Still unset in production, so LD-102 is built but inert.
+5. **An email transport should be configured.** The code path is complete and the org portal warns when it is not, but with no transport nothing is delivered. **Closed 2026-07-27.** Resend carries application notifications from `luciddatabank.com`, with SPF on a `send.` subdomain so the Zoho record at the apex is untouched. Worth remembering for any future secret: Vercel captures environment variables into a deployment rather than reading them live, so adding the key changed nothing until the next build.
 
 ### 6.3.1 The deployment outage, and what caused it
 
@@ -2239,6 +2239,16 @@ Two findings are worth carrying into whatever touches these areas next.
 
 - **Pin the vectors before the refactor, not after.** Generating known-answer values from the code you are about to change proves nothing. Generating them independently first turns a risky edit to the most security-sensitive module in the project into a change that either passes or fails visibly. The same approach applies to LD-401, which adds credential formats alongside an existing one and must not disturb it.
 - **A control in front of money must not fail open.** The LD-109 rate limiter fails open by design and says so, which is correct for throttling a public endpoint. Reusing it for contribution velocity would have meant a store outage silently removing a fraud control. Counting the authoritative rows instead cannot fail open, because if the table is unreachable the write fails too.
+
+One defect was introduced and caught inside LD-506 itself, and it is the kind worth recording because
+both halves were individually correct. LD-505 requires that a closing account is paid whatever it is
+owed. LD-506 added a `held` status that an ordinary payout run deliberately ignores. But
+`findPendingPayouts` filtered on `status = 'pending'`, so the closure flush could not see a held
+balance at all: the money would have been owed, held, and unreachable, which is worse than either
+spec failing on its own. Closure now includes held payouts explicitly, and a test asserts it, because
+nothing in the payout path had test coverage before and that is precisely why the gap survived being
+written. The general lesson is narrow: when a new status is added to a table, every query that filters
+on status is a candidate defect, and the compiler will not point at any of them.
 
 ### Phase 4, months 9 to 12. Broaden and deepen
 
