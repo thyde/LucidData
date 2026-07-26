@@ -2005,11 +2005,13 @@ Phase 1 introduced hard requirements that will cause user-visible failures if a 
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 
+Status: in progress. Delivery is tracked in [section 6.4](#64-phase-2-delivery-record).
+
 - LD-107 assurance and procurement pack
 - LD-602 organization developer surface
 - LD-201 connector framework
-- LD-501 real anonymization guarantees
-- LD-607 retention and deletion completeness
+- LD-501 real anonymization guarantees (delivered)
+- LD-607 retention and deletion completeness (delivered)
 - LD-301 rights and DSAR engine
 - LD-202 source health and provenance
 - LD-503 buyer evaluation surface
@@ -2021,6 +2023,30 @@ Phase 1 introduced hard requirements that will cause user-visible failures if a 
 Exit criteria: no release can leave the platform without passing a k-anonymity gate, deletion actually deletes, EU and UK rights handling is defensible, an organization can operate at institutional volume, and a new user gets something useful before contributing any data.
 
 This phase is also over capacity. LD-108 and LD-604 are the most deferrable if it has to be cut.
+
+### 6.4 Phase 2 delivery record
+
+| Spec | Status | What landed | What did not |
+| --- | --- | --- | --- |
+| LD-607 retention and deletion completeness | Delivered 2026-07-26 | `lib/constants/deletion-manifest.ts` covers all 36 public tables with a behaviour and a reason, and a Vitest test derives the live table list from the migrations so a new table without a deletion decision fails the build. `lib/services/deletion.service.ts` replaces cascade-only deletion: it deletes issued credentials about the subject, strips `data_order_records` to an empty payload with both source links cleared and `redacted_at` set, deletes invitations keyed by email, deletes rate-limit counters whose bucket embeds the subject id, closes the Stripe connected account, verifies the result with a residue sweep, and signs a deletion receipt. `lib/services/retention.service.ts` adds five purges wired into the LD-601 runner as `retention_purge`. The trust centre publishes both the retention table and the four residual disclosures. | Nothing in scope. Both open defects in section 9 are closed. |
+| LD-501 real anonymization guarantees | Delivered 2026-07-26 | `lib/privacy/quasi-identifiers.ts` classifies every field of all seven built-in schemas as identifier, quasi-identifier, sensitive, or safe, each with a written reason, and a test derives the field list from the Zod schemas so an unclassified field fails the build. `lib/privacy/k-anonymity.ts` does full-domain generalization with ladders for dates, years, numerics, and categories, computes equivalence classes, suppresses records below k, and refuses rather than warns. `lib/privacy/differential-privacy.ts` adds seeded Laplace noise and a per-pool epsilon budget that blocks aggregate release on exhaustion. The gate runs in `startPoolPurchase` before pricing and before Checkout, and every order stores its privacy report. `pool_contributions.schema_type` now travels with each contribution, because a broad data category is not enough to classify a field. | Governed access instead of copies is LD-502 and unchanged. The epsilon budget is implemented and tested but has no aggregate query surface to spend it on yet; that arrives with LD-502. |
+
+Notes on LD-607 that affect later work.
+
+- The manifest test is a build gate. Any later spec that adds a table (LD-201 `data_sources`, LD-301 request records, LD-205 extension state) must add a `DELETION_MANIFEST` entry in the same change or the suite fails. That is the intended behaviour, not an obstacle.
+- Deletion now returns a signed receipt object rather than `void`. Any caller of `deleteAccount` or `deleteAccountAction` must handle the return value.
+- `data_order_records.payload` can now be `{}` with `redacted_at` set. Buyer-facing export code must tolerate a redacted placeholder rather than assuming every record has content. LD-503 buyer evaluation surface and LD-502 must both account for this.
+- Retention windows are published on the trust centre, so changing a constant in `lib/constants/retention.ts` changes a public promise. Treat those values as a disclosure, not a tuning knob.
+- Audit chains are per user, which is what makes erasure and chain integrity compatible. Any move to a single global chain would break the right to erasure and must not be made without redesigning both.
+
+Notes on LD-501 that affect later work, and one finding that needs a decision.
+
+- **The sellable surface of the marketplace has narrowed, and this is the point.** Unclassified fields fail closed, so a pool of free-form custom-schema fields now releases nothing and the purchase is refused. Crossed with the restricted categories in `lib/validations/marketplace.ts` (health, financial, location, browsing are not sellable), the only data that can be sold today is the `credentials` category backed by the `employment`, `education`, and `identity` schemas. The marketplace lifecycle e2e was rewritten onto `employment` for exactly this reason. Anyone who wants `interests`, `personal`, or `other` pools to work has to classify those fields first. That is a product decision, not a bug, and it should be made deliberately rather than by weakening the gate.
+- Full-domain generalization means the gate rarely refuses once there are at least k records; it generalizes hard instead. A cohort of five people at five different employers is released with employer suppressed and the start date widened to a decade. That is correct and the privacy report says so plainly, but a buyer can still pay for a dataset that generalization has emptied of value. LD-503 buyer evaluation surface has to show the achieved k and the generalization levels **before** purchase, not only after.
+- `prepareRelease` is pure and deterministic. LD-502 governed access must call the same function rather than writing a second gate, or the two paths will drift and one of them will be the weaker.
+- The epsilon budget exists and is enforced, but nothing spends it yet. LD-502 is where `spendEpsilon` gets wired to a real aggregate query, and it must persist `data_pools.epsilon_spent` rather than holding the budget in memory.
+- `data_pools.k_anonymity_target` is clamped so `minimum_contributors` is never lower than it. Any later code that sets one must set the other, or the purchase check will pass a release the privacy gate then refuses.
+- Adding a field to any schema in `lib/schemas/vault-schemas.ts` now requires a classification in the same change, the same way a new table requires a deletion-manifest entry.
 
 ### Phase 3, months 6 to 9. Make credentials portable and access governed
 
@@ -2319,6 +2345,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Dependency and capacity analysis | Done | Rebalanced phases; see the capacity note in section 6 |
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
+| Phase 2 implementation | In progress | LD-607 and LD-501 delivered 2026-07-26. Both open defects closed. See section 6.4 |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |
@@ -2331,14 +2358,15 @@ These were live defects in the codebase rather than missing features. Status upd
 |---|---|---|---|
 | Organization registration is unauthenticated and returns a working API key | [app/api/org/register/route.ts](../app/api/org/register/route.ts) | LD-109 | **Fixed.** Registration requires a session and issues no key; keys come only after domain verification |
 | `assertIssuanceQuota` is defined but never called, so plan limits are unenforced | [lib/services/billing.service.ts](../lib/services/billing.service.ts) | LD-109 | **Fixed.** Moved inside `issueCredential`, so the portal and API paths cannot diverge |
-| Issued credentials survive account deletion with claims intact | `ON DELETE SET NULL` in [20260616000007_credentials.sql](../supabase/migrations/20260616000007_credentials.sql) | LD-607 | **Open.** Phase 2 |
-| Order records survive account deletion with payload intact | `ON DELETE SET NULL` in [20260725150000_marketplace_transaction_integrity.sql](../supabase/migrations/20260725150000_marketplace_transaction_integrity.sql) | LD-607 | **Open.** Phase 2 |
+| Issued credentials survive account deletion with claims intact | `ON DELETE SET NULL` in [20260616000007_credentials.sql](../supabase/migrations/20260616000007_credentials.sql) | LD-607 | **Fixed** 2026-07-26. Credentials about the subject are deleted explicitly before the auth user, so verification fails closed |
+| Order records survive account deletion with payload intact | `ON DELETE SET NULL` in [20260725150000_marketplace_transaction_integrity.sql](../supabase/migrations/20260725150000_marketplace_transaction_integrity.sql) | LD-607 | **Fixed** 2026-07-26. The payload is emptied and both source links cleared, leaving a counted placeholder with `redacted_at` set |
 | Marketplace sales become loss-making above a computable pool size | Fixed access fee in [data-order.service.ts](../lib/services/data-order.service.ts) against percentage processing costs | LD-505 | **Fixed.** 25% fee plus a minimum order, asserted profitable across eight pool sizes and every category |
 | `interests` and `other` categories have a zero access fee, so every sale loses money | [lib/constants/data-pricing.ts](../lib/constants/data-pricing.ts) | LD-505 | **Fixed.** Both repriced off zero |
 
-Two defects remain open, both owned by LD-607 in phase 2. They are the highest-severity items left in
-the backlog, because a deleted account currently keeps credential claims and contributed record
-payloads, which is a GDPR Article 17 defect rather than a missing feature.
+Every defect found during validation is now fixed. The two GDPR Article 17 defects, where a deleted
+account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
+Deletion no longer relies on foreign key behaviour: what does not cascade is handled explicitly, the
+result is verified rather than assumed, and the person receives a signed receipt.
 
 ### Before this spec is considered final
 

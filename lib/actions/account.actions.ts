@@ -58,7 +58,9 @@ export async function removePasskeyAction(input: unknown): Promise<void> {
   return account.removePasskey(userId, passkeyId)
 }
 
-export async function deleteAccountAction(input: unknown): Promise<void> {
+export async function deleteAccountAction(
+  input: unknown
+): Promise<account.DeletionReceiptSummary> {
   const userId = await getAuthenticatedUserId()
   const { confirmPhrase, stepUpToken } = deleteAccountSchema.parse(input)
   if (confirmPhrase !== DELETE_CONFIRM_PHRASE) {
@@ -66,5 +68,12 @@ export async function deleteAccountAction(input: unknown): Promise<void> {
   }
   // LD-106: a warm session is not enough to destroy an account.
   await consumeStepUp(userId, 'delete_account', stepUpToken)
-  return account.deleteAccount(userId)
+  const outcome = await account.deleteAccount(userId)
+  // LD-607: hand back the signed proof so the person can keep and check it.
+  return {
+    receipt: outcome.receipt,
+    signature: outcome.signature,
+    keyId: outcome.keyId,
+    verified: outcome.verified,
+  }
 }

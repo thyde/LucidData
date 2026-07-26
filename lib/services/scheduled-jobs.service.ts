@@ -6,9 +6,11 @@
  * invocation is safe.
  *
  * Jobs:
- *   payout_retries  retry failed contributor transfers with exponential backoff
- *   consent_expiry  mark consent grants whose window has closed
- *   share_expiry    mark credential share tokens whose window has closed
+ *   payout_retries   retry failed contributor transfers with exponential backoff
+ *   consent_expiry   mark consent grants whose window has closed
+ *   share_expiry     mark credential share tokens whose window has closed
+ *   rate_limit_purge drop counters from windows that can no longer be consulted
+ *   retention_purge  destroy records past their stated retention window
  *
  * Connector token refresh is intentionally absent: there is no data_sources
  * table yet. LD-201 adds that job to JOB_NAMES when it lands.
@@ -25,6 +27,7 @@ import {
 } from '@/lib/services/marketplace-notification.service'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import { purgeExpiredRateLimits } from '@/lib/services/rate-limit.service'
+import { runRetentionPurges } from '@/lib/services/retention.service'
 import { PAYOUT_THRESHOLD_CENTS } from '@/lib/constants/marketplace-economics'
 
 export const JOB_NAMES = [
@@ -32,6 +35,7 @@ export const JOB_NAMES = [
   'consent_expiry',
   'share_expiry',
   'rate_limit_purge',
+  'retention_purge',
 ] as const
 export type JobName = (typeof JOB_NAMES)[number]
 
@@ -233,11 +237,22 @@ export async function runRateLimitPurge(): Promise<JobResult> {
   return { job: 'rate_limit_purge', processed, failed: 0 }
 }
 
+/**
+ * LD-607: destroy records past their stated retention window. Turns pool
+ * retention_days and export windows from claims into enforced rules.
+ */
+export async function runRetentionPurge(): Promise<JobResult> {
+  const { results, failed } = await runRetentionPurges()
+  const processed = results.reduce((total, entry) => total + entry.deleted, 0)
+  return { job: 'retention_purge', processed, failed }
+}
+
 const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   payout_retries: runPayoutRetries,
   consent_expiry: runConsentExpiry,
   share_expiry: runShareExpiry,
   rate_limit_purge: runRateLimitPurge,
+  retention_purge: runRetentionPurge,
 }
 
 async function recordRun(result: JobResult, startedAt: string): Promise<void> {

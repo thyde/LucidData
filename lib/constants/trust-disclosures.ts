@@ -109,6 +109,15 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
     protects: 'The signed statement of what you agreed to',
     note: 'Server custody by design: a receipt is LucidData attesting to the terms, and it carries no vault content.',
   },
+  {
+    material: 'Deletion receipt signing key',
+    module: 'deletion-receipt.ts',
+    derivedOrGenerated:
+      'Ed25519 keypair generated on the server, private half AES-256-GCM-wrapped with ISSUER_KEY_SECRET',
+    heldBy: 'server',
+    protects: 'The signed statement of what was erased when you deleted your account',
+    note: 'The receipt holds counts, table names, and a hash of your email. Your address is not stored, and the hash cannot be reversed to recover it.',
+  },
 ]
 
 /**

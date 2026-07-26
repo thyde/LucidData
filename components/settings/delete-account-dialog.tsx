@@ -13,6 +13,27 @@ import { createClient } from '@/lib/supabase/client'
 import { deleteAccountAction } from '@/lib/actions/account.actions'
 import { StepUpDialog } from '@/components/auth/step-up-dialog'
 import { DELETE_CONFIRM_PHRASE } from '@/lib/validations/account'
+import type { DeletionReceiptSummary } from '@/lib/services/account.service'
+
+// Save the receipt locally. Best-effort: a blocked download must not leave the
+// person unsure whether their account was actually deleted.
+function downloadReceipt(summary: DeletionReceiptSummary) {
+  try {
+    const blob = new Blob([JSON.stringify(summary, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `luciddata-deletion-receipt-${summary.receipt.receiptId}.json`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  } catch {
+    // Nothing to recover here; the account is already gone.
+  }
+}
 
 export function DeleteAccountDialog() {
   const router = useRouter()
@@ -33,7 +54,10 @@ export function DeleteAccountDialog() {
   async function handleDelete(stepUpToken: string) {
     setBusy(true)
     try {
-      await deleteAccountAction({ confirmPhrase: phrase, stepUpToken })
+      const summary = await deleteAccountAction({ confirmPhrase: phrase, stepUpToken })
+      // LD-607: hand over the signed proof before the session ends. It is the
+      // only copy the person gets, and it is what makes "deleted" checkable.
+      downloadReceipt(summary)
       lock()
       try {
         await createClient().auth.signOut()
@@ -61,6 +85,10 @@ export function DeleteAccountDialog() {
       <p className="text-sm text-muted-foreground">
         Permanently delete your account and all vault data, consents, credentials, and audit
         history. This cannot be undone. Export your data first if you want a copy.
+      </p>
+      <p className="text-sm text-muted-foreground">
+        You will get a signed deletion receipt listing what was removed and what a payment
+        provider still has to keep. Anyone can check the signature.
       </p>
       <Button
         variant="destructive"

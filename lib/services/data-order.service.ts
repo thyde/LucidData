@@ -7,7 +7,8 @@ import { createAuditEntry } from '@/lib/services/audit.service'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { recordOrderPayouts } from '@/lib/services/payout.service'
 import { assertOrderMeetsMinimum } from '@/lib/constants/marketplace-economics'
-import type { DataOrder } from '@/types/database.types'
+import { prepareRelease, type PrivacyReport } from '@/lib/privacy/k-anonymity'
+import type { DataOrder, Json } from '@/types/database.types'
 import {
   isMarketplaceCategoryAllowed,
   type PurchasePoolInput,
@@ -28,7 +29,14 @@ export interface DatasetExport {
   }
   exportExpiresAt: string
   recordCount: number
-  records: { id: string; category: string; payload: unknown; contributed_at: string }[]
+  privacyReport: PrivacyReport | null
+  records: {
+    id: string
+    category: string
+    payload: unknown
+    contributed_at: string
+    redacted: boolean
+  }[]
 }
 
 const EXPORT_WINDOW_DAYS = 7
@@ -46,25 +54,94 @@ function computeTotal(
 
 async function createOrderWithSnapshot(
   input: Parameters<typeof orderRepo.createOrder>[0],
-  contributions: Awaited<ReturnType<typeof contributionRepo.findActiveContributionsByPool>>
+  release: GatedRelease
 ): Promise<DataOrder> {
-  const order = await orderRepo.createOrder(input)
+  const order = await orderRepo.createOrder({
+    ...input,
+    privacy_report: release.report as unknown as Json,
+  })
   try {
     await orderRepo.createOrderRecords(
-      contributions.map((contribution) => ({
+      release.records.map((record) => ({
         order_id: order.id,
-        source_contribution_id: contribution.id,
-        source_user_id: contribution.user_id,
-        category: contribution.category,
-        payload: contribution.anonymized_payload,
-        payout_cents: contribution.payout_cents,
-        contributed_at: contribution.created_at,
+        source_contribution_id: record.contributionId,
+        source_user_id: record.userId,
+        category: record.category,
+        payload: record.payload as Json,
+        payout_cents: record.payoutCents,
+        contributed_at: record.contributedAt,
       }))
     )
     return order
   } catch (error) {
     await orderRepo.deleteOrder(order.id).catch(() => undefined)
     throw error
+  }
+}
+
+interface GatedRelease {
+  records: {
+    contributionId: string
+    userId: string
+    category: string
+    payload: Record<string, unknown>
+    payoutCents: number
+    contributedAt: string
+  }[]
+  report: PrivacyReport
+}
+
+/**
+ * LD-501: run the privacy gate before anything else happens.
+ *
+ * This has to sit ahead of Checkout. Charging a buyer and then refusing the
+ * release leaves them paid up with nothing, and a refund does not undo the
+ * signal that the cohort was too small.
+ *
+ * A contribution whose payload is not an object cannot be classified, so it is
+ * excluded rather than passed through unchecked.
+ */
+function gateRelease(
+  pool: { k_anonymity_target: number; epsilon_spent: number | string },
+  contributions: Awaited<ReturnType<typeof contributionRepo.findActiveContributionsByPool>>
+): GatedRelease {
+  const candidates = contributions.filter(
+    (contribution) =>
+      contribution.schema_type !== null &&
+      contribution.anonymized_payload !== null &&
+      typeof contribution.anonymized_payload === 'object' &&
+      !Array.isArray(contribution.anonymized_payload)
+  )
+
+  const result = prepareRelease(
+    candidates.map((contribution) => ({
+      id: contribution.id,
+      schemaType: contribution.schema_type as string,
+      payload: contribution.anonymized_payload as Record<string, unknown>,
+    })),
+    {
+      k: pool.k_anonymity_target,
+      epsilonSpent: Number(pool.epsilon_spent) || 0,
+    }
+  )
+
+  const byId = new Map(candidates.map((contribution) => [contribution.id, contribution]))
+  return {
+    report: result.report,
+    records: result.records.flatMap((record) => {
+      const contribution = byId.get(record.id)
+      if (!contribution) return []
+      return [
+        {
+          contributionId: contribution.id,
+          userId: contribution.user_id,
+          category: contribution.category,
+          payload: record.payload,
+          payoutCents: contribution.payout_cents,
+          contributedAt: contribution.created_at,
+        },
+      ]
+    }),
   }
 }
 
@@ -86,13 +163,19 @@ export async function startPoolPurchase(
   }
 
   const contributions = await contributionRepo.findActiveContributionsByPool(pool.id)
-  const recordCount = contributions.length
   const contributorCount = new Set(contributions.map((contribution) => contribution.user_id)).size
   if (contributorCount < pool.minimum_contributors) {
     throw new Error(
       `This pool needs at least ${pool.minimum_contributors} contributors before purchase`
     )
   }
+
+  // LD-501: the privacy gate runs before pricing and before Checkout. A count
+  // of contributors is not anonymity, and charging for a release we then refuse
+  // would leave the buyer paid up with nothing.
+  const release = gateRelease(pool, contributions)
+  const recordCount = release.records.length
+
   const totalCents = computeTotal(
     pool.price_per_record_cents,
     pool.price_cents,
@@ -120,13 +203,19 @@ export async function startPoolPurchase(
       current_period_end: null,
       export_expires_at: exportExpiresAt,
       status: 'paid',
-    }, contributions)
+    }, release)
     await createAuditEntry({
       userId: actingUserId,
       eventType: 'data_purchased',
       action: `Purchased ${recordCount} record(s) from pool "${pool.name}" (${input.order_type})`,
       actorType: 'buyer',
-      metadata: { pool_id: pool.id, order_id: order.id, total_cents: totalCents },
+      metadata: {
+        pool_id: pool.id,
+        order_id: order.id,
+        total_cents: totalCents,
+        k_achieved: release.report.k,
+        records_suppressed: release.report.recordsSuppressed,
+      },
     })
     return { kind: 'completed', order, recordCount, totalCents }
   }
@@ -142,7 +231,7 @@ export async function startPoolPurchase(
     current_period_end: null,
     export_expires_at: exportExpiresAt,
     status: 'pending',
-  }, contributions)
+  }, release)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const session = await getStripe().checkout.sessions.create({
@@ -251,11 +340,17 @@ export async function getExport(
     },
     exportExpiresAt: order.export_expires_at,
     recordCount: records.length,
+    // LD-501: every order carries its privacy report, so a buyer can see what
+    // was generalized and how many records were suppressed to reach k.
+    privacyReport: (order.privacy_report as unknown as PrivacyReport | null) ?? null,
     records: records.map((record) => ({
       id: record.source_contribution_id ?? record.id,
       category: record.category,
       payload: record.payload,
       contributed_at: record.contributed_at,
+      // LD-607: the contributor erased their account, so this row survives only
+      // as a counted placeholder with an empty payload.
+      redacted: record.redacted_at !== null,
     })),
   }
 }

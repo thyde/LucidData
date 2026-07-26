@@ -59,6 +59,10 @@ export const createPoolSchema = z.object({
     .default('personal'),
   purpose: marketplacePurposeSchema.default('research'),
   minimum_contributors: z.number().int().min(5).max(100_000).default(5),
+  // LD-501: the smallest cohort a released record may sit in. A buyer can raise
+  // it, never lower it below the floor, because k is what stops a release from
+  // singling someone out.
+  k_anonymity_target: z.number().int().min(5).max(1000).default(5),
   retention_days: z.number().int().min(1).max(365).default(30),
   requested_fields: z.array(z.string().min(1)).default([]),
   pricing_model: z.literal('snapshot').default('snapshot'),

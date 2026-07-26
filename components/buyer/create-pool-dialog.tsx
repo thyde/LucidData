@@ -43,6 +43,7 @@ function makeDefaults() {
     category: 'personal',
     purpose: 'research' as MarketplacePurpose,
     minimum_contributors: '5',
+    k_anonymity_target: '5',
     retention_days: '30',
     requested_fields: '',
     pricing_model: 'snapshot',
@@ -68,6 +69,7 @@ export function CreatePoolDialog({ orgId, disabled = false }: { orgId: string; d
           category: form.category,
           purpose: form.purpose,
           minimum_contributors: Number(form.minimum_contributors),
+          k_anonymity_target: Number(form.k_anonymity_target),
           retention_days: Number(form.retention_days),
           requested_fields: form.requested_fields
             .split(',')
@@ -188,6 +190,22 @@ export function CreatePoolDialog({ orgId, disabled = false }: { orgId: string; d
                 onChange={(e) => setForm((f) => ({ ...f, retention_days: e.target.value }))}
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pool-k">Minimum cohort size (k)</Label>
+            <Input
+              id="pool-k"
+              type="number"
+              min="5"
+              max="1000"
+              value={form.k_anonymity_target}
+              onChange={(e) => setForm((f) => ({ ...f, k_anonymity_target: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Every record you receive will share its identifying details with at least this
+              many other people. Raising it protects contributors and generalizes your data
+              further. A release that cannot reach it is refused.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="pool-fields">Requested fields (comma-separated)</Label>

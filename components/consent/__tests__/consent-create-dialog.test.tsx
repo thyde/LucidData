@@ -315,7 +315,9 @@ describe('ConsentCreateDialog', () => {
 
       const purposeTextarea = screen.getByLabelText(/purpose/i);
       const longText = 'a'.repeat(501);
-      await user.type(purposeTextarea, longText);
+      // Paste rather than type: 501 simulated keystrokes times out under load.
+      await user.click(purposeTextarea);
+      await user.paste(longText);
 
       const submitButtons = screen.getAllByRole('button', { name: /^grant consent$/i });
       const submitButton = submitButtons[submitButtons.length - 1];

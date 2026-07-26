@@ -9,7 +9,7 @@ import type { PlatformKey } from '@/types/database.types'
  * rest with ISSUER_KEY_SECRET and only ever decrypted in memory while signing.
  * Reads go through the service role; the table has RLS on with no policy.
  */
-export type PlatformKeyPurpose = 'consent_receipt'
+export type PlatformKeyPurpose = 'consent_receipt' | 'deletion_receipt'
 
 export interface PlatformPublicKey {
   keyId: string

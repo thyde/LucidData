@@ -479,6 +479,7 @@ export type Database = {
           order_id: string
           payload: Json
           payout_cents: number
+          redacted_at: string | null
           source_contribution_id: string | null
           source_user_id: string | null
         }
@@ -490,6 +491,7 @@ export type Database = {
           order_id: string
           payload: Json
           payout_cents: number
+          redacted_at?: string | null
           source_contribution_id?: string | null
           source_user_id?: string | null
         }
@@ -501,6 +503,7 @@ export type Database = {
           order_id?: string
           payload?: Json
           payout_cents?: number
+          redacted_at?: string | null
           source_contribution_id?: string | null
           source_user_id?: string | null
         }
@@ -538,6 +541,7 @@ export type Database = {
           id: string
           order_type: string
           pool_id: string
+          privacy_report: Json | null
           record_count: number
           status: string
           stripe_checkout_session_id: string | null
@@ -553,6 +557,7 @@ export type Database = {
           id?: string
           order_type?: string
           pool_id: string
+          privacy_report?: Json | null
           record_count?: number
           status?: string
           stripe_checkout_session_id?: string | null
@@ -568,6 +573,7 @@ export type Database = {
           id?: string
           order_type?: string
           pool_id?: string
+          privacy_report?: Json | null
           record_count?: number
           status?: string
           stripe_checkout_session_id?: string | null
@@ -597,8 +603,11 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          epsilon_budget: number
+          epsilon_spent: number
           filters: Json | null
           id: string
+          k_anonymity_target: number
           minimum_contributors: number
           name: string
           price_cents: number
@@ -615,8 +624,11 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          epsilon_budget?: number
+          epsilon_spent?: number
           filters?: Json | null
           id?: string
+          k_anonymity_target?: number
           minimum_contributors?: number
           name: string
           price_cents?: number
@@ -633,8 +645,11 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          epsilon_budget?: number
+          epsilon_spent?: number
           filters?: Json | null
           id?: string
+          k_anonymity_target?: number
           minimum_contributors?: number
           name?: string
           price_cents?: number
@@ -655,6 +670,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      deletion_receipts: {
+        Row: {
+          id: string
+          issued_at: string
+          key_id: string
+          payload: Json
+          signature: string
+          subject_email_hash: string
+          subject_id: string
+        }
+        Insert: {
+          id?: string
+          issued_at?: string
+          key_id: string
+          payload: Json
+          signature: string
+          subject_email_hash: string
+          subject_id: string
+        }
+        Update: {
+          id?: string
+          issued_at?: string
+          key_id?: string
+          payload?: Json
+          signature?: string
+          subject_email_hash?: string
+          subject_id?: string
+        }
+        Relationships: []
       }
       issued_credentials: {
         Row: {
@@ -1059,6 +1104,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "org_invitations_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "org_invitations_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -1455,6 +1514,7 @@ export type Database = {
           payout_cents: number
           platform_fee_bps: number
           pool_id: string
+          schema_type: string | null
           status: string
           updated_at: string
           user_id: string
@@ -1471,6 +1531,7 @@ export type Database = {
           payout_cents?: number
           platform_fee_bps?: number
           pool_id: string
+          schema_type?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -1487,6 +1548,7 @@ export type Database = {
           payout_cents?: number
           platform_fee_bps?: number
           pool_id?: string
+          schema_type?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -1888,24 +1950,6 @@ export type Database = {
         Args: { request_id: string; response_note?: string }
         Returns: Json
       }
-      consume_rate_limit: {
-        Args: { p_bucket: string; p_window_seconds: number; p_limit: number }
-        Returns: boolean
-      }
-      list_my_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          created_at: string
-          updated_at: string | null
-          user_agent: string | null
-          ip: string | null
-        }[]
-      }
-      revoke_my_session: {
-        Args: { p_session_id: string }
-        Returns: boolean
-      }
       claim_offer_atomic: {
         Args: { p_offer_id: string }
         Returns: {
@@ -1928,6 +1972,20 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      consume_rate_limit: {
+        Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
+        Returns: boolean
+      }
+      list_my_sessions: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          ip: string
+          updated_at: string
+          user_agent: string
+        }[]
       }
       redeem_offer_claim_atomic: {
         Args: { p_organization_id: string; p_redemption_code: string }
@@ -1952,6 +2010,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      revoke_my_session: { Args: { p_session_id: string }; Returns: boolean }
       revoke_organization_api_key: {
         Args: { p_key_id: string }
         Returns: {
@@ -2161,9 +2220,6 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-
-// Application aliases
 
 export type User = Database['public']['Tables']['users']['Row']
 export type VaultData = Database['public']['Tables']['vault_data']['Row']

@@ -27,6 +27,9 @@ async function findUserId(
   return data.id
 }
 
+// LD-501: the privacy gate classifies fields per vault schema, and an
+// unclassified custom payload is suppressed from every release. A pool of
+// free-form fields can no longer be sold, so this uses the employment schema.
 async function createVaultEntry(page: Page, label: string): Promise<void> {
   await Promise.all([
     page.waitForURL('/vault', { timeout: 20000, waitUntil: 'commit' }),
@@ -39,11 +42,12 @@ async function createVaultEntry(page: Page, label: string): Promise<void> {
   await page.getByRole('button', { name: 'Create Vault Entry' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create Vault Entry' })
   await dialog.getByLabel('Label').fill(label)
-  await dialog.getByLabel('Category', { exact: true }).selectOption('other')
-  await dialog.getByRole('button', { name: 'Edit as JSON' }).click()
-  await dialog
-    .getByRole('textbox', { name: 'Data', exact: true })
-    .fill(JSON.stringify({ topic: 'synthetic-accessibility', score: 7, email: 'removed@example.com' }))
+  await dialog.locator('#schema-type-select').selectOption('employment')
+  await dialog.getByLabel('Employer').fill('Synthetic Industries')
+  await dialog.getByLabel('Role / Title').fill('Engineer')
+  await dialog.getByLabel('Employment type').selectOption('full_time')
+  await dialog.getByLabel('Start date').fill('2020-01-15')
+  await dialog.getByLabel('Salary range').selectOption('60k-100k')
   await dialog.getByRole('button', { name: 'Create', exact: true }).click()
   await expect(dialog).toBeHidden({ timeout: 15000 })
 }
@@ -118,11 +122,11 @@ test.describe('Marketplace lifecycle', () => {
       const poolDialog = buyerPage.getByRole('dialog', { name: 'Create a data pool' })
       await poolDialog.getByLabel('Name').fill(poolName)
       await poolDialog.getByLabel('Description').fill('Synthetic records for accessibility model evaluation')
-      await poolDialog.getByLabel('Category').selectOption('interests')
+      await poolDialog.getByLabel('Category').selectOption('credentials')
       await poolDialog.getByLabel('Purpose').selectOption('ai_training')
       await poolDialog.getByLabel('Minimum contributors').fill('5')
       await poolDialog.getByLabel('Declared retention (days)').fill('30')
-      await poolDialog.getByLabel('Requested fields (comma-separated)').fill('topic, score')
+      await poolDialog.getByLabel('Requested fields (comma-separated)').fill('employer, role')
       await poolDialog.getByLabel('Base price (USD)').fill('0')
       await poolDialog.getByLabel('Price per record (USD)').fill('0')
       await poolDialog.getByRole('button', { name: 'Create pool' }).click()
@@ -144,12 +148,16 @@ test.describe('Marketplace lifecycle', () => {
         seededUsers.push(user)
         createdUserIds.push(user.id)
       }
+      // LD-501: every seeded contributor shares the same quasi-identifiers, so
+      // the cohort forms one equivalence class and the release can meet k. The
+      // pool asks for employer and role, so nothing else is contributed.
       const { error: seedError } = await service.from('pool_contributions').insert(
-        seededUsers.map((user, index) => ({
+        seededUsers.map((user) => ({
           pool_id: pool.id,
           user_id: user.id,
-          anonymized_payload: { topic: `synthetic-${index}`, score: index },
-          category: 'interests',
+          schema_type: 'employment',
+          anonymized_payload: { employer: 'Synthetic Industries', role: 'Engineer' },
+          category: 'credentials',
           payout_cents: 0,
           declared_purpose: 'ai_training',
           consent_version: '2026-07-25',
@@ -165,20 +173,27 @@ test.describe('Marketplace lifecycle', () => {
       const sellerUserId = await findUserId(service, sellerEmail)
       createdUserIds.push(sellerUserId)
 
-      await createVaultEntry(sellerPage, 'Synthetic interests profile')
+      await createVaultEntry(sellerPage, 'Synthetic employment record')
       const vaultCard = sellerPage
         .getByRole('article')
-        .filter({ hasText: 'Synthetic interests profile' })
+        .filter({ hasText: 'Synthetic employment record' })
       await vaultCard.click()
       const vaultDialog = sellerPage.getByRole('dialog', {
-        name: 'Synthetic interests profile',
+        name: 'Synthetic employment record',
       })
-      const topicPreference = vaultDialog.locator('li').filter({ hasText: 'topic' })
-      const scorePreference = vaultDialog.locator('li').filter({ hasText: 'score' })
-      await topicPreference.getByRole('button', { name: 'Private' }).click()
-      await scorePreference.getByRole('button', { name: 'Private' }).click()
-      await expect(topicPreference.getByRole('button', { name: 'For sale' })).toBeVisible()
-      await expect(scorePreference.getByRole('button', { name: 'For sale' })).toBeVisible()
+      const employerPreference = vaultDialog.locator('li').filter({ hasText: 'employer' })
+      const rolePreference = vaultDialog.locator('li').filter({ hasText: 'role' })
+      const startDatePreference = vaultDialog.locator('li').filter({ hasText: 'start_date' })
+      const salaryPreference = vaultDialog.locator('li').filter({ hasText: 'salary_range' })
+      for (const preference of [
+        employerPreference,
+        rolePreference,
+        startDatePreference,
+        salaryPreference,
+      ]) {
+        await preference.getByRole('button', { name: 'Private' }).click()
+        await expect(preference.getByRole('button', { name: 'For sale' })).toBeVisible()
+      }
       await vaultDialog.getByRole('button', { name: 'Save sharing preferences' }).click()
       await expect(sellerPage.getByText('Sharing preferences saved', { exact: true })).toBeVisible()
       await vaultDialog.getByRole('button', { name: 'Close' }).first().click()
@@ -195,11 +210,11 @@ test.describe('Marketplace lifecycle', () => {
       const sellerPool = sellerPage.getByText(poolName).locator('..').locator('..')
       await sellerPool.getByRole('button', { name: 'Contribute' }).click()
       const contributionDialog = sellerPage.getByRole('dialog', { name: `Contribute to ${poolName}` })
-      await contributionDialog.getByRole('button', { name: /Synthetic interests profile/ }).click()
-      await expect(contributionDialog.getByLabel('Share topic')).toBeChecked()
-      await expect(contributionDialog.getByLabel('Share score')).toBeChecked()
-      await expect(contributionDialog.getByText('email')).toHaveCount(1)
-      await expect(contributionDialog.getByText('Identifier removed')).toBeVisible()
+      await contributionDialog.getByRole('button', { name: /Synthetic employment record/ }).click()
+      await expect(contributionDialog.getByLabel('Share employer')).toBeChecked()
+      await expect(contributionDialog.getByLabel('Share role', { exact: true })).toBeChecked()
+      // employment_type and is_current were never opted in, so they stay private.
+      await expect(contributionDialog.getByLabel('Share employment_type')).not.toBeChecked()
       await contributionDialog.getByLabel('Accept contribution terms').check()
       await contributionDialog.getByRole('button', { name: 'Share to pool' }).click()
       await expect(contributionDialog).toBeHidden({ timeout: 15000 })
@@ -213,9 +228,13 @@ test.describe('Marketplace lifecycle', () => {
       if (contributionError) throw contributionError
       expect(sellerContribution.declared_purpose).toBe('ai_training')
       expect(sellerContribution.consent_version).toBe('2026-07-25')
+      // LD-501: the schema travels with the contribution so the gate can
+      // classify its fields.
+      expect(sellerContribution.schema_type).toBe('employment')
+      // Only the fields the pool asked for leave the vault.
       expect(sellerContribution.anonymized_payload).toEqual({
-        topic: 'synthetic-accessibility',
-        score: 7,
+        employer: 'Synthetic Industries',
+        role: 'Engineer',
       })
 
       await buyerPage.reload()
@@ -228,8 +247,9 @@ test.describe('Marketplace lifecycle', () => {
       const { error: postPurchaseError } = await service.from('pool_contributions').insert({
         pool_id: pool.id,
         user_id: extraUser.id,
-        anonymized_payload: { topic: 'post-purchase', score: 999 },
-        category: 'interests',
+        schema_type: 'employment',
+        anonymized_payload: { employer: 'Synthetic Industries', role: 'Post Purchase' },
+        category: 'credentials',
         payout_cents: 0,
         declared_purpose: 'ai_training',
         consent_version: '2026-07-25',
@@ -252,16 +272,21 @@ test.describe('Marketplace lifecycle', () => {
         pool: { purpose: string; retentionDays: number }
         exportExpiresAt: string
         recordCount: number
-        records: { payload: { topic?: string } }[]
+        privacyReport: { k: number; kTarget: number; identifiersDropped: string[] }
+        records: { payload: { employer?: string; role?: string } }[]
       }
 
       expect(exported.pool).toMatchObject({ purpose: 'ai_training', retentionDays: 30 })
       expect(new Date(exported.exportExpiresAt).getTime()).toBeGreaterThan(Date.now())
       expect(exported.recordCount).toBe(5)
-      expect(exported.records.map((record) => record.payload.topic)).not.toContain('post-purchase')
-      expect(exported.records.map((record) => record.payload.topic)).toContain(
-        'synthetic-accessibility'
+      // LD-501: every order carries its privacy report, and the release met k.
+      expect(exported.privacyReport.kTarget).toBe(5)
+      expect(exported.privacyReport.k).toBeGreaterThanOrEqual(5)
+      // The snapshot is immutable: a contribution added after purchase is absent.
+      expect(exported.records.map((record) => record.payload.role)).not.toContain(
+        'Post Purchase'
       )
+      expect(exported.records.every((record) => record.payload.role === 'Engineer')).toBe(true)
     } finally {
       await closeContext(sellerContext)
       await closeContext(buyerContext)

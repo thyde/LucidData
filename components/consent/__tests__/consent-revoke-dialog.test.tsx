@@ -169,7 +169,9 @@ describe('ConsentRevokeDialog', () => {
 
       const textarea = screen.getByLabelText(/reason for revocation/i);
       const longText = 'a'.repeat(501);
-      await user.type(textarea, longText);
+      // Paste rather than type: 501 simulated keystrokes times out under load.
+      await user.click(textarea);
+      await user.paste(longText);
 
       const checkbox = screen.getByRole('checkbox');
       await user.click(checkbox);

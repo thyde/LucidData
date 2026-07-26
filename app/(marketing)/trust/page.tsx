@@ -9,6 +9,13 @@ import {
   REVOCATION_LIMIT,
   VULNERABILITY_DISCLOSURE,
 } from '@/lib/constants/trust-disclosures'
+import { RESIDUAL_DISCLOSURES } from '@/lib/constants/deletion-manifest'
+import {
+  CONSENT_REQUEST_RETENTION_DAYS,
+  CREDENTIAL_REQUEST_RETENTION_DAYS,
+  SHARE_RETENTION_DAYS,
+  NOTIFICATION_RETENTION_DAYS,
+} from '@/lib/constants/retention'
 
 export const metadata: Metadata = {
   title: 'Trust centre | LucidData',
@@ -157,6 +164,73 @@ export default function TrustPage() {
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
           <p>{REVOCATION_LIMIT}</p>
         </div>
+      </section>
+
+      <section className="mt-14 space-y-4">
+        <h2 className="text-2xl font-semibold">Retention</h2>
+        <p className="text-muted-foreground">
+          Records are destroyed on a schedule rather than kept indefinitely. A job runs every
+          15 minutes and enforces these windows.
+        </p>
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">Retention window for each kind of record</caption>
+            <thead className="bg-muted/50">
+              <tr>
+                <th scope="col" className="px-4 py-3 text-left font-medium">
+                  Record
+                </th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">
+                  Destroyed after
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              <tr>
+                <td className="px-4 py-3">Consent requests, once answered or lapsed</td>
+                <td className="px-4 py-3">{CONSENT_REQUEST_RETENTION_DAYS} days</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3">Credential requests, once answered or lapsed</td>
+                <td className="px-4 py-3">{CREDENTIAL_REQUEST_RETENTION_DAYS} days</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3">Share links, once expired or revoked</td>
+                <td className="px-4 py-3">{SHARE_RETENTION_DAYS} days</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3">In-app notifications</td>
+                <td className="px-4 py-3">{NOTIFICATION_RETENTION_DAYS} days</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3">Records inside a purchased dataset</td>
+                <td className="px-4 py-3">
+                  When the buyer&apos;s download window closes, or when the retention period
+                  the buyer declared runs out, whichever comes first
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="mt-14 space-y-4">
+        <h2 className="text-2xl font-semibold">What deletion leaves behind</h2>
+        <p className="text-muted-foreground">
+          Deleting your account removes your vault, consents, credentials, contributions, and
+          audit history. Four things survive, and each one is listed on the signed receipt you
+          get when you delete.
+        </p>
+        <ul className="divide-y rounded-lg border">
+          {RESIDUAL_DISCLOSURES.map((item) => (
+            <li key={`${item.holder}-${item.what}`} className="space-y-1 px-4 py-3">
+              <p className="font-medium">{item.what}</p>
+              <p className="text-sm text-muted-foreground">
+                Held by {item.holder}. {item.why}
+              </p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="mt-14 space-y-4">

@@ -2,6 +2,7 @@ import * as contributionRepo from '@/lib/repositories/contribution.repository'
 import * as monetizationRepo from '@/lib/repositories/monetization.repository'
 import * as payoutRepo from '@/lib/repositories/payout.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
+import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertNotUniversallyOptedOut } from '@/lib/services/privacy-signal.service'
 import type { PoolContribution, Json } from '@/types/database.types'
@@ -69,12 +70,19 @@ export async function contribute(userId: string, input: ContributeInput): Promis
     throw new Error(`These fields are private: ${privateFields.join(', ')}`)
   }
 
+  // LD-501: the privacy gate classifies fields per schema, not per broad data
+  // category, so the schema has to travel with the contribution. A vault entry
+  // the user does not own resolves to null, which the gate treats as
+  // unclassifiable and suppresses.
+  const vaultEntry = await vaultRepo.findVaultById(input.vault_data_id, userId)
+
   const contribution = await contributionRepo.createContribution({
     pool_id: input.pool_id,
     user_id: userId,
     vault_data_id: input.vault_data_id,
     anonymized_payload: input.anonymized_payload as Json,
     category: input.category,
+    schema_type: vaultEntry?.schema_type ?? null,
     payout_cents: pool.price_per_record_cents,
     // LD-505: pin the fee that applied when the person agreed. A later change to
     // the platform fee must never alter terms already consented to.

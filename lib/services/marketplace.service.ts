@@ -77,7 +77,11 @@ export async function createPoolForOrg(
     description: input.description ?? null,
     category: input.category,
     purpose: input.purpose,
-    minimum_contributors: input.minimum_contributors,
+    // LD-501: a pool cannot promise fewer contributors than the k its releases
+    // must reach, or the purchase check would pass a release the privacy gate
+    // then refuses.
+    minimum_contributors: Math.max(input.minimum_contributors, input.k_anonymity_target),
+    k_anonymity_target: input.k_anonymity_target,
     retention_days: input.retention_days,
     requested_fields: input.requested_fields,
     pricing_model: input.pricing_model,

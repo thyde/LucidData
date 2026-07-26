@@ -3,6 +3,7 @@ import { createAuditEntry } from '@/lib/services/audit.service'
 import { createServiceClient } from '@/lib/supabase/service'
 import { notifySecurityEvent } from '@/lib/services/security-notification.service'
 import { flushOwedBalance } from '@/lib/services/payout.service'
+import { eraseUser, type DeletionOutcome } from '@/lib/services/deletion.service'
 import { createClient } from '@/lib/supabase/server'
 
 export interface AccountSecurity {
@@ -12,6 +13,14 @@ export interface AccountSecurity {
   recovery_codes_generated_at: string | null
   onboarding_completed: boolean
   email_notifications_enabled: boolean
+}
+
+/** What the client is handed after erasure: proof, not just a redirect. */
+export interface DeletionReceiptSummary {
+  receipt: DeletionOutcome['receipt']
+  signature: string
+  keyId: string
+  verified: boolean
 }
 
 export async function getAccountSecurity(userId: string): Promise<AccountSecurity | null> {
@@ -119,19 +128,23 @@ export async function setEmailNotificationPreference(
   })
 }
 
-// Hard-delete the auth user; all user-owned tables cascade via foreign keys.
-export async function deleteAccount(userId: string): Promise<void> {
+/**
+ * Erase the account and hand back signed evidence.
+ *
+ * LD-607: cascades alone left credentials and contributed payloads behind, so
+ * the work happens in deletion.service.ts, which removes what does not cascade,
+ * verifies the result, and signs a receipt.
+ */
+export async function deleteAccount(userId: string): Promise<DeletionOutcome> {
   // LD-505: a balance is owed on demand and must never expire, so pay out
   // anything outstanding before the account goes away. Best-effort: a payment
   // provider outage must not block the person's right to delete.
   await flushOwedBalance(userId).catch(() => undefined)
 
-  await createAuditEntry({
-    userId,
-    eventType: 'account_deleted',
-    action: 'Account and all associated data deleted by the user',
-  })
-  const service = createServiceClient()
-  const { error } = await service.auth.admin.deleteUser(userId)
-  if (error) throw error
+  // Read the email while the row still exists: it keys the invitations that do
+  // not cascade, and it is hashed into the receipt.
+  const user = await userRepo.findUserById(userId)
+  if (!user) throw new Error('Account not found')
+
+  return eraseUser(userId, user.email)
 }
