@@ -197,32 +197,110 @@ export class WebhookUrlError extends Error {
  * Address ranges our servers can reach but the public internet cannot. A
  * webhook pointed at one of these turns our outbound fetch into a request the
  * caller could not make themselves, which is server-side request forgery.
+ *
+ * Takes an IP literal rather than a name, so it can be applied to a resolved
+ * address as well as to a URL the caller typed. Checking only the typed name is
+ * not enough: an attacker controls their own DNS, so `hooks.example.com` can
+ * resolve to 169.254.169.254 and read cloud instance credentials.
+ */
+export function isPrivateAddress(address: string): boolean {
+  const host = address.toLowerCase().replace(/^\[|\]$/g, '')
+
+  if (host.includes(':')) {
+    if (host === '::' || host === '::1') return true
+    // Unique-local fc00::/7 and link-local fe80::/10.
+    if (/^f[cd]/.test(host) || host.startsWith('fe80')) return true
+    // An IPv4-mapped address is still an IPv4 address.
+    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(host)
+    if (mapped) return isPrivateAddress(mapped[1])
+    return false
+  }
+
+  const octets = host.split('.').map(Number)
+  if (
+    octets.length !== 4 ||
+    octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)
+  ) {
+    return false
+  }
+
+  const [a, b] = octets
+  if (a === 0) return true
+  if (a === 10) return true
+  if (a === 127) return true
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 192 && b === 168) return true
+  // Link-local, and with it the cloud metadata endpoint at 169.254.169.254.
+  if (a === 169 && b === 254) return true
+  // Carrier-grade NAT.
+  if (a === 100 && b >= 64 && b <= 127) return true
+  // Multicast and reserved.
+  if (a >= 224) return true
+  return false
+}
+
+function isIpLiteral(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, '')
+  return host.includes(':') || /^\d+\.\d+\.\d+\.\d+$/.test(host)
+}
+
+/**
+ * Names that are unreachable or ambiguous from the public internet, checked
+ * before we spend a DNS lookup on them.
  */
 function isPrivateHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '')
 
   if (host === 'localhost' || host.endsWith('.localhost')) return true
-  if (host === '::1' || host === '0.0.0.0') return true
   // Anything not publicly resolvable.
   if (host.endsWith('.local') || host.endsWith('.internal') || !host.includes('.')) {
     if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) return true
   }
-  // IPv6 unique-local and link-local.
-  if (host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) return true
 
-  const octets = host.split('.').map(Number)
-  if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value))) return false
+  return isPrivateAddress(host)
+}
 
-  const [a, b] = octets
-  if (a === 10) return true
-  if (a === 127) return true
-  if (a === 0) return true
-  if (a === 172 && b >= 16 && b <= 31) return true
-  if (a === 192 && b === 168) return true
-  // Link-local, and with it the cloud metadata endpoint at 169.254.169.254.
-  if (a === 169 && b === 254) return true
-  if (a === 100 && b >= 64 && b <= 127) return true
-  return false
+/** Resolve a hostname to every address it points at. Injectable for tests. */
+export type AddressResolver = (hostname: string) => Promise<string[]>
+
+const defaultResolver: AddressResolver = async (hostname) => {
+  const { lookup } = await import('node:dns/promises')
+  const records = await lookup(hostname, { all: true })
+  return records.map((record) => record.address)
+}
+
+/**
+ * Confirm a hostname resolves only to public addresses.
+ *
+ * Run immediately before delivery rather than at registration, because the
+ * owner of a name can repoint it after we accept it.
+ *
+ * Residual risk, stated rather than hidden: this is a check followed by a
+ * separate connection, so a name that returns a public address here and a
+ * private one microseconds later still gets through. Closing that fully means
+ * pinning the resolved address into the socket. Refusing redirects removes the
+ * easier version of the same attack.
+ */
+export async function assertResolvesPublicly(
+  hostname: string,
+  resolver: AddressResolver = defaultResolver
+): Promise<void> {
+  // A literal was already checked directly; there is nothing to resolve.
+  if (isIpLiteral(hostname)) return
+
+  let addresses: string[]
+  try {
+    addresses = await resolver(hostname)
+  } catch {
+    throw new WebhookUrlError('That host could not be resolved')
+  }
+
+  if (addresses.length === 0) {
+    throw new WebhookUrlError('That host could not be resolved')
+  }
+  if (addresses.some(isPrivateAddress)) {
+    throw new WebhookUrlError('That address is not reachable from the public internet')
+  }
 }
 
 /** Validate a destination before it is ever stored or fetched. */
@@ -368,7 +446,8 @@ export interface DeliveryResult {
  */
 export async function dispatchDueDeliveries(
   now: Date = new Date(),
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  resolver: AddressResolver = defaultResolver
 ): Promise<DeliveryResult> {
   const service = createServiceClient()
   const result: DeliveryResult = { processed: 0, failed: 0 }
@@ -408,7 +487,10 @@ export async function dispatchDueDeliveries(
     const signature = signatureHeader(webhook.secret_hash as string, body, timestamp)
 
     try {
-      assertDeliverableUrl(webhook.url as string)
+      const target = assertDeliverableUrl(webhook.url as string)
+      // Checked here, not only at registration, because the owner of a name can
+      // repoint it at a private address after we accepted it.
+      await assertResolvesPublicly(target.hostname, resolver)
       const response = await fetchImpl(webhook.url as string, {
         method: 'POST',
         headers: {
@@ -418,7 +500,14 @@ export async function dispatchDueDeliveries(
           'x-luciddata-api-version': WEBHOOK_API_VERSION,
         },
         body,
+        // Following a redirect would hand back the destination choice to the
+        // endpoint, which is the cheapest way around the check above.
+        redirect: 'manual',
       })
+
+      if (response.status >= 300 && response.status < 400) {
+        throw new Error('Endpoint redirected. A webhook URL must be the final destination')
+      }
 
       if (response.ok) {
         await service

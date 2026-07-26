@@ -23,6 +23,8 @@ const {
   WebhookPayloadError,
   WebhookUrlError,
   assertDeliverableUrl,
+  assertResolvesPublicly,
+  isPrivateAddress,
   assertNoPersonalData,
   backoffMsForAttempt,
   buildPayload,
@@ -179,6 +181,92 @@ describe('where we are willing to send', () => {
   it('refuses a string that is not a URL', () => {
     expect(() => assertDeliverableUrl('not a url')).toThrow(WebhookUrlError)
   })
+})
+
+describe('where a name actually points', () => {
+  // The URL check only sees the string the caller typed. An attacker controls
+  // their own DNS, so a perfectly ordinary hostname can resolve to the cloud
+  // metadata endpoint. These cover the resolved address rather than the name.
+
+  it('accepts a host that resolves to public addresses', async () => {
+    await expect(
+      assertResolvesPublicly('hooks.example.com', async () => ['93.184.216.34'])
+    ).resolves.toBeUndefined()
+  })
+
+  it.each([
+    ['cloud metadata', '169.254.169.254'],
+    ['loopback', '127.0.0.1'],
+    ['private class A', '10.0.0.7'],
+    ['private class B', '172.20.1.1'],
+    ['private class C', '192.168.0.5'],
+    ['carrier grade NAT', '100.100.1.1'],
+    ['unspecified', '0.0.0.0'],
+    ['IPv6 unique local', 'fd00::1'],
+    ['IPv4-mapped private', '::ffff:10.0.0.1'],
+  ])('refuses a public-looking host resolving to %s', async (_label, address) => {
+    await expect(
+      assertResolvesPublicly('hooks.example.com', async () => [address])
+    ).rejects.toThrow(WebhookUrlError)
+  })
+
+  it('refuses when any one address in the set is private', async () => {
+    // A name can return several records. One private answer is enough, because
+    // we do not control which the connection picks.
+    await expect(
+      assertResolvesPublicly('hooks.example.com', async () => ['93.184.216.34', '10.0.0.1'])
+    ).rejects.toThrow(WebhookUrlError)
+  })
+
+  it('refuses a host that does not resolve', async () => {
+    await expect(
+      assertResolvesPublicly('hooks.example.com', async () => [])
+    ).rejects.toThrow(WebhookUrlError)
+  })
+
+  it('refuses when the resolver itself fails', async () => {
+    await expect(
+      assertResolvesPublicly('hooks.example.com', async () => {
+        throw new Error('SERVFAIL')
+      })
+    ).rejects.toThrow(WebhookUrlError)
+  })
+
+  it('does not resolve an address literal, which was already checked', async () => {
+    let called = false
+    await assertResolvesPublicly('93.184.216.34', async () => {
+      called = true
+      return []
+    })
+
+    expect(called).toBe(false)
+  })
+})
+
+describe('private address ranges', () => {
+  it.each([
+    '0.0.0.0',
+    '10.255.255.255',
+    '127.0.0.1',
+    '169.254.169.254',
+    '172.16.0.1',
+    '172.31.255.255',
+    '192.168.1.1',
+    '100.64.0.1',
+    '224.0.0.1',
+    '::1',
+    'fc00::1',
+    'fe80::1',
+  ])('treats %s as private', (address) => {
+    expect(isPrivateAddress(address)).toBe(true)
+  })
+
+  it.each(['1.1.1.1', '8.8.8.8', '93.184.216.34', '172.32.0.1', '192.169.0.1', '2606:4700::1'])(
+    'treats %s as public',
+    (address) => {
+      expect(isPrivateAddress(address)).toBe(false)
+    }
+  )
 })
 
 describe('retry schedule', () => {

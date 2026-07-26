@@ -1,10 +1,11 @@
 # Competitive feature roadmap
 
 Research date: 2026-07-25
-Last delivery update: 2026-07-26
-Status: active. **Phase 1 and Phase 2 are delivered. Phase 3 is next.**
+Last delivery update: 2026-07-27
+Status: active. **Phase 1 and Phase 2 are delivered. Phase 3 is in progress.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
+Phase 3: [section 6.9](#69-phase-3-delivery-record) for the record.
 Owner: product
 Audience: agentic coding tools and the engineers reviewing their output
 
@@ -1586,11 +1587,11 @@ Implementation.
 - Prefer issuer-vouched data where available, consistent with the distinction LD-402 already draws.
 
 Acceptance criteria.
-- [ ] The same vault entry cannot be contributed twice to one pool.
-- [ ] Contribution velocity limits are enforced per user.
-- [ ] Payouts above the threshold are held pending review and are visible to the contributor as held.
-- [ ] A pool reports how much of its supply is issuer-vouched against self-asserted.
-- [ ] Fraud signals are audited.
+- [x] The same vault entry cannot be contributed twice to one pool.
+- [x] Contribution velocity limits are enforced per user.
+- [x] Payouts above the threshold are held pending review and are visible to the contributor as held.
+- [x] A pool reports how much of its supply is issuer-vouched against self-asserted.
+- [x] Fraud signals are audited.
 
 Tests. A duplicate contribution test. A velocity limit test. A payout hold and release test.
 
@@ -1955,6 +1956,10 @@ Two acceptance criteria were not met as written. Both are recorded here rather t
 1. **LD-601, connector token refresh.** Blocked, not skipped. There is no `data_sources` table to
    refresh tokens for. Add the job to `JOB_NAMES` in
    [lib/services/scheduled-jobs.service.ts](../lib/services/scheduled-jobs.service.ts) as part of LD-201.
+   **Closed by LD-201 on 2026-07-26, and not in the way this note expected.** Refresh happens inside
+   `connector_sync`, immediately before each provider fetch, rather than as a job of its own. A token
+   refreshed on its own schedule can still expire in the gap before it is used, so refreshing at the
+   point of use is the stronger design as well as the simpler one.
 2. **LD-505, `application_fee_amount`.** The spec instructed taking the fee with Stripe's
    `application_fee_amount`. That parameter does not exist on separate charges and transfers, which is
    the model LucidData uses. The fee is instead the difference between the gross the buyer paid and the
@@ -2109,7 +2114,7 @@ Notes on LD-602 that affect later work.
 - `ORG_API_VERSION` and `WEBHOOK_API_VERSION` are separate on purpose. A webhook payload change breaks a recipient that we cannot redeploy, so it moves independently of the request API.
 - The webhook payload allowlist is a runtime guard, not a convention. `assertNoPersonalData` runs before a payload is queued, and the forbidden-key list in `webhook.service.ts` is deliberately broad. Widening a payload means widening that list, which should feel deliberate.
 - Delivery signing uses the stored secret hash rather than a plaintext secret, so a database read alone does not hand an attacker a working forgery key. LD-604 and anything else that adds an outbound callback should follow the same pattern.
-- The SSRF guard checks hostnames, not resolved addresses. A hostname that resolves to a private address still gets through. Closing that needs DNS resolution at send time with a re-check after resolution, and it is worth doing before the webhook surface is opened to self-service.
+- ~~The SSRF guard checks hostnames, not resolved addresses.~~ **Closed 2026-07-27.** The name check remains, and delivery now also resolves the host and refuses if any returned address is private, checked at send time rather than at registration because the owner of a name can repoint it after we accept it. Redirects are refused outright, since following one hands the destination choice back to the endpoint and is the cheapest way around the check. One residual risk is stated rather than hidden: this is a check followed by a separate connection, so a name that answers publicly and then privately microseconds later still gets through. Closing that fully means pinning the resolved address into the socket.
 
 | LD-503 buyer evaluation surface | Delivered 2026-07-26 | `lib/services/pool-evaluation.service.ts` shows a buyer what a purchase would actually deliver before they pay: contributor band, record count, per-field coverage, freshness buckets, and a privacy panel reporting the cohort size the release would achieve, how many records would be withheld, and how far each field would be generalized. It calls the same `prepareRelease` the purchase path calls, so a quote cannot disagree with a charge, and `computeOrderTotal` moved into `lib/constants/marketplace-economics.ts` for the same reason. Coverage, freshness, and schema mix come from three Postgres functions that aggregate keys and timestamps without ever returning a contributed value. Samples are invented from the schema by `lib/services/synthetic-samples.ts`, which a test proves cannot even import a repository. | Nothing in scope. Distribution-shape quality metrics were left out deliberately, because the useful ones are themselves disclosive on a small pool. |
 
@@ -2163,8 +2168,8 @@ Nothing. All twelve specs are delivered, one of them (LD-602) in part. The seque
 
 Two smaller pieces of unfinished work sit outside that list and should be picked up with whichever spec touches them next.
 
-- **An operator console for rights cases.** `pause`, `resume`, `extend`, and `resolve` are implemented and tested with no screen and no server action behind them. Until that exists, an operator has to advance a case through the service role by hand, which does not scale past a handful of requests.
-- **Webhook management for organizations.** `createWebhook` is a service function with no UI, so an endpoint can only be registered by an operator.
+- **An operator console.** Three things now need one and none has a screen: `pause`, `resume`, `extend`, and `resolve` on a rights case, `createWebhook` for an organization, and `releaseHeldPayouts` from LD-506. Two of those are deliberate, because a person must not advance their own rights case or clear their own payout hold, but the consequence is that an operator has to act through the service role by hand. This is now the largest single gap left behind Phases 1 to 3, and it is one piece of work rather than three.
+- **Webhook management for organizations.** `createWebhook` is a service function with no UI, so an endpoint can only be registered by an operator. Worth doing together with the console above.
 
 ### 6.7 Production infrastructure
 
@@ -2187,7 +2192,11 @@ change only because production held no issued credentials at the time. Once cred
 context URI is effectively permanent, because a verifier resolving an older credential still expects the old
 address to answer. Treat it as frozen from here.
 
-Email runs on Zoho with MX, SPF, and DKIM published. Two gaps remain and both are listed in section 6.8.
+Email is complete. Zoho carries mailboxes, Resend carries application notifications, and both are
+authenticated: SPF and DKIM per sender, and a DMARC policy at `p=none` collecting reports while the
+picture settles. Resend's SPF sits on a `send.` subdomain rather than the apex, which is what keeps the
+Zoho record intact. Two SPF records on one name is a permanent failure rather than a merge, so anything
+added later must edit the existing record rather than publish a second.
 
 ### 6.8 Outstanding setup
 
@@ -2195,25 +2204,41 @@ None of these block Phase 3. They are recorded so they are not lost.
 
 | Item | State | Why it matters |
 | --- | --- | --- |
-| DMARC record | Absent | Without a policy at `_dmarc`, anyone can send mail as `security@luciddatabank.com` and receiving servers have no instruction to reject it. This matters more than usual for a product whose subject is custody of personal data |
-| Resend sending domain | Not configured | Notification email has no delivery path. When adding it, edit the existing SPF record rather than publishing a second one, because two SPF records is a permanent error rather than a merge |
 | Strava and Fitbit OAuth apps | Not created | LD-201 connectors cannot complete an authorization round trip without them. Both require an account we do not control |
-| Extension icons | Missing from the manifest | A store listing is rejected without them |
-| Extension store listings | Not started | Chrome, Edge, and Firefox each need their own submission. Firefox additionally needs `browser_specific_settings` |
+| Extension store listings | Not started | Chrome, Edge, and Firefox each need their own submission. Firefox additionally needs `browser_specific_settings`, and Chrome needs a paid developer account |
+| DMARC enforcement | At `p=none` | Monitoring only. Tightening to `quarantine` should wait for a few weeks of reports, so a legitimate sender is not silently dropped |
+
+Closed since this table was written: the DMARC record, the Resend sending domain and API key, and the
+extension icons, which were a hard blocker on any store submission.
 
 ### Phase 3, months 6 to 9. Make credentials portable and access governed
+
+Status: started 2026-07-27. LD-506 is delivered and LD-204 has had its blocking dependency removed. The
+per-spec record is in [section 6.9](#69-phase-3-delivery-record).
 
 - LD-401 standards-based credential formats
 - LD-402 derived proofs
 - LD-405 credential correction, supersession, and renewal
-- LD-204 mobile application, stage A
+- LD-204 mobile application, stage A (portable crypto core delivered)
 - LD-304 portable import and transfer
-- LD-506 marketplace integrity and fraud controls
+- LD-506 marketplace integrity and fraud controls (delivered)
 - LD-606 abuse reporting and enforcement
 - LD-605 platform integrity and insider controls
 - LD-502 governed access, started
 
 Exit criteria: a LucidData credential verifies in an external wallet, buyers can purchase a verified claim rather than a copy, and a credential can be held on a phone.
+
+### 6.9 Phase 3 delivery record
+
+| Spec | Status | What landed | What did not |
+| --- | --- | --- | --- |
+| LD-506 marketplace integrity and fraud controls | Delivered 2026-07-27 | Three controls that fail differently on purpose. A partial unique index makes one vault entry contributable to a pool once while it is active, so a duplicate is refused by the database rather than by a caller who might forget to check; withdrawing and re-contributing stays possible, because that is a decision a person is entitled to reverse. Velocity is counted from `pool_contributions` itself rather than through the LD-109 rate limiter, because that limiter fails open, which is right for a throttle and wrong for anything standing in front of money. A balance above the review threshold is set to `held` with a plain reason rather than sent, and the contributor sees it as held and still owed rather than missing. `pool_assurance_mix` splits a pool three ways, so a buyer can see how much of it an organization vouched for before paying. | No operator review queue. Releasing a hold is a service function with no screen, for the same reason the rights console is missing: a person must not be able to clear their own hold. Buyer-side collusion signals are not implemented; the spec lists them, and they need a definition of "related to itself" that survives contact with real corporate structures. |
+| LD-204 mobile application, stage A | Started 2026-07-27 | The portable crypto core, which blocks everything else in stage A. `lib/crypto/runtime.ts` resolves Web Crypto, random bytes, UTF-8, and base64 in one place, so the vault crypto no longer reaches for browser globals that React Native's Hermes engine does not have. Base64 is implemented directly rather than through `btoa`, which Hermes lacks and whose usual workaround overflows the call stack on export-sized input. Known-answer vectors were generated from an independent Node WebCrypto path and pinned **before** the refactor, so the change had to prove it preserved behaviour rather than assert it. One vector is a complete envelope encrypted outside this codebase: any runtime that opens it can open a web-created vault, which is the executable form of the cross-surface guarantee. | The application itself. An app shell, platform-backed key storage, and biometric unlock need a device or simulator and store accounts, none of which this repository can exercise. What is delivered is the part that had to be true first, and the part that can be verified here. |
+
+Two findings are worth carrying into whatever touches these areas next.
+
+- **Pin the vectors before the refactor, not after.** Generating known-answer values from the code you are about to change proves nothing. Generating them independently first turns a risky edit to the most security-sensitive module in the project into a change that either passes or fails visibly. The same approach applies to LD-401, which adds credential formats alongside an existing one and must not disturb it.
+- **A control in front of money must not fail open.** The LD-109 rate limiter fails open by design and says so, which is correct for throttling a public endpoint. Reusing it for contribution velocity would have meant a store outage silently removing a fraud control. Counting the authoritative rows instead cannot fail open, because if the table is unreachable the write fails too.
 
 ### Phase 4, months 9 to 12. Broaden and deepen
 
@@ -2506,6 +2531,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
 | Phase 2 implementation | Done | All twelve specs delivered 2026-07-26, with LD-602 delivered in part. Both open defects closed, plus nine found during the work |
+| Phase 3 implementation | In progress | LD-506 delivered and LD-204 stage A started, 2026-07-27. See section 6.9. Two carried-over gaps closed on the way: the LD-602 SSRF guard now checks resolved addresses and refuses redirects, and the extension icons that blocked any store submission now exist |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

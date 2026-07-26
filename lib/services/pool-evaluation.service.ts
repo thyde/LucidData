@@ -34,6 +34,8 @@ import {
   type SyntheticSample,
 } from '@/lib/services/synthetic-samples'
 import { computeOrderTotal } from '@/lib/constants/marketplace-economics'
+import { vouchedShare, type AssuranceMix } from '@/lib/constants/marketplace-integrity'
+import { getPoolAssuranceMix } from '@/lib/services/marketplace-integrity.service'
 
 export interface FieldCoverage {
   field: string
@@ -114,6 +116,13 @@ export interface PoolEvaluation {
   coverage: FieldCoverage[]
   freshness: FreshnessBucket[]
   schemaMix: { schemaType: string; records: number }[]
+  /**
+   * LD-506: how much of the supply an organization vouched for, versus imported
+   * from a connected source, versus typed in. Two pools of the same size are not
+   * the same purchase, and a buyer should be able to see that before paying.
+   */
+  assurance: AssuranceMix
+  vouchedShare: number
   deliverableFields: Record<string, DeliverableField[]>
   samples: Record<string, SyntheticSample[]>
   syntheticNotice: string
@@ -154,6 +163,7 @@ export async function evaluatePool(poolId: string, orgId: string): Promise<PoolE
   const contributions = await contributionRepo.findActiveContributionsByPool(poolId)
   const recordCount = contributions.length
   const contributors = new Set(contributions.map((entry) => entry.user_id)).size
+  const assurance = await getPoolAssuranceMix(poolId)
 
   const coverage: FieldCoverage[] = (
     (coverageResult.data ?? []) as { field: string; present: number }[]
@@ -212,6 +222,8 @@ export async function evaluatePool(poolId: string, orgId: string): Promise<PoolE
     coverage,
     freshness,
     schemaMix,
+    assurance,
+    vouchedShare: vouchedShare(assurance),
     deliverableFields,
     samples,
     syntheticNotice: SYNTHETIC_NOTICE,

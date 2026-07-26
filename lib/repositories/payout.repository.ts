@@ -92,13 +92,24 @@ export async function findPayoutsByOrder(orderId: string): Promise<Payout[]> {
   return data
 }
 
-export async function findPendingPayouts(userId: string): Promise<Payout[]> {
+/**
+ * Payouts waiting to move.
+ *
+ * `includeHeld` pulls in balances stopped by the LD-506 review as well. Only
+ * account closure passes it: a held balance is still owed, and closure is the
+ * one moment where withholding it would mean keeping money we have no further
+ * claim on.
+ */
+export async function findPendingPayouts(
+  userId: string,
+  options: { includeHeld?: boolean } = {}
+): Promise<Payout[]> {
   const service = createServiceClient()
   const { data, error } = await service
     .from('payouts')
     .select('*')
     .eq('user_id', userId)
-    .eq('status', 'pending')
+    .in('status', options.includeHeld ? ['pending', 'held'] : ['pending'])
   if (error) throw error
   return data
 }

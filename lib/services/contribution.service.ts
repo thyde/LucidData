@@ -10,6 +10,11 @@ import type { ContributeInput } from '@/lib/validations/marketplace'
 import { isMarketplaceCategoryAllowed } from '@/lib/validations/marketplace'
 import { containsIdentifierField } from '@/lib/crypto/anonymize'
 import { PLATFORM_FEE_BPS, splitEarnings } from '@/lib/constants/marketplace-economics'
+import {
+  assertContributionVelocity,
+  DuplicateContributionError,
+  isDuplicateContribution,
+} from '@/lib/services/marketplace-integrity.service'
 
 export interface EarningsSummary {
   totalCents: number
@@ -56,6 +61,10 @@ export async function contribute(userId: string, input: ContributeInput): Promis
     throw new Error('The contribution contains a direct identifier')
   }
 
+  // LD-506: refuse a rate no person contributes at. Checked before the payload
+  // work below so a flood costs as little as possible.
+  await assertContributionVelocity(userId, input.pool_id)
+
   const fieldSettings = await monetizationRepo.findFieldsByVault(
     input.vault_data_id,
     userId
@@ -76,21 +85,30 @@ export async function contribute(userId: string, input: ContributeInput): Promis
   // unclassifiable and suppresses.
   const vaultEntry = await vaultRepo.findVaultById(input.vault_data_id, userId)
 
-  const contribution = await contributionRepo.createContribution({
-    pool_id: input.pool_id,
-    user_id: userId,
-    vault_data_id: input.vault_data_id,
-    anonymized_payload: input.anonymized_payload as Json,
-    category: input.category,
-    schema_type: vaultEntry?.schema_type ?? null,
-    payout_cents: pool.price_per_record_cents,
-    // LD-505: pin the fee that applied when the person agreed. A later change to
-    // the platform fee must never alter terms already consented to.
-    platform_fee_bps: PLATFORM_FEE_BPS,
-    declared_purpose: pool.purpose,
-    consent_version: '2026-07-25',
-    consented_at: new Date().toISOString(),
-  })
+  // LD-506: the unique index is the actual control. This only turns its error
+  // into something the person can act on, so a caller that forgets to check
+  // still cannot write a duplicate.
+  let contribution: PoolContribution
+  try {
+    contribution = await contributionRepo.createContribution({
+      pool_id: input.pool_id,
+      user_id: userId,
+      vault_data_id: input.vault_data_id,
+      anonymized_payload: input.anonymized_payload as Json,
+      category: input.category,
+      schema_type: vaultEntry?.schema_type ?? null,
+      payout_cents: pool.price_per_record_cents,
+      // LD-505: pin the fee that applied when the person agreed. A later change to
+      // the platform fee must never alter terms already consented to.
+      platform_fee_bps: PLATFORM_FEE_BPS,
+      declared_purpose: pool.purpose,
+      consent_version: '2026-07-25',
+      consented_at: new Date().toISOString(),
+    })
+  } catch (error) {
+    if (isDuplicateContribution(error)) throw new DuplicateContributionError()
+    throw error
+  }
 
   const split = splitEarnings(pool.price_per_record_cents, PLATFORM_FEE_BPS)
   await createAuditEntry({

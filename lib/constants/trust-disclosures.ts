@@ -127,6 +127,15 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
     protects: 'Records a connector fetches from a provider on your behalf',
     note: 'A sync runs while you are away, so it gets the public half only. It can write records it cannot read, and they stay sealed until you next unlock.',
   },
+  {
+    material: 'No key material',
+    module: 'runtime.ts',
+    derivedOrGenerated:
+      'Nothing is generated here. This module finds the encryption support your device provides and converts between raw bytes and text',
+    heldBy: 'nobody',
+    protects: 'Nothing directly. Every other module depends on it',
+    note: 'It exists so the same vault opens in a browser and in a phone app, which supply that support differently. It never sees a password or a key.',
+  },
 ]
 
 /**

@@ -13,6 +13,10 @@ import {
   PLATFORM_FEE_BPS,
   splitEarnings,
 } from '@/lib/constants/marketplace-economics'
+import {
+  holdPayoutsForReview,
+  shouldHoldPayout,
+} from '@/lib/services/marketplace-integrity.service'
 import type { DataOrder, Payout, PayoutAccount } from '@/types/database.types'
 
 function appUrl(): string {
@@ -25,6 +29,8 @@ export interface PayoutOverview {
   detailsSubmitted: boolean
   paidCents: number
   pendingCents: number
+  /** LD-506: owed, but waiting for a review before it is sent. */
+  heldCents: number
   /** Total the buyers paid for this contributor's records, before the fee. */
   grossCents: number
   /** Total LucidData retained. */
@@ -156,9 +162,27 @@ export async function processPendingPayouts(
   const account = await payoutRepo.findAccount(userId)
   if (!account || !account.payouts_enabled) return
 
-  const pending = await payoutRepo.findPendingPayouts(userId)
+  // A held balance is invisible to a normal run, which is the point. Closure is
+  // the exception: the money is owed on demand, so the hold must not outlive the
+  // account.
+  const pending = await payoutRepo.findPendingPayouts(userId, {
+    includeHeld: options.force === true,
+  })
   const balance = pending.reduce((sum, payout) => sum + payout.amount_cents, 0)
   if (!options.force && balance < PAYOUT_THRESHOLD_CENTS) return
+
+  // LD-506: the last point at which a payout can be stopped. A balance this far
+  // above what an ordinary contributor earns waits for a person to look at it.
+  // `force` is account closure, where the balance is owed on demand, so a hold
+  // there would be withholding money we have no further claim on.
+  if (!options.force && shouldHoldPayout(balance)) {
+    await holdPayoutsForReview(
+      userId,
+      pending.map((payout) => payout.id),
+      balance
+    )
+    return
+  }
 
   const poolNames = new Map<string, string>()
   for (const payout of pending) {
@@ -211,11 +235,13 @@ export async function getPayoutOverview(userId: string): Promise<PayoutOverview>
   const payouts = await payoutRepo.findPayoutsByUser(userId)
   let paidCents = 0
   let pendingCents = 0
+  let heldCents = 0
   let grossCents = 0
   let platformFeeCents = 0
   for (const p of payouts) {
     if (p.status === 'paid') paidCents += p.amount_cents
     else if (p.status === 'pending') pendingCents += p.amount_cents
+    else if (p.status === 'held') heldCents += p.amount_cents
     grossCents += p.gross_cents
     platformFeeCents += p.platform_fee_cents
   }
@@ -226,6 +252,7 @@ export async function getPayoutOverview(userId: string): Promise<PayoutOverview>
     detailsSubmitted: account?.details_submitted ?? false,
     paidCents,
     pendingCents,
+    heldCents,
     grossCents,
     platformFeeCents,
     thresholdCents: PAYOUT_THRESHOLD_CENTS,

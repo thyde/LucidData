@@ -1599,11 +1599,14 @@ export type Database = {
           data_order_id: string | null
           fee_bps: number
           gross_cents: number
+          held_at: string | null
+          held_reason: string | null
           id: string
           last_error: string | null
           next_attempt_at: string | null
           platform_fee_cents: number
           pool_id: string | null
+          released_at: string | null
           status: string
           stripe_transfer_id: string | null
           updated_at: string
@@ -1617,11 +1620,14 @@ export type Database = {
           data_order_id?: string | null
           fee_bps?: number
           gross_cents?: number
+          held_at?: string | null
+          held_reason?: string | null
           id?: string
           last_error?: string | null
           next_attempt_at?: string | null
           platform_fee_cents?: number
           pool_id?: string | null
+          released_at?: string | null
           status?: string
           stripe_transfer_id?: string | null
           updated_at?: string
@@ -1635,11 +1641,14 @@ export type Database = {
           data_order_id?: string | null
           fee_bps?: number
           gross_cents?: number
+          held_at?: string | null
+          held_reason?: string | null
           id?: string
           last_error?: string | null
           next_attempt_at?: string | null
           platform_fee_cents?: number
           pool_id?: string | null
+          released_at?: string | null
           status?: string
           stripe_transfer_id?: string | null
           updated_at?: string
@@ -2430,6 +2439,14 @@ export type Database = {
           ip: string
           updated_at: string
           user_agent: string
+        }[]
+      }
+      pool_assurance_mix: {
+        Args: { p_pool_id: string }
+        Returns: {
+          issuer_vouched: number
+          provider_sourced: number
+          self_asserted: number
         }[]
       }
       pool_field_coverage: {

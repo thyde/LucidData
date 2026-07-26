@@ -92,6 +92,38 @@ export function PoolEvaluationDialog({
               </section>
 
               <section className="space-y-2">
+                <h3 className="text-sm font-medium">Where this data comes from</h3>
+                <div className="space-y-3 rounded-lg border p-4">
+                  <p className="text-sm">
+                    <span className="font-medium">
+                      {Math.round(evaluation.vouchedShare * 100)}%
+                    </span>{' '}
+                    of this pool is backed by a credential an organization issued and has not
+                    revoked. The rest is imported from a connected account or entered by the
+                    person.
+                  </p>
+                  <dl className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <dt className="text-muted-foreground">Issuer vouched</dt>
+                      <dd className="font-medium">{evaluation.assurance.issuerVouched}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">From a source</dt>
+                      <dd className="font-medium">{evaluation.assurance.providerSourced}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Self entered</dt>
+                      <dd className="font-medium">{evaluation.assurance.selfAsserted}</dd>
+                    </div>
+                  </dl>
+                  <p className="text-sm text-muted-foreground">
+                    An imported record shows where it came from. It does not mean anyone has
+                    checked that it is true.
+                  </p>
+                </div>
+              </section>
+
+              <section className="space-y-2">
                 <h3 className="text-sm font-medium">Privacy outcome</h3>
                 {evaluation.privacy.releasable ? (
                   <div className="space-y-3 rounded-lg border p-4">

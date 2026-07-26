@@ -1,0 +1,18 @@
+<!--
+  Extension icon source.
+
+  Pure geometry, no text element. The application icon at public/icon.svg draws
+  a letter, which needs a font available to the rasteriser and renders
+  differently, or not at all, depending on what is installed. A store listing is
+  rejected over a missing or broken icon, so the source that gets rasterised is
+  deliberately font-free.
+
+  The mark is a keyhole: legible at 16 pixels, where anything finer turns to
+  mush, and it says "this holds something of yours" without needing a caption.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="28" fill="#1a1a2e"/>
+  <circle cx="64" cy="52" r="20" fill="#ffffff"/>
+  <path d="M56 66 L72 66 L78 100 L50 100 Z" fill="#ffffff"/>
+  <circle cx="64" cy="52" r="8" fill="#1a1a2e"/>
+</svg>

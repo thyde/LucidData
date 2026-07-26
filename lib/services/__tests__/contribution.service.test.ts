@@ -26,6 +26,16 @@ vi.mock('@/lib/services/privacy-signal.service', () => ({
   assertNotUniversallyOptedOut: vi.fn(),
 }))
 
+// LD-506: the velocity check counts rows through the service client, and it runs
+// before the repository calls below so a flood costs as little as possible.
+// Stubbed here because these tests are about what contribute() accepts and
+// refuses; the limit itself is covered in marketplace-integrity.service.test.ts.
+vi.mock('@/lib/services/marketplace-integrity.service', () => ({
+  assertContributionVelocity: vi.fn(),
+  isDuplicateContribution: vi.fn().mockReturnValue(false),
+  DuplicateContributionError: class DuplicateContributionError extends Error {},
+}))
+
 import * as contributionRepo from '@/lib/repositories/contribution.repository'
 import * as monetizationRepo from '@/lib/repositories/monetization.repository'
 import * as payoutRepo from '@/lib/repositories/payout.repository'

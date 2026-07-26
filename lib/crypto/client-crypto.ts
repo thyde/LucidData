@@ -1,52 +1,59 @@
-// All functions are browser-only (Web Crypto API)
+// AES-GCM envelope encryption for vault entries.
+//
+// Runs on any runtime that provides Web Crypto. Browser globals are reached
+// through ./runtime so an entry encrypted in the web app can be decrypted in
+// the React Native app and the reverse.
+
+import {
+  base64ToBytes,
+  bytesToBase64,
+  decodeUtf8,
+  encodeUtf8,
+  getSubtle,
+  randomBytes,
+} from './runtime'
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer)
-  let binary = ''
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
-  return btoa(binary)
+  return bytesToBase64(new Uint8Array(buffer))
 }
 
 export function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return bytes.buffer
+  return base64ToBytes(base64).buffer as ArrayBuffer
 }
 
 // Encrypt plaintext string; returns base64(iv + ciphertext)
 export async function encryptWithKey(key: CryptoKey, plaintext: string): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const encoded = new TextEncoder().encode(plaintext)
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded)
+  const iv = randomBytes(12)
+  const encoded = encodeUtf8(plaintext)
+  const ciphertext = await getSubtle().encrypt({ name: 'AES-GCM', iv }, key, encoded)
   const result = new Uint8Array(12 + ciphertext.byteLength)
   result.set(iv, 0)
   result.set(new Uint8Array(ciphertext), 12)
-  return arrayBufferToBase64(result.buffer)
+  return bytesToBase64(result)
 }
 
 // Decrypt base64(iv + ciphertext) with key
 export async function decryptWithKey(key: CryptoKey, ciphertextB64: string): Promise<string> {
-  const data = new Uint8Array(base64ToArrayBuffer(ciphertextB64))
+  const data = base64ToBytes(ciphertextB64)
   const iv = data.slice(0, 12)
   const ciphertext = data.slice(12)
-  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
-  return new TextDecoder().decode(plaintext)
+  const plaintext = await getSubtle().decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
+  return decodeUtf8(new Uint8Array(plaintext))
 }
 
 // Generate a random DEK as a CryptoKey
 export async function generateDEK(): Promise<CryptoKey> {
-  return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt'])
+  return getSubtle().generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt'])
 }
 
 // Export DEK to raw bytes
 export async function exportDEK(dek: CryptoKey): Promise<ArrayBuffer> {
-  return crypto.subtle.exportKey('raw', dek)
+  return getSubtle().exportKey('raw', dek)
 }
 
 // Import raw bytes as AES-GCM CryptoKey
 export async function importDEK(rawKey: ArrayBuffer): Promise<CryptoKey> {
-  return crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
+  return getSubtle().importKey('raw', rawKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
 }
 
 export interface EncryptedEntry {
@@ -65,9 +72,9 @@ export async function encryptVaultEntry(masterKey: CryptoKey, plaintext: string)
   const client_ciphertext = await encryptWithKey(dek, plaintext)
 
   // Encrypt the raw DEK with the master key
-  const dekIv = crypto.getRandomValues(new Uint8Array(12))
-  const encryptedDekBytes = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: dekIv }, masterKey, rawDek)
-  const dek_salt = arrayBufferToBase64(dekIv.buffer)
+  const dekIv = randomBytes(12)
+  const encryptedDekBytes = await getSubtle().encrypt({ name: 'AES-GCM', iv: dekIv }, masterKey, rawDek)
+  const dek_salt = bytesToBase64(dekIv)
   const encrypted_dek = arrayBufferToBase64(encryptedDekBytes)
 
   return { client_ciphertext, encrypted_dek, dek_salt }
@@ -81,9 +88,9 @@ export async function decryptVaultEntry(
   dek_salt: string
 ): Promise<string> {
   // Decrypt the DEK with master key
-  const dekIv = new Uint8Array(base64ToArrayBuffer(dek_salt))
+  const dekIv = base64ToBytes(dek_salt)
   const encryptedDekBytes = base64ToArrayBuffer(encrypted_dek)
-  const rawDek = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: dekIv }, masterKey, encryptedDekBytes)
+  const rawDek = await getSubtle().decrypt({ name: 'AES-GCM', iv: dekIv }, masterKey, encryptedDekBytes)
   const dek = await importDEK(rawDek)
 
   // Decrypt the data with DEK
@@ -99,12 +106,13 @@ export async function rewrapDek(
   encrypted_dek: string,
   dek_salt: string
 ): Promise<{ encrypted_dek: string; dek_salt: string }> {
-  const oldIv = new Uint8Array(base64ToArrayBuffer(dek_salt))
-  const rawDek = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: oldIv }, oldMasterKey, base64ToArrayBuffer(encrypted_dek))
-  const newIv = crypto.getRandomValues(new Uint8Array(12))
-  const reEncrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: newIv }, newMasterKey, rawDek)
+  const subtle = getSubtle()
+  const oldIv = base64ToBytes(dek_salt)
+  const rawDek = await subtle.decrypt({ name: 'AES-GCM', iv: oldIv }, oldMasterKey, base64ToArrayBuffer(encrypted_dek))
+  const newIv = randomBytes(12)
+  const reEncrypted = await subtle.encrypt({ name: 'AES-GCM', iv: newIv }, newMasterKey, rawDek)
   return {
     encrypted_dek: arrayBufferToBase64(reEncrypted),
-    dek_salt: arrayBufferToBase64(newIv.buffer),
+    dek_salt: bytesToBase64(newIv),
   }
 }

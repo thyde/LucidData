@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import {
   BROWSING_PERMISSIONS,
@@ -25,6 +25,8 @@ const manifest = JSON.parse(
   optional_host_permissions: string[]
   content_scripts: { matches: string[] }[]
   background: { service_worker: string }
+  icons: Record<string, string>
+  action: { default_icon: Record<string, string> }
 }
 
 const tiers = JSON.parse(
@@ -81,6 +83,32 @@ describe('extension manifest', () => {
     for (const script of manifest.content_scripts) {
       expect(script.matches).toEqual(manifest.host_permissions)
     }
+  })
+})
+
+describe('extension icons', () => {
+  // A store submission is rejected outright for a manifest that names an icon
+  // file which is not in the package. That is a slow way to find out, since the
+  // rejection arrives after review rather than at build time.
+  const REQUIRED_SIZES = ['16', '32', '48', '128']
+
+  it('declares every size a browser store asks for', () => {
+    expect(Object.keys(manifest.icons).sort()).toEqual([...REQUIRED_SIZES].sort())
+    expect(Object.keys(manifest.action.default_icon).sort()).toEqual(
+      [...REQUIRED_SIZES].sort()
+    )
+  })
+
+  it('points every declared icon at a file that exists', () => {
+    const declared = [
+      ...Object.values(manifest.icons),
+      ...Object.values(manifest.action.default_icon),
+    ]
+    const missing = declared.filter(
+      (path) => !existsSync(join(process.cwd(), 'extension', path))
+    )
+
+    expect(missing).toEqual([])
   })
 })
 

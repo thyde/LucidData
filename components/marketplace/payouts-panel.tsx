@@ -75,6 +75,23 @@ export function PayoutsPanel({ overview }: { overview: PayoutOverview }) {
           </div>
         </div>
 
+        {/*
+          LD-506: a held balance is still owed. Saying so plainly matters more
+          than the amount, because the alternative is money that looks lost.
+        */}
+        {overview.heldCents > 0 && (
+          <div className="rounded-md border p-3 text-sm">
+            <div className="flex justify-between font-medium">
+              <span>Waiting for review</span>
+              <span>{formatCents(overview.heldCents)}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This is larger than a usual payout, so someone is checking it before it is
+              sent. It is still yours, and it does not expire.
+            </p>
+          </div>
+        )}
+
         {/* LD-505: show the whole split, so the fee is never a surprise at payout. */}
         <div className="rounded-md border p-3 text-sm">
           <div className="flex justify-between">
@@ -89,7 +106,11 @@ export function PayoutsPanel({ overview }: { overview: PayoutOverview }) {
           </div>
           <div className="mt-1 flex justify-between border-t pt-1 font-medium">
             <span>Your earnings</span>
-            <span>{formatCents(overview.paidCents + overview.pendingCents)}</span>
+            <span>
+              {formatCents(
+                overview.paidCents + overview.pendingCents + overview.heldCents
+              )}
+            </span>
           </div>
           {overview.pendingCents > 0 && overview.pendingCents < overview.thresholdCents && (
             <p className="mt-2 text-xs text-muted-foreground">

@@ -95,7 +95,11 @@ describe('evaluatePool', () => {
 
   it('reads coverage, freshness, and schema mix through aggregates only', async () => {
     await evaluatePool('pool-1', 'org-1')
+    // Every one of these returns counts. None of them can return a contributed
+    // value, which is what makes a preview safe on a small pool. Adding an RPC
+    // here should be a deliberate act, so the list is pinned.
     expect(rpcCalls.map((call) => call.name).sort()).toEqual([
+      'pool_assurance_mix',
       'pool_field_coverage',
       'pool_freshness',
       'pool_schema_mix',
