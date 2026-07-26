@@ -1994,13 +1994,29 @@ Phase 1 changed foundations that later specs were written against. Read this bef
 
 ### 6.3 Deployment prerequisites
 
-Phase 1 introduced hard requirements that will cause user-visible failures if a deployment misses them.
+Phase 1 introduced hard requirements that will cause user-visible failures if a deployment misses them. All five are now satisfied in production; the list is kept because it is what a fresh environment still has to meet.
 
-1. **`ISSUER_KEY_SECRET` is now required for consent, not only for credential issuance.** Every consent grant, extension, and revocation signs a receipt with a platform key wrapped by this secret. If it is unset, granting consent throws. This is the single most likely way to break production with this change set.
-2. **`CRON_SECRET` must be set or no scheduled job runs.** The cron endpoint fails closed by design, so an unset secret rejects every request. The visible symptom is the problem LD-601 existed to fix: payouts stall silently.
-3. **Ten migrations are applied locally only.** Production has not been migrated.
+1. **`ISSUER_KEY_SECRET` is now required for consent, not only for credential issuance.** Every consent grant, extension, and revocation signs a receipt with a platform key wrapped by this secret. If it is unset, granting consent throws. Verified set in production on 2026-07-26.
+2. **`CRON_SECRET` must be set or no scheduled job runs.** The cron endpoint fails closed by design, so an unset secret rejects every request. It was missing in production and was set on 2026-07-26; before that, nothing scheduled could have run even once the code was live.
+3. **Migrations must be applied before the code that uses them.** All sixteen Phase 1 and Phase 2 migrations are applied to production. Every one was additive, which is why production kept working while it ran an older build.
 4. **LD-109 is a breaking API change.** Any integration that registers organizations programmatically, or that reads `api_key` from the registration response, will break. Migrate integrators before applying the change set.
-5. **An email transport should be configured.** The code path is complete and the org portal warns when it is not, but with no transport nothing is delivered.
+5. **An email transport should be configured.** The code path is complete and the org portal warns when it is not, but with no transport nothing is delivered. Still unset in production, so LD-102 is built but inert.
+
+### 6.3.1 The deployment outage, and what caused it
+
+Between 2026-07-26 and the fix on the same day, five commits reached `main` and none of them deployed. Production served a build that predated Phase 1 entirely. Nothing broke, because every migration was additive and the old code simply ignored the new columns and tables, but none of the work was live either. Two independent faults were responsible and both are worth recording, because each on its own is silent.
+
+**The Git link was sourceless.** The Vercel project carried the repository metadata, the correct production branch, and a credential id, but `link.sourceless` was `true`. In that state Vercel knows which repository the project belongs to and still does not subscribe to its pushes, so a commit produces no deployment and no failed deployment. There is nothing in the deployment list to notice. `vercel git connect` reported the repository as already connected and changed nothing; disconnecting and reconnecting cleared the flag.
+
+**The cron schedule exceeded the plan.** `vercel.json` asked for `*/15 * * * *`, and the Hobby plan permits daily crons only. This fails at deployment creation rather than during the build, so it would have blocked every deployment even after the Git link was repaired.
+
+Three changes came out of it.
+
+- The schedule is now `0 3 * * *`. Daily is right for retention, expiry marking, and counter purging, which are housekeeping.
+- Daily is not right for webhooks, so `enqueueEvent` now dispatches through `after()` once the response has been sent. Deliveries go out in seconds and the daily sweep is the retry net rather than the delivery mechanism. This is better than the 15-minute cron would have been.
+- A deployment is not finished when a push succeeds. Confirm the commit SHA is live before treating a phase as shipped. The check that caught this was requesting `/trust` and finding a 307 to `/login`, which meant the deployed middleware predated the allowlist that made the trust centre public.
+
+If sub-daily payout retries become necessary, the options are a Pro plan or a scheduled GitHub Actions workflow calling `/api/cron` with the same bearer secret. The endpoint already supports both; only the caller changes.
 
 ### Phase 2, months 3 to 6. Make the marketplace safe and the rights story complete
 

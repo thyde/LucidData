@@ -19,7 +19,8 @@
  * URL is checked against internal address ranges before we ever fetch it.
  */
 
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'crypto'
+import { after } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import { hash } from '@/lib/crypto/hashing'
@@ -289,8 +290,14 @@ export async function createWebhook(input: {
 }
 
 /**
- * Queue a delivery for every subscribed endpoint. Queuing rather than sending
- * inline, so a slow or dead endpoint cannot make a user-facing action hang.
+ * Queue a delivery for every subscribed endpoint, then attempt it as soon as
+ * the response has been sent.
+ *
+ * Queuing first rather than sending inline, so a slow or dead endpoint cannot
+ * make a user-facing action hang. Dispatching in `after()` rather than waiting
+ * for the scheduler, because the Vercel Hobby plan permits only a daily cron
+ * and a webhook that arrives up to a day later is not a webhook. The scheduled
+ * sweep stays as the retry net for anything this attempt fails to deliver.
  */
 export async function enqueueEvent(
   organizationId: string,
@@ -311,7 +318,7 @@ export async function enqueueEvent(
     webhook_id: webhook.id as string,
     event,
     payload: buildPayload({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       event,
       organizationId,
       resourceType: resource.type,
@@ -321,7 +328,31 @@ export async function enqueueEvent(
 
   const { error: insertError } = await service.from('webhook_deliveries').insert(rows)
   if (insertError) throw insertError
+
+  scheduleImmediateDispatch()
   return rows.length
+}
+
+/**
+ * Attempt delivery after the response is sent. Best-effort by design: the row
+ * is already queued, so a failure here costs latency rather than the event.
+ *
+ * `after()` only works inside a request scope. Called from a job or a script it
+ * throws, which is why the failure is swallowed rather than propagated.
+ */
+function scheduleImmediateDispatch(): void {
+  try {
+    after(async () => {
+      await dispatchDueDeliveries().catch((error) => {
+        errorLogger.log(error, ErrorSeverity.LOW, {
+          action: 'WEBHOOK_IMMEDIATE_DISPATCH_FAILED',
+          resource: 'webhook_deliveries',
+        })
+      })
+    })
+  } catch {
+    // No request scope. The scheduled sweep will pick the delivery up.
+  }
 }
 
 export interface DeliveryResult {

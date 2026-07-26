@@ -69,3 +69,8 @@ public/worker-*.js
 public/swe-worker-*.js
 public/sw.js.map
 public/workbox-*.js.map
+
+# Added by the Vercel CLI. Broadened deliberately: the previous rules missed
+# files like .env.test, so anything env-shaped is ignored unless named below.
+.env*
+!.env.example

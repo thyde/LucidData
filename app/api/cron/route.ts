@@ -17,6 +17,12 @@ export const dynamic = 'force-dynamic'
  * function). Authenticated by a shared secret in the Authorization header, not
  * by a user session, so it must reject anything unauthenticated. Every job is
  * idempotent, so a duplicate invocation is harmless.
+ *
+ * The Vercel schedule is daily, because the Hobby plan permits nothing more
+ * frequent. That is fine for retention, expiry marking, and counter purging,
+ * which are all housekeeping. It is not fine for webhook delivery, so
+ * `enqueueEvent` dispatches immediately after the response using `after()` and
+ * treats this daily sweep as the retry net rather than the delivery mechanism.
  */
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET
