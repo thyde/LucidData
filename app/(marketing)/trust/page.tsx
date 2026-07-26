@@ -10,6 +10,7 @@ import {
   VULNERABILITY_DISCLOSURE,
 } from '@/lib/constants/trust-disclosures'
 import { RESIDUAL_DISCLOSURES } from '@/lib/constants/deletion-manifest'
+import { describeFormats } from '@/lib/credentials/formats'
 import {
   CONSENT_REQUEST_RETENTION_DAYS,
   CREDENTIAL_REQUEST_RETENTION_DAYS,
@@ -164,6 +165,55 @@ export default function TrustPage() {
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
           <p>{REVOCATION_LIMIT}</p>
         </div>
+      </section>
+
+      <section className="mt-14 space-y-4">
+        <h2 className="text-2xl font-semibold">Credential formats</h2>
+        <p className="text-muted-foreground">
+          A credential is only useful if something other than LucidData can check it. These are
+          the formats an issuer can produce, and what a verifier can do with each.
+        </p>
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">
+              Credential formats LucidData can issue, with what each supports
+            </caption>
+            <thead className="bg-muted/50">
+              <tr>
+                <th scope="col" className="px-4 py-3 text-left font-medium">
+                  Format
+                </th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">
+                  Version
+                </th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">
+                  What it supports
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {describeFormats().map((entry) => (
+                <tr key={`${entry.format}@${entry.version}`}>
+                  <th scope="row" className="px-4 py-3 text-left align-top font-medium">
+                    {entry.label}
+                  </th>
+                  <td className="px-4 py-3 align-top text-muted-foreground">
+                    <code className="text-xs">
+                      {entry.format}@{entry.version}
+                    </code>
+                  </td>
+                  <td className="px-4 py-3 align-top text-muted-foreground">
+                    {entry.description}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          A credential that declares a format we do not support is refused rather than checked
+          under whichever rules look closest.
+        </p>
       </section>
 
       <section className="mt-14 space-y-4">

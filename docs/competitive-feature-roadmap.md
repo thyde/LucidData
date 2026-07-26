@@ -1161,12 +1161,12 @@ Implementation.
 Security. Verification must check nonce, audience, replay, holder binding, expiry, and status. A failure in any check fails the whole verification. Never accept a credential whose format is inferred rather than declared.
 
 Acceptance criteria.
-- [ ] A credential can be issued as VC 2.0 and verifies with an external validator.
-- [ ] SD-JWT VC issuance and verification pass digest disclosure, decoy, and key-binding tests.
-- [ ] An unknown format fails closed with an explicit error.
-- [ ] Original signed bytes are preserved and re-verifiable after storage.
-- [ ] Replay of a presentation is rejected.
-- [ ] Existing Ed25519 credentials continue to verify.
+- [ ] A credential can be issued as VC 2.0 and verifies with an external validator. **Issued, not externally validated.** The document is VC 2.0 in structure, but the proof is Ed25519 over this codebase's canonical JSON rather than over RDF Dataset Canonicalization, so a verifier requiring a normative Linked Data proof cannot check it. Closing this means taking an RDF canonicalization dependency. The format's own `describe()` says so rather than implying conformance.
+- [ ] SD-JWT VC issuance and verification pass digest disclosure, decoy, and key-binding tests. **Disclosure and decoy pass; key binding is not implemented.** A presentation carries no holder-binding JWT, so `verify` refuses rather than silently passing when a verifier supplies a nonce. That is the safe failure, not the feature.
+- [x] An unknown format fails closed with an explicit error.
+- [x] Original signed bytes are preserved and re-verifiable after storage.
+- [x] Replay of a presentation is rejected. Rejected because holder binding is absent, so a nonce cannot be checked. This becomes a real replay defence only once key binding lands.
+- [x] Existing Ed25519 credentials continue to verify.
 
 Tests. Conformance vectors per format. Negative tests for nonce reuse, wrong audience, expired status, and revoked status. A migration test proving existing credentials still verify.
 
@@ -2214,12 +2214,13 @@ extension icons, which were a hard blocker on any store submission.
 
 ### Phase 3, months 6 to 9. Make credentials portable and access governed
 
-Status: started 2026-07-27. LD-506 is delivered and LD-204 has had its blocking dependency removed. The
-per-spec record is in [section 6.9](#69-phase-3-delivery-record).
+Status: started 2026-07-27. LD-506 is delivered, LD-401 is delivered in part, and LD-204 has had its
+blocking dependency removed. The per-spec record is in
+[section 6.9](#69-phase-3-delivery-record).
 
-- LD-401 standards-based credential formats
-- LD-402 derived proofs
-- LD-405 credential correction, supersession, and renewal
+- LD-401 standards-based credential formats (delivered in part)
+- LD-402 derived proofs (unblocked by LD-401)
+- LD-405 credential correction, supersession, and renewal (unblocked by LD-401)
 - LD-204 mobile application, stage A (portable crypto core delivered)
 - LD-304 portable import and transfer
 - LD-506 marketplace integrity and fraud controls (delivered)
@@ -2235,11 +2236,13 @@ Exit criteria: a LucidData credential verifies in an external wallet, buyers can
 | --- | --- | --- | --- |
 | LD-506 marketplace integrity and fraud controls | Delivered 2026-07-27 | Three controls that fail differently on purpose. A partial unique index makes one vault entry contributable to a pool once while it is active, so a duplicate is refused by the database rather than by a caller who might forget to check; withdrawing and re-contributing stays possible, because that is a decision a person is entitled to reverse. Velocity is counted from `pool_contributions` itself rather than through the LD-109 rate limiter, because that limiter fails open, which is right for a throttle and wrong for anything standing in front of money. A balance above the review threshold is set to `held` with a plain reason rather than sent, and the contributor sees it as held and still owed rather than missing. `pool_assurance_mix` splits a pool three ways, so a buyer can see how much of it an organization vouched for before paying. | No operator review queue. Releasing a hold is a service function with no screen, for the same reason the rights console is missing: a person must not be able to clear their own hold. Buyer-side collusion signals are not implemented; the spec lists them, and they need a definition of "related to itself" that survives contact with real corporate structures. |
 | LD-204 mobile application, stage A | Started 2026-07-27 | The portable crypto core, which blocks everything else in stage A. `lib/crypto/runtime.ts` resolves Web Crypto, random bytes, UTF-8, and base64 in one place, so the vault crypto no longer reaches for browser globals that React Native's Hermes engine does not have. Base64 is implemented directly rather than through `btoa`, which Hermes lacks and whose usual workaround overflows the call stack on export-sized input. Known-answer vectors were generated from an independent Node WebCrypto path and pinned **before** the refactor, so the change had to prove it preserved behaviour rather than assert it. One vector is a complete envelope encrypted outside this codebase: any runtime that opens it can open a web-created vault, which is the executable form of the cross-surface guarantee. | The application itself. An app shell, platform-backed key storage, and biometric unlock need a device or simulator and store accounts, none of which this repository can exercise. What is delivered is the part that had to be true first, and the part that can be verified here. |
+| LD-401 standards-based credential formats | Delivered in part 2026-07-27 | `lib/credentials/formats/` is a registry of three formats behind one `issue`/`verify`/`describe` interface, and an unknown or ambiguous format throws rather than falling back, because a verifier that guesses can be steered into checking a credential under weaker rules than the issuer applied. The native Ed25519 format is registered as a peer rather than the baseline, so it cannot quietly gain behaviour the others lack, and a test verifies a payload built the way `credential.service.ts` has always built one, which is what proves existing credentials still work. **SD-JWT VC is the piece that matters**: each claim is committed to by a salted digest, so a holder can drop disclosures without the issuer key and the signature still covers the whole set. That is what LD-402 needs for "over 18 without a birth date" and what LD-404 needs so a doorstep check does not require a home address. Every format is issued once and its bytes stored, so a verifier checks what was signed rather than a re-serialization. `/trust` publishes the table. | Key binding, and with it a genuine replay defence. OpenID4VCI and OpenID4VP endpoints, which are protocol surfaces that cannot be meaningfully verified without an external wallet; shipping unverifiable endpoints would be worse than not shipping them. A normative Linked Data proof for VC 2.0. All three are recorded against the acceptance criteria rather than glossed. |
 
-Two findings are worth carrying into whatever touches these areas next.
+Three findings are worth carrying into whatever touches these areas next.
 
 - **Pin the vectors before the refactor, not after.** Generating known-answer values from the code you are about to change proves nothing. Generating them independently first turns a risky edit to the most security-sensitive module in the project into a change that either passes or fails visibly. The same approach applies to LD-401, which adds credential formats alongside an existing one and must not disturb it.
 - **A control in front of money must not fail open.** The LD-109 rate limiter fails open by design and says so, which is correct for throttling a public endpoint. Reusing it for contribution velocity would have meant a store outage silently removing a fraud control. Counting the authoritative rows instead cannot fail open, because if the table is unreachable the write fails too.
+- **LD-401 unblocks three specs and half-unblocks a fourth.** LD-402 derived proofs and LD-405 supersession both listed it as their only dependency, and both can now start. LD-404 still needs LD-204 stage A, which needs a device. Anything building on the registry should note that the native format is a peer entry, so adding a fourth format is a registry change rather than a rewrite of issuance.
 
 One defect was introduced and caught inside LD-506 itself, and it is the kind worth recording because
 both halves were individually correct. LD-505 requires that a closing account is paid whatever it is
@@ -2313,6 +2316,20 @@ Three things follow.
 - **Pin CI to the oldest supported runtime.** Running CI above the floor is what hid this. The workflow stays on Node 20 with a comment saying why, and `package.json` now declares `engines.node >= 20` to match what AGENTS.md already told contributors.
 - **Reproduce the environment difference in a test rather than relying on CI to find it.** `lib/crypto/__tests__/realm-safety.test.ts` wraps `SubtleCrypto` in a proxy that refuses bare buffers the way Node 20 does, and runs the vault and sealed-box round trips through it. Two of its tests assert the wrapper rejects what it claims to, because a guard that cannot fail is not a guard.
 
+### 6.12 There is no Phase 5
+
+Recorded because it has now been asked for, and the answer is a decision rather than an oversight.
+
+This roadmap covers twelve months in four phases. Section 1.2 lists what is deliberately out of scope
+for that window, and says adopting any of it "requires a new spec ID in this document rather than a note
+elsewhere." Inventing a Phase 5 to have somewhere to put new work would break the one rule that makes
+this document usable: that it is the single place planned work lives, and that a spec exists before an
+agent starts building against it.
+
+There is also no shortage of work inside the existing phases. As of 2026-07-27, Phase 3 has six specs
+unbuilt and Phase 4 has seven. Several are blocked on decisions rather than on capacity, and those are
+listed in section 6.10. Anything genuinely new belongs in section 8 as an open decision first, then as a
+numbered spec, and only then in a phase.
 
 ### Capacity reality
 
@@ -2588,7 +2605,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Spec testability review | Done | Resolved ambiguities in LD-104, LD-105, LD-207, LD-501, LD-405, LD-602 |
 | Phase 1 implementation | Done 2026-07-26 | Eleven specs delivered. See section 6.1. Two acceptance criteria unmet and recorded, one implementation mechanism substituted |
 | Phase 2 implementation | Done | All twelve specs delivered 2026-07-26, with LD-602 delivered in part. Both open defects closed, plus nine found during the work |
-| Phase 3 implementation | In progress | LD-506 delivered and LD-204 stage A started, 2026-07-27. See section 6.9. Two carried-over gaps closed on the way: the LD-602 SSRF guard now checks resolved addresses and refuses redirects, and the extension icons that blocked any store submission now exist |
+| Phase 3 implementation | In progress | LD-506 delivered, LD-204 stage A started, and LD-401 delivered in part, 2026-07-27. See section 6.9. Two carried-over gaps closed on the way: the LD-602 SSRF guard now checks resolved addresses and refuses redirects, and the extension icons that blocked any store submission now exist |
 | Phase 4 implementation | In progress | LD-203 delivered 2026-07-27, which closed the last open LD-205 criterion. See section 6.10. LD-404 cannot start until Phase 3 supplies LD-401, LD-402, and LD-204 stage A, and four further Phase 4 specs are blocked on open decisions rather than on work |
 | Continuous integration | **Fixed 2026-07-27** | CI had failed on every run for thirty-four commits while production deployed cleanly, because Vercel runs only the build. The cause was a real portability defect in the crypto layer rather than a flaky test. See section 6.11 |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |

@@ -87,3 +87,23 @@ export function signWithPrivateKey(
   const signature = crypto.sign(null, canonicalBytes(payload), privateKey)
   return signature.toString('base64url')
 }
+
+/**
+ * Sign bytes that the caller has already determined.
+ *
+ * LD-401. `signWithPrivateKey` canonicalizes a payload first, which is correct
+ * for the native format and wrong for anything whose bytes are fixed by its own
+ * rules: a JWT signs `header.payload` exactly as encoded, and re-serializing it
+ * would produce a signature over something the verifier never sees.
+ *
+ * Takes the encrypted key rather than returning a decrypted one, so the private
+ * key never leaves this module.
+ */
+export function signBytesWithPrivateKey(
+  encryptedPrivateKey: string,
+  privateKeyIv: string,
+  message: Buffer
+): Buffer {
+  const privateKey = decryptPrivateKey(encryptedPrivateKey, privateKeyIv)
+  return crypto.sign(null, message, privateKey)
+}
