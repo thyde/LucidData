@@ -18,6 +18,7 @@
 
 import { createServiceClient } from '@/lib/supabase/service'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { UserFacingError } from '@/lib/actions/action-result'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import {
   isConnectorStorageConfigured,
@@ -195,7 +196,7 @@ export async function disconnectSource(
     .eq('id', sourceId)
     .eq('user_id', userId)
     .maybeSingle()
-  if (!source) throw new Error('Source not found')
+  if (!source) throw new UserFacingError('Source not found')
 
   await revokeUpstream(source as DataSource).catch((error) => {
     errorLogger.log(error, ErrorSeverity.LOW, {
@@ -385,7 +386,7 @@ export async function ensureFreshToken(
   if (!needsRefresh) return readToken(source.encrypted_access_token)
 
   const refreshToken = readToken(source.encrypted_refresh_token)
-  if (!refreshToken) throw new Error('Reconnect this source to continue syncing')
+  if (!refreshToken) throw new UserFacingError('Reconnect this source to continue syncing')
 
   const def = FITNESS_CONNECTORS[source.provider as FitnessProvider]
   const response = await fetchImpl(def.tokenUrl, {
@@ -398,7 +399,7 @@ export async function ensureFreshToken(
       client_secret: process.env[def.clientSecretEnv] ?? '',
     }),
   })
-  if (!response.ok) throw new Error('Reconnect this source to continue syncing')
+  if (!response.ok) throw new UserFacingError('Reconnect this source to continue syncing')
 
   const body = (await response.json()) as {
     access_token: string

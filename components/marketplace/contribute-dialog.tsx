@@ -18,6 +18,7 @@ import { useEncryption } from '@/lib/context/encryption-context'
 import { useToast } from '@/lib/hooks/use-toast'
 import { toFieldEntries, buildAnonymizedPayload } from '@/lib/crypto/anonymize'
 import { contributeAction } from '@/lib/actions/contribution.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 import { formatCents } from '@/components/dashboard/chart-theme'
 import { formatFeePercent, splitEarnings } from '@/lib/constants/marketplace-economics'
 import type { DecryptedVaultData } from '@/types'
@@ -85,13 +86,15 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
     }
     startTransition(async () => {
       try {
-        await contributeAction({
-          pool_id: pool.id,
-          vault_data_id: selected.id,
-          category: pool.category,
-          anonymized_payload: payload,
-          accepted_terms: acceptedTerms,
-        })
+        await unwrap(
+          contributeAction({
+            pool_id: pool.id,
+            vault_data_id: selected.id,
+            category: pool.category,
+            anonymized_payload: payload,
+            accepted_terms: acceptedTerms,
+          })
+        )
         toast({
           title: 'Shared to pool',
           description: `You earn ${formatCents(earnings.netCents)} per purchase, after the ${formatFeePercent(earnings.feeBps)} LucidData fee.`,

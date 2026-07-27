@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { UserFacingError } from '@/lib/actions/action-result'
 import { createNotification } from '@/lib/services/notification.service'
 import type { OrgRole } from '@/lib/middleware/withOrgMember'
 
@@ -122,7 +123,7 @@ export async function inviteOrgMember(
   // Already a member: nothing to invite.
   const members = await listOrgMembers(organizationId)
   if (members.some((member) => normalizeEmail(member.email) === address)) {
-    throw new Error('That person is already a member of this organization')
+    throw new UserFacingError('That person is already a member of this organization')
   }
 
   await service
@@ -229,14 +230,14 @@ export async function acceptInvitation(
     .eq('token_hash', tokenHash)
     .maybeSingle()
   if (error) throw error
-  if (!invitation) throw new Error('This invitation is not valid')
-  if (invitation.status !== 'pending') throw new Error('This invitation has already been used')
+  if (!invitation) throw new UserFacingError('This invitation is not valid')
+  if (invitation.status !== 'pending') throw new UserFacingError('This invitation has already been used')
   if (new Date(invitation.expires_at).getTime() <= Date.now()) {
     await service.from('org_invitations').update({ status: 'expired' }).eq('id', invitation.id)
-    throw new Error('This invitation has expired')
+    throw new UserFacingError('This invitation has expired')
   }
   if (normalizeEmail(invitation.email) !== normalizeEmail(userEmail)) {
-    throw new Error('This invitation was sent to a different email address')
+    throw new UserFacingError('This invitation was sent to a different email address')
   }
 
   // Single use: only the update that still sees 'pending' wins, so a double
@@ -253,7 +254,7 @@ export async function acceptInvitation(
     .select('id')
     .maybeSingle()
   if (claimError) throw claimError
-  if (!claimed) throw new Error('This invitation has already been used')
+  if (!claimed) throw new UserFacingError('This invitation has already been used')
 
   const { error: memberError } = await service.from('org_members').upsert(
     {
@@ -316,11 +317,11 @@ export async function changeOrgMemberRole(
     .eq('user_id', targetUserId)
     .maybeSingle()
   if (readError) throw readError
-  if (!current) throw new Error('That person is not a member of this organization')
+  if (!current) throw new UserFacingError('That person is not a member of this organization')
   if (current.role === role) return
 
   if (current.role === 'owner' && (await countOwners(organizationId)) <= 1) {
-    throw new Error('An organization must keep at least one owner')
+    throw new UserFacingError('An organization must keep at least one owner')
   }
 
   const { error } = await service
@@ -360,7 +361,7 @@ export async function removeOrgMember(
   if (!current) return
 
   if (current.role === 'owner' && (await countOwners(organizationId)) <= 1) {
-    throw new Error('An organization must keep at least one owner')
+    throw new UserFacingError('An organization must keep at least one owner')
   }
 
   const { error } = await service
@@ -401,7 +402,7 @@ export async function transferOrgOwnership(
     .eq('user_id', targetUserId)
     .maybeSingle()
   if (readError) throw readError
-  if (!target) throw new Error('That person is not a member of this organization')
+  if (!target) throw new UserFacingError('That person is not a member of this organization')
 
   const { error: promoteError } = await service
     .from('org_members')

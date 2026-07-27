@@ -10,6 +10,7 @@ import {
   listSources,
   type ConnectedSource,
 } from '@/lib/services/connector.service'
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import type { PendingIngest } from '@/types/database.types'
 
 /**
@@ -102,11 +103,13 @@ const disconnectSchema = z.object({
   deleteImported: z.boolean().default(false),
 })
 
-export async function disconnectSourceAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const { sourceId, deleteImported } = disconnectSchema.parse(input)
-  await disconnectSource(userId, sourceId, { deleteImported })
-  revalidatePath('/settings')
+export async function disconnectSourceAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { sourceId, deleteImported } = disconnectSchema.parse(input)
+    await disconnectSource(userId, sourceId, { deleteImported })
+    revalidatePath('/settings')
+  })
 }
 
 /**

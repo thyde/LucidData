@@ -11,6 +11,7 @@
  */
 
 import * as rightsRepo from '@/lib/repositories/rights.repository'
+import { UserFacingError } from '@/lib/actions/action-result'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import {
   computeDeadline,
@@ -110,7 +111,7 @@ export async function fileRequest(
 ): Promise<RightsCase> {
   const existing = await rightsRepo.findOpenCaseOfType(userId, input.type)
   if (existing) {
-    throw new Error('You already have an open request of this type')
+    throw new UserFacingError('You already have an open request of this type')
   }
 
   const receivedAt = new Date()
@@ -168,13 +169,13 @@ export async function pauseCase(
   reason: string
 ): Promise<RightsCase> {
   const found = await rightsRepo.findCaseById(caseId, userId)
-  if (!found) throw new Error('Request not found')
-  if (CLOSED_STATUSES.has(found.status)) throw new Error('This request is already closed')
+  if (!found) throw new UserFacingError('Request not found')
+  if (CLOSED_STATUSES.has(found.status)) throw new UserFacingError('This request is already closed')
   if (found.status === 'paused') return found
 
   const rule = JURISDICTION_RULES[jurisdictionOf(found.jurisdiction)]
   if (!rule.stopsTheClock) {
-    throw new Error('The clock cannot be paused in this jurisdiction')
+    throw new UserFacingError('The clock cannot be paused in this jurisdiction')
   }
 
   const updated = await rightsRepo.updateCase(caseId, userId, {
@@ -188,7 +189,7 @@ export async function pauseCase(
 
 export async function resumeCase(userId: string, caseId: string): Promise<RightsCase> {
   const found = await rightsRepo.findCaseById(caseId, userId)
-  if (!found) throw new Error('Request not found')
+  if (!found) throw new UserFacingError('Request not found')
   if (found.status !== 'paused' || !found.paused_at) return found
 
   const resumedAt = new Date()
@@ -214,12 +215,12 @@ export async function extendCase(
   reason: string
 ): Promise<RightsCase> {
   const found = await rightsRepo.findCaseById(caseId, userId)
-  if (!found) throw new Error('Request not found')
-  if (CLOSED_STATUSES.has(found.status)) throw new Error('This request is already closed')
-  if (found.extended_to) throw new Error('This request has already been extended')
+  if (!found) throw new UserFacingError('Request not found')
+  if (CLOSED_STATUSES.has(found.status)) throw new UserFacingError('This request is already closed')
+  if (found.extended_to) throw new UserFacingError('This request has already been extended')
 
   const rule = JURISDICTION_RULES[jurisdictionOf(found.jurisdiction)]
-  if (!rule.extension) throw new Error('No extension is available in this jurisdiction')
+  if (!rule.extension) throw new UserFacingError('No extension is available in this jurisdiction')
 
   const { dueAt } = computeDeadline({
     jurisdiction: jurisdictionOf(found.jurisdiction),
@@ -250,11 +251,11 @@ export async function resolveCase(
   note?: string
 ): Promise<RightsCase> {
   const found = await rightsRepo.findCaseById(caseId, userId)
-  if (!found) throw new Error('Request not found')
-  if (CLOSED_STATUSES.has(found.status)) throw new Error('This request is already closed')
+  if (!found) throw new UserFacingError('Request not found')
+  if (CLOSED_STATUSES.has(found.status)) throw new UserFacingError('This request is already closed')
   // A refusal has to say why. "No" without a reason cannot be appealed.
   if (resolution === 'refused' && !note?.trim()) {
-    throw new Error('A refusal must state its reason')
+    throw new UserFacingError('A refusal must state its reason')
   }
 
   const updated = await rightsRepo.updateCase(caseId, userId, {
@@ -275,8 +276,8 @@ export async function resolveCase(
 
 export async function withdrawCase(userId: string, caseId: string): Promise<RightsCase> {
   const found = await rightsRepo.findCaseById(caseId, userId)
-  if (!found) throw new Error('Request not found')
-  if (CLOSED_STATUSES.has(found.status)) throw new Error('This request is already closed')
+  if (!found) throw new UserFacingError('Request not found')
+  if (CLOSED_STATUSES.has(found.status)) throw new UserFacingError('This request is already closed')
 
   const updated = await rightsRepo.updateCase(caseId, userId, {
     status: 'fulfilled',
@@ -297,9 +298,9 @@ export async function appealCase(
   detail: string
 ): Promise<RightsCase> {
   const found = await rightsRepo.findCaseById(caseId, userId)
-  if (!found) throw new Error('Request not found')
-  if (found.status !== 'refused') throw new Error('Only a refused request can be appealed')
-  if (found.type === 'appeal') throw new Error('An appeal cannot itself be appealed')
+  if (!found) throw new UserFacingError('Request not found')
+  if (found.status !== 'refused') throw new UserFacingError('Only a refused request can be appealed')
+  if (found.type === 'appeal') throw new UserFacingError('An appeal cannot itself be appealed')
 
   const receivedAt = new Date()
   const { dueAt } = computeDeadline({

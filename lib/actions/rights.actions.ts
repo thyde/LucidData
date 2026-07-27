@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import * as rights from '@/lib/services/rights.service'
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import {
   appealRightsCaseSchema,
   fileRightsRequestSchema,
@@ -27,11 +28,13 @@ async function getAuthenticatedUserId(): Promise<string> {
   return user.id
 }
 
-export async function fileRightsRequestAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const payload = fileRightsRequestSchema.parse(input)
-  await rights.fileRequest(userId, payload)
-  revalidatePath('/privacy')
+export async function fileRightsRequestAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const payload = fileRightsRequestSchema.parse(input)
+    await rights.fileRequest(userId, payload)
+    revalidatePath('/privacy')
+  })
 }
 
 export async function listRightsCasesAction(): Promise<rights.RightsCaseView[]> {
@@ -39,16 +42,20 @@ export async function listRightsCasesAction(): Promise<rights.RightsCaseView[]> 
   return rights.listCases(userId)
 }
 
-export async function withdrawRightsCaseAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const { caseId } = withdrawRightsCaseSchema.parse(input)
-  await rights.withdrawCase(userId, caseId)
-  revalidatePath('/privacy')
+export async function withdrawRightsCaseAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { caseId } = withdrawRightsCaseSchema.parse(input)
+    await rights.withdrawCase(userId, caseId)
+    revalidatePath('/privacy')
+  })
 }
 
-export async function appealRightsCaseAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const { caseId, detail } = appealRightsCaseSchema.parse(input)
-  await rights.appealCase(userId, caseId, detail)
-  revalidatePath('/privacy')
+export async function appealRightsCaseAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { caseId, detail } = appealRightsCaseSchema.parse(input)
+    await rights.appealCase(userId, caseId, detail)
+    revalidatePath('/privacy')
+  })
 }

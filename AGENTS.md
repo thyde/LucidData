@@ -132,6 +132,18 @@ Authentication and ownership:
 - Path alias `@/*` maps to the project root.
 - TypeScript strict mode is on. Type parameters and return values.
 
+## Error messages that must reach the person
+
+React sanitizes anything thrown out of a Server Action in production. The client gets "An error occurred in the Server Components render. The specific message is omitted in production builds..." and nothing else. That is the right default for a stack trace or a database error, and the wrong outcome for a message written for the reader. It works in development, so it is easy to ship without noticing.
+
+Return expected failures, do not throw them.
+
+- In a service, raise `UserFacingError` from `lib/actions/action-result.ts` when the message *is* the response: a duplicate, a limit, a refusal, a validation message. Keep plain `Error` for anything operational, such as a missing environment variable, so it stays sanitized.
+- In the action, wrap the body in `guarded()`. The return type becomes `T | ActionFailure`, which is deliberate: a caller cannot ignore the failure because the compiler will not let them.
+- At the call site, wrap the call in `unwrap()` from `lib/actions/unwrap.ts`. It turns the returned failure back into a throw carrying the real message, so the existing `try/catch` and `error.message` handler keeps working unchanged.
+
+Only `UserFacingError` is transported. Everything else keeps throwing and keeps being sanitized, which is what should happen to it.
+
 ## User-facing copy
 
 When you write or edit user-facing text (UI labels, buttons, empty states, errors, toasts, onboarding, emails), apply the humanizer rules in [.github/skills/humanizer/SKILL.md](.github/skills/humanizer/SKILL.md). Use plain, neutral, second-person voice. Avoid em dashes, emoji in headings, Title Case headings, and promotional or rule-of-three phrasing. Confirm the copy matches the current Supabase plus client-side encryption model.

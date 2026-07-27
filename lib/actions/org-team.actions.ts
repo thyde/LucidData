@@ -23,6 +23,7 @@ import {
   orgMemberTargetSchema,
 } from '@/lib/validations/org-team'
 import { assertRateLimit } from '@/lib/services/rate-limit.service'
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 
 async function requireUser(): Promise<{ id: string; email: string }> {
   const supabase = await createClient()
@@ -53,48 +54,61 @@ export async function listOrgTeamAction(orgId: string): Promise<{
 export async function inviteOrgMemberAction(
   orgId: string,
   input: unknown
-): Promise<CreatedInvitation> {
-  const { organization } = await requireOrgMembership(orgId, ['owner'])
-  const user = await requireUser()
-  await assertRateLimit('orgInvitation', orgId)
-  const { email, role } = inviteOrgMemberSchema.parse(input)
-  return inviteOrgMember(orgId, user.id, organization.name, email, role, appUrl())
+): Promise<CreatedInvitation | ActionFailure> {
+  return guarded(async () => {
+    const { organization } = await requireOrgMembership(orgId, ['owner'])
+    const user = await requireUser()
+    await assertRateLimit('orgInvitation', orgId)
+    const { email, role } = inviteOrgMemberSchema.parse(input)
+    return inviteOrgMember(orgId, user.id, organization.name, email, role, appUrl())
+  })
 }
 
 export async function revokeOrgInvitationAction(
   orgId: string,
   invitationId: string
-): Promise<void> {
-  await requireOrgMembership(orgId, ['owner'])
-  const user = await requireUser()
-  await revokeInvitation(orgId, user.id, invitationId)
+): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(orgId, ['owner'])
+    const user = await requireUser()
+    await revokeInvitation(orgId, user.id, invitationId)
+  })
 }
 
 export async function changeOrgMemberRoleAction(
   orgId: string,
   input: unknown
-): Promise<void> {
-  await requireOrgMembership(orgId, ['owner'])
-  const user = await requireUser()
-  const { userId, role } = changeOrgMemberRoleSchema.parse(input)
-  await changeOrgMemberRole(orgId, user.id, userId, role)
+): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(orgId, ['owner'])
+    const user = await requireUser()
+    const { userId, role } = changeOrgMemberRoleSchema.parse(input)
+    await changeOrgMemberRole(orgId, user.id, userId, role)
+  })
 }
 
-export async function removeOrgMemberAction(orgId: string, input: unknown): Promise<void> {
-  await requireOrgMembership(orgId, ['owner'])
-  const user = await requireUser()
-  const { userId } = orgMemberTargetSchema.parse(input)
-  await removeOrgMember(orgId, user.id, userId)
+export async function removeOrgMemberAction(
+  orgId: string,
+  input: unknown
+): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(orgId, ['owner'])
+    const user = await requireUser()
+    const { userId } = orgMemberTargetSchema.parse(input)
+    await removeOrgMember(orgId, user.id, userId)
+  })
 }
 
 export async function transferOrgOwnershipAction(
   orgId: string,
   input: unknown
-): Promise<void> {
-  await requireOrgMembership(orgId, ['owner'])
-  const user = await requireUser()
-  const { userId } = orgMemberTargetSchema.parse(input)
-  await transferOrgOwnership(orgId, user.id, userId)
+): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(orgId, ['owner'])
+    const user = await requireUser()
+    const { userId } = orgMemberTargetSchema.parse(input)
+    await transferOrgOwnership(orgId, user.id, userId)
+  })
 }
 
 /** Public-ish: any signed-in user may look at an invitation addressed to them. */
@@ -107,8 +121,10 @@ export async function previewInvitationAction(
 
 export async function acceptInvitationAction(
   token: string
-): Promise<{ organizationId: string }> {
-  const user = await requireUser()
-  const { organizationId } = await acceptInvitation(token, user.id, user.email)
-  return { organizationId }
+): Promise<{ organizationId: string } | ActionFailure> {
+  return guarded(async () => {
+    const user = await requireUser()
+    const { organizationId } = await acceptInvitation(token, user.id, user.email)
+    return { organizationId }
+  })
 }

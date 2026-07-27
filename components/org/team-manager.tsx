@@ -13,6 +13,8 @@ import {
   transferOrgOwnershipAction,
 } from '@/lib/actions/org-team.actions'
 import { ORG_ROLE_DESCRIPTIONS } from '@/lib/validations/org-team'
+import { unwrap } from '@/lib/actions/unwrap'
+import type { ActionFailure } from '@/lib/actions/action-result'
 import { formatDate } from '@/lib/utils/date-formatter'
 import type {
   OrgInvitationSummary,
@@ -53,11 +55,14 @@ export function TeamManager({
     setInvitations(team.invitations)
   }
 
-  function run(work: () => Promise<void>) {
+  // Every action here can return a user-facing failure rather than throwing, so
+  // unwrapping in the one shared helper covers all of them and leaves the
+  // existing catch handling the message.
+  function run<T>(work: () => Promise<T | ActionFailure>) {
     setError(null)
     startTransition(async () => {
       try {
-        await work()
+        await unwrap(work())
         await refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : 'That change could not be saved.')
@@ -69,7 +74,7 @@ export function TeamManager({
     event.preventDefault()
     setInviteUrl(null)
     run(async () => {
-      const created = await inviteOrgMemberAction(orgId, { email, role })
+      const created = await unwrap(inviteOrgMemberAction(orgId, { email, role }))
       setInviteUrl(created.inviteUrl)
       setEmail('')
     })

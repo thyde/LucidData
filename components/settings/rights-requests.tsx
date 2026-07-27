@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/lib/hooks/use-toast'
+import { unwrap } from '@/lib/actions/unwrap'
 import {
   appealRightsCaseAction,
   fileRightsRequestAction,
@@ -71,7 +72,7 @@ export function RightsRequests({
     event.preventDefault()
     startTransition(async () => {
       try {
-        await fileRightsRequestAction({ type, jurisdiction, detail: detail || undefined })
+        await unwrap(fileRightsRequestAction({ type, jurisdiction, detail: detail || undefined }))
         toast({ title: 'Request filed' })
         setDetail('')
         router.refresh()
@@ -88,7 +89,7 @@ export function RightsRequests({
   function handleWithdraw(caseId: string) {
     startTransition(async () => {
       try {
-        await withdrawRightsCaseAction({ caseId })
+        await unwrap(withdrawRightsCaseAction({ caseId }))
         toast({ title: 'Request withdrawn' })
         router.refresh()
       } catch (error) {
@@ -106,7 +107,7 @@ export function RightsRequests({
     if (!appealFor) return
     startTransition(async () => {
       try {
-        await appealRightsCaseAction({ caseId: appealFor, detail: appealDetail })
+        await unwrap(appealRightsCaseAction({ caseId: appealFor, detail: appealDetail }))
         toast({ title: 'Appeal filed' })
         setAppealFor(null)
         setAppealDetail('')

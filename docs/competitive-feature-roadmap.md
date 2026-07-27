@@ -7,6 +7,7 @@ Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Phase 3: [section 6.9](#69-phase-3-delivery-record) for the record.
 Phase 4: [section 6.10](#610-phase-4-delivery-record) for the record, and [section 6.11](#611-the-ci-failure-and-why-it-went-unnoticed) for a CI failure worth reading before trusting a green deployment.
+Cross-cutting: [section 6.13](#613-every-error-message-was-being-thrown-away-in-production) for why a server action must return an expected failure rather than throw it.
 Owner: product
 Audience: agentic coding tools and the engineers reviewing their output
 
@@ -2317,7 +2318,6 @@ Three things follow.
 - **Reproduce the environment difference in a test rather than relying on CI to find it.** `lib/crypto/__tests__/realm-safety.test.ts` wraps `SubtleCrypto` in a proxy that refuses bare buffers the way Node 20 does, and runs the vault and sealed-box round trips through it. Two of its tests assert the wrapper rejects what it claims to, because a guard that cannot fail is not a guard.
 
 ### 6.12 There is no Phase 5
-
 Recorded because it has now been asked for, and the answer is a decision rather than an oversight.
 
 This roadmap covers twelve months in four phases. Section 1.2 lists what is deliberately out of scope
@@ -2330,6 +2330,46 @@ There is also no shortage of work inside the existing phases. As of 2026-07-27, 
 unbuilt and Phase 4 has seven. Several are blocked on decisions rather than on capacity, and those are
 listed in section 6.10. Anything genuinely new belongs in section 8 as an open decision first, then as a
 numbered spec, and only then in a phase.
+
+### 6.13 Every error message was being thrown away in production
+
+Found 2026-07-27 while looking for what production was doing that development was not. It had been true
+since the first server action shipped, and it affected the whole product rather than one feature.
+
+React sanitizes anything thrown out of a Server Action in production. The client receives "An error
+occurred in the Server Components render. The specific message is omitted in production builds to avoid
+leaking sensitive details" and nothing else. For a stack trace or a database error that is exactly
+right. For a message written for the person who caused it, it means the response is replaced by
+framework boilerplate.
+
+Every one of these was being discarded before anyone read it:
+
+- "You have already contributed that entry to this pool"
+- "This pool pays less than your minimum price per record"
+- "You already have an open request of this type"
+- "An organization must keep at least one owner"
+- "Reconnect this source to continue syncing"
+
+Three things made it survive. It works in development, because the sanitization is production-only, so
+every manual test of an error path looked correct. The end-to-end suite runs a development server for
+the same reason. And the components were not wrong: they catch and display `error.message` exactly as
+they should, and the message was being lost in transit rather than in the handler.
+
+The fix is the shape Next.js documents. An expected failure is returned rather than thrown, because a
+returned value is data and data crosses the boundary intact. `lib/actions/action-result.ts` adds
+`UserFacingError` for a service to raise, `guarded()` for an action to wrap its body in, and
+`unwrap()` for the call site. Because `unwrap` turns the returned failure back into a throw carrying
+the real message, every existing `try`/`catch` keeps working and only the call itself changes.
+
+Two properties are worth keeping.
+
+- **Safe by default.** Only `UserFacingError` is transported. A database error, a missing environment variable, or a bug still reaches the client as the generic message, because nobody wrote those for a reader. `lib/actions/__tests__/action-result.test.ts` asserts that directly, including that an arbitrary `Error` subclass is not treated as user-facing by accident.
+- **The compiler enforces it.** `guarded()` returns `T | ActionFailure`, so a call site cannot use the result without handling the failure. Converting an action produces type errors at every one of its callers, which is how the org team conversion found all five of its own in one pass.
+
+Converted so far: rights requests, marketplace contribution including the LD-506 duplicate and velocity
+limits, organization team management, and connector disconnect. The remaining services still throw, and
+the pattern is recorded in AGENTS.md so finishing them is mechanical rather than a judgement call. The
+order to do them in is whichever surface a person is most likely to hit an error on.
 
 ### Capacity reality
 
@@ -2608,6 +2648,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Phase 3 implementation | In progress | LD-506 delivered, LD-204 stage A started, and LD-401 delivered in part, 2026-07-27. See section 6.9. Two carried-over gaps closed on the way: the LD-602 SSRF guard now checks resolved addresses and refuses redirects, and the extension icons that blocked any store submission now exist |
 | Phase 4 implementation | In progress | LD-203 delivered 2026-07-27, which closed the last open LD-205 criterion. See section 6.10. LD-404 cannot start until Phase 3 supplies LD-401, LD-402, and LD-204 stage A, and four further Phase 4 specs are blocked on open decisions rather than on work |
 | Continuous integration | **Fixed 2026-07-27** | CI had failed on every run for thirty-four commits while production deployed cleanly, because Vercel runs only the build. The cause was a real portability defect in the crypto layer rather than a flaky test. See section 6.11 |
+| Server action error transport | **Fixed in part 2026-07-27** | Every user-facing error message thrown from a server action was replaced by framework boilerplate in production, across the whole product. Invisible in development, because the sanitization is production-only. Infrastructure and the four highest-traffic surfaces are converted; the rest is mechanical. See section 6.13 |
 | Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
 | User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |

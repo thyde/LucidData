@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/lib/hooks/use-toast'
 import { usePendingIngest } from '@/lib/hooks/usePendingIngest'
 import { SourceHealth } from '@/components/settings/source-health'
+import { unwrap } from '@/lib/actions/unwrap'
 import {
   disconnectSourceAction,
   listConnectorsAction,
@@ -51,7 +52,7 @@ export function ConnectedSources() {
   function disconnect(source: ConnectedSource, deleteImported: boolean) {
     startTransition(async () => {
       try {
-        await disconnectSourceAction({ sourceId: source.id, deleteImported })
+        await unwrap(disconnectSourceAction({ sourceId: source.id, deleteImported }))
         toast({ title: `Disconnected ${source.label}` })
         setConnected((current) => current.filter((entry) => entry.id !== source.id))
         router.refresh()

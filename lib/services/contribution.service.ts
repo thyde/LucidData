@@ -10,6 +10,7 @@ import type { ContributeInput } from '@/lib/validations/marketplace'
 import { isMarketplaceCategoryAllowed } from '@/lib/validations/marketplace'
 import { containsIdentifierField } from '@/lib/crypto/anonymize'
 import { PLATFORM_FEE_BPS, splitEarnings } from '@/lib/constants/marketplace-economics'
+import { UserFacingError } from '@/lib/actions/action-result'
 import {
   assertContributionVelocity,
   DuplicateContributionError,
@@ -37,28 +38,28 @@ export async function contribute(userId: string, input: ContributeInput): Promis
   await assertNotUniversallyOptedOut(userId)
 
   const pool = await poolRepo.findOpenPoolById(input.pool_id)
-  if (!pool) throw new Error('Pool not found or no longer open')
+  if (!pool) throw new UserFacingError('Pool not found or no longer open')
   if (!isMarketplaceCategoryAllowed(pool.category as ContributeInput['category'])) {
-    throw new Error('This category is not available for marketplace sale')
+    throw new UserFacingError('This category is not available for marketplace sale')
   }
 
   const preferences = await monetizationRepo.findSalePreferences(userId)
   if (preferences && pool.price_per_record_cents < preferences.min_price_cents) {
-    throw new Error('This pool pays less than your minimum price per record')
+    throw new UserFacingError('This pool pays less than your minimum price per record')
   }
   if (preferences?.blocked_buyer_orgs.includes(pool.buyer_org_id)) {
-    throw new Error('You have blocked this buyer organization')
+    throw new UserFacingError('You have blocked this buyer organization')
   }
   if (
     preferences &&
     preferences.allowed_purposes.length > 0 &&
     !preferences.allowed_purposes.includes(pool.purpose)
   ) {
-    throw new Error('This pool purpose is not in your allowed purposes')
+    throw new UserFacingError('This pool purpose is not in your allowed purposes')
   }
 
   if (containsIdentifierField(input.anonymized_payload)) {
-    throw new Error('The contribution contains a direct identifier')
+    throw new UserFacingError('The contribution contains a direct identifier')
   }
 
   // LD-506: refuse a rate no person contributes at. Checked before the payload
@@ -76,7 +77,7 @@ export async function contribute(userId: string, input: ContributeInput): Promis
     (field) => !optedInFields.has(field)
   )
   if (privateFields.length > 0) {
-    throw new Error(`These fields are private: ${privateFields.join(', ')}`)
+    throw new UserFacingError(`These fields are private: ${privateFields.join(', ')}`)
   }
 
   // LD-501: the privacy gate classifies fields per schema, not per broad data

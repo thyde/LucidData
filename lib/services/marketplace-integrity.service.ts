@@ -9,6 +9,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
+import { UserFacingError } from '@/lib/actions/action-result'
 import {
   MAX_CONTRIBUTIONS_PER_POOL_PER_WINDOW,
   MAX_CONTRIBUTIONS_PER_WINDOW,
@@ -17,16 +18,20 @@ import {
   type AssuranceMix,
 } from '@/lib/constants/marketplace-integrity'
 
-export class ContributionVelocityError extends Error {
+// These extend UserFacingError because the message is the whole response. A
+// person who hits a velocity limit or a duplicate needs to be told which, and
+// an error thrown out of a server action reaches production as framework
+// boilerplate unless it is marked.
+export class ContributionVelocityError extends UserFacingError {
   constructor(message: string) {
-    super(message)
+    super(message, 'contribution_velocity')
     this.name = 'ContributionVelocityError'
   }
 }
 
-export class DuplicateContributionError extends Error {
+export class DuplicateContributionError extends UserFacingError {
   constructor(message = 'You have already contributed that entry to this pool') {
-    super(message)
+    super(message, 'duplicate_contribution')
     this.name = 'DuplicateContributionError'
   }
 }

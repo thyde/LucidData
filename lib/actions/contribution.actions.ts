@@ -9,6 +9,7 @@ import {
   type EarningsSummary,
 } from '@/lib/services/contribution.service'
 import { contributeSchema } from '@/lib/validations/marketplace'
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import type { PoolContribution } from '@/types/database.types'
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -23,10 +24,14 @@ export async function getMyContributionsAction(): Promise<PoolContribution[]> {
   return listMyContributions(userId)
 }
 
-export async function contributeAction(input: unknown): Promise<PoolContribution> {
-  const userId = await getAuthenticatedUserId()
-  const parsed = contributeSchema.parse(input)
-  return contribute(userId, parsed)
+export async function contributeAction(
+  input: unknown
+): Promise<PoolContribution | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const parsed = contributeSchema.parse(input)
+    return contribute(userId, parsed)
+  })
 }
 
 export async function withdrawContributionAction(id: string): Promise<PoolContribution> {

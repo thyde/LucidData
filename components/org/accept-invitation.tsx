@@ -8,6 +8,7 @@ import {
   previewInvitationAction,
 } from '@/lib/actions/org-team.actions'
 import { ORG_ROLE_DESCRIPTIONS } from '@/lib/validations/org-team'
+import { unwrap } from '@/lib/actions/unwrap'
 import type { InvitationPreview } from '@/lib/services/org-team.service'
 
 /**
@@ -43,7 +44,7 @@ export function AcceptInvitation({ token }: { token: string }) {
     setError(null)
     startTransition(async () => {
       try {
-        const { organizationId } = await acceptInvitationAction(token)
+        const { organizationId } = await unwrap(acceptInvitationAction(token))
         router.push(`/org/${organizationId}`)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'This invitation could not be accepted.')
