@@ -78,6 +78,20 @@ test.describe('Privacy rights requests', () => {
         page.getByText('Could not file the request', { exact: true })
       ).toBeVisible({ timeout: 15000 })
 
+      // The reason has to survive the trip, and this is the assertion that
+      // matters. The title above is set client-side, so it appears whatever
+      // went wrong; only the description carries the message the service wrote.
+      //
+      // This suite runs a production build, where React replaces anything
+      // thrown out of a server action with "The specific message is omitted in
+      // production builds". That is why the service returns this failure rather
+      // than throwing it. Asserting only the title is what let every
+      // user-facing message in the product get discarded unnoticed.
+      await expect(
+        page.getByText('You already have an open request of this type', { exact: true })
+      ).toBeVisible({ timeout: 15000 })
+      await expect(page.getByText('omitted in production builds')).toHaveCount(0)
+
       // An operator refuses it, in writing. A refusal with no reason cannot be
       // appealed, so the service requires one.
       await service
