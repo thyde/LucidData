@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import {
   createShare,
@@ -25,29 +26,32 @@ export async function createShareAction(
   credentialId: string,
   disclosedClaims: string[],
   options: { expiresInDays?: number; verifierEmail?: string } = {}
-): Promise<CreateShareResult> {
-  const userId = await getAuthenticatedUserId()
-  if (disclosedClaims.length === 0) {
-    throw new Error('Select at least one field to share')
-  }
+): Promise<CreateShareResult | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    if (disclosedClaims.length === 0) {
+      throw new UserFacingError('Select at least one field to share')
+    }
 
-  const expiresAt = options.expiresInDays
-    ? new Date(Date.now() + options.expiresInDays * 86_400_000).toISOString()
-    : null
+    const expiresAt = options.expiresInDays
+      ? new Date(Date.now() + options.expiresInDays * 86_400_000).toISOString()
+      : null
 
-  const result: CreatedShare = await createShare(userId, credentialId, disclosedClaims, {
-    expiresAt,
-    verifierEmail: options.verifierEmail ?? null,
-  })
-  return { shareId: result.share.id, token: result.token }
+    const result: CreatedShare = await createShare(userId, credentialId, disclosedClaims, {
+      expiresAt,
+      verifierEmail: options.verifierEmail ?? null,
+    })
+    return { shareId: result.share.id, token: result.token }  })
 }
 
-export async function getMySharesAction(): Promise<CredentialShare[]> {
-  const userId = await getAuthenticatedUserId()
-  return listSharesForUser(userId)
+export async function getMySharesAction(): Promise<CredentialShare[] | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return listSharesForUser(userId)  })
 }
 
-export async function revokeShareAction(shareId: string): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  await revokeShare(userId, shareId)
+export async function revokeShareAction(shareId: string): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    await revokeShare(userId, shareId)  })
 }

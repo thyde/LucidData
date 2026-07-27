@@ -15,6 +15,7 @@ import {
 import { createVaultEntryAction } from '@/lib/actions/vault.actions'
 import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
 import { ShareCredentialDialog } from '@/components/credentials/share-credential-dialog'
+import { unwrap } from '@/lib/actions/unwrap'
 
 function schemaLabel(type: string): string {
   return VAULT_SCHEMA_TYPES[type as keyof typeof VAULT_SCHEMA_TYPES]?.label ?? type
@@ -34,13 +35,13 @@ export function CredentialsInbox() {
     refetch,
   } = useQuery({
     queryKey: ['my-credentials'],
-    queryFn: getMyCredentialsAction,
+    queryFn: () => unwrap(getMyCredentialsAction()),
   })
 
   async function handleClaim(item: MyCredential) {    const cred = item.credential
     setClaimingId(cred.id)
     try {
-      await claimCredentialAction(cred.id)
+      await unwrap(claimCredentialAction(cred.id))
 
       // Store an end-to-end encrypted copy in the vault when it's unlocked.
       if (!isLocked) {
@@ -57,7 +58,7 @@ export function CredentialsInbox() {
           expires_at: cred.expires_at,
         })
         const enc = await encrypt(plaintext)
-        const entry = await createVaultEntryAction({
+        const entry = await unwrap(createVaultEntryAction({
           label: cred.label,
           category: 'credentials',
           schema_type: 'verifiable_credential',
@@ -66,8 +67,8 @@ export function CredentialsInbox() {
           encrypted_dek: enc.encrypted_dek,
           dek_salt: enc.dek_salt,
           expires_at: cred.expires_at ?? undefined,
-        })
-        await linkCredentialVaultEntryAction(cred.id, entry.id)
+        }))
+        await unwrap(linkCredentialVaultEntryAction(cred.id, entry.id))
         toast({ title: 'Credential claimed', description: 'Saved an encrypted copy to your vault.' })
       } else {
         toast({
@@ -85,7 +86,7 @@ export function CredentialsInbox() {
 
   async function handleExport(item: MyCredential) {
     try {
-      const vc = await exportCredentialVcAction(item.credential.id)
+      const vc = await unwrap(exportCredentialVcAction(item.credential.id))
       const blob = new Blob([JSON.stringify(vc, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')

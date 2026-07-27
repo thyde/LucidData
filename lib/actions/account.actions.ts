@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import * as account from '@/lib/services/account.service'
 import {
@@ -19,61 +20,69 @@ async function getAuthenticatedUserId(): Promise<string> {
   return user.id
 }
 
-export async function getAccountSecurityAction(): Promise<account.AccountSecurity | null> {
-  const userId = await getAuthenticatedUserId()
-  return account.getAccountSecurity(userId)
+export async function getAccountSecurityAction(): Promise<account.AccountSecurity | null | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return account.getAccountSecurity(userId)  })
 }
 
-export async function setRecoveryEscrowAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const payload = setRecoveryEscrowSchema.parse(input)
-  return account.setRecoveryEscrow(userId, payload)
+export async function setRecoveryEscrowAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const payload = setRecoveryEscrowSchema.parse(input)
+    return account.setRecoveryEscrow(userId, payload)  })
 }
 
-export async function rewrapVaultEntriesAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const payload = rewrapEntriesSchema.parse(input)
-  return account.rewrapVaultEntries(userId, payload.reason, payload.entries)
+export async function rewrapVaultEntriesAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const payload = rewrapEntriesSchema.parse(input)
+    return account.rewrapVaultEntries(userId, payload.reason, payload.entries)  })
 }
 
-export async function recordDataExportAction(count: number): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  return account.recordDataExport(userId, count)
+export async function recordDataExportAction(count: number): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return account.recordDataExport(userId, count)  })
 }
 
-export async function completeOnboardingAction(): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  return account.completeOnboarding(userId)
+export async function completeOnboardingAction(): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return account.completeOnboarding(userId)  })
 }
 
-export async function setEmailNotificationPreferenceAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const { enabled } = emailNotificationPreferenceSchema.parse(input)
-  return account.setEmailNotificationPreference(userId, enabled)
+export async function setEmailNotificationPreferenceAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { enabled } = emailNotificationPreferenceSchema.parse(input)
+    return account.setEmailNotificationPreference(userId, enabled)  })
 }
 
-export async function removePasskeyAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const { passkeyId } = z.object({ passkeyId: z.string().uuid() }).parse(input)
-  return account.removePasskey(userId, passkeyId)
+export async function removePasskeyAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { passkeyId } = z.object({ passkeyId: z.string().uuid() }).parse(input)
+    return account.removePasskey(userId, passkeyId)  })
 }
 
 export async function deleteAccountAction(
   input: unknown
-): Promise<account.DeletionReceiptSummary> {
-  const userId = await getAuthenticatedUserId()
-  const { confirmPhrase, stepUpToken } = deleteAccountSchema.parse(input)
-  if (confirmPhrase !== DELETE_CONFIRM_PHRASE) {
-    throw new Error('Confirmation phrase does not match')
-  }
-  // LD-106: a warm session is not enough to destroy an account.
-  await consumeStepUp(userId, 'delete_account', stepUpToken)
-  const outcome = await account.deleteAccount(userId)
-  // LD-607: hand back the signed proof so the person can keep and check it.
-  return {
-    receipt: outcome.receipt,
-    signature: outcome.signature,
-    keyId: outcome.keyId,
-    verified: outcome.verified,
-  }
+): Promise<account.DeletionReceiptSummary | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { confirmPhrase, stepUpToken } = deleteAccountSchema.parse(input)
+    if (confirmPhrase !== DELETE_CONFIRM_PHRASE) {
+      throw new UserFacingError('Confirmation phrase does not match')
+    }
+    // LD-106: a warm session is not enough to destroy an account.
+    await consumeStepUp(userId, 'delete_account', stepUpToken)
+    const outcome = await account.deleteAccount(userId)
+    // LD-607: hand back the signed proof so the person can keep and check it.
+    return {
+      receipt: outcome.receipt,
+      signature: outcome.signature,
+      keyId: outcome.keyId,
+      verified: outcome.verified,
+    }  })
 }

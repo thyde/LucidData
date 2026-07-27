@@ -13,6 +13,7 @@ import {
 } from '@/lib/context/encryption-context'
 import { formatDateTime } from '@/lib/utils/date-formatter'
 import type { SessionSummary } from '@/lib/services/session-security.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 function describeDevice(userAgent: string | null): string {
   if (!userAgent) return 'Unknown device'
@@ -39,7 +40,7 @@ export function SessionSecuritySection({ initial }: { initial: SessionSummary[] 
   function refresh() {
     startTransition(async () => {
       try {
-        setSessions(await listSessionsAction())
+        setSessions(await unwrap(listSessionsAction()))
       } catch {
         setError('Sessions could not be refreshed.')
       }
@@ -50,7 +51,7 @@ export function SessionSecuritySection({ initial }: { initial: SessionSummary[] 
     if (!target) return
     setError(null)
     try {
-      await revokeSessionAction({ sessionId: target, stepUpToken: token })
+      await unwrap(revokeSessionAction({ sessionId: target, stepUpToken: token }))
       setTarget(null)
       refresh()
     } catch (e) {

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/lib/hooks/use-toast'
 import { createShareAction } from '@/lib/actions/share.actions'
 import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
+import { unwrap } from '@/lib/actions/unwrap'
 
 interface ShareCredentialDialogProps {
   open: boolean
@@ -58,9 +59,9 @@ export function ShareCredentialDialog({
   async function handleCreate() {
     setBusy(true)
     try {
-      const { token } = await createShareAction(credentialId, [...selected], {
+      const { token } = await unwrap(createShareAction(credentialId, [...selected], {
         expiresInDays: expiresInDays ? Number(expiresInDays) : undefined,
-      })
+      }))
       const url = `${window.location.origin}/verify/${token}`
       setShareUrl(url)
       toast({ title: 'Share link created' })

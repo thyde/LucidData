@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { ConsentRequestRespondDialog } from './consent-request-respond-dialog'
 import type { ConsentRequest } from '@/types/database.types'
+import { unwrap } from '@/lib/actions/unwrap'
 
 type RequestWithOrg = ConsentRequest & { organization: { name: string; email: string } | null }
 
@@ -24,7 +25,7 @@ export function ConsentRequestList() {
 
   const { data: requests, isLoading, error } = useQuery({
     queryKey: ['consent-requests'],
-    queryFn: getConsentRequestsAction,
+    queryFn: () => unwrap(getConsentRequestsAction()),
   })
 
   // Realtime subscription for new requests

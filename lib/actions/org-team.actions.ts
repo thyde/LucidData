@@ -42,13 +42,14 @@ function appUrl(): string {
 export async function listOrgTeamAction(orgId: string): Promise<{
   members: OrgMemberSummary[]
   invitations: OrgInvitationSummary[]
-}> {
-  await requireOrgMembership(orgId, ['owner'])
-  const [members, invitations] = await Promise.all([
-    listOrgMembers(orgId),
-    listOrgInvitations(orgId),
-  ])
-  return { members, invitations }
+} | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(orgId, ['owner'])
+    const [members, invitations] = await Promise.all([
+      listOrgMembers(orgId),
+      listOrgInvitations(orgId),
+    ])
+    return { members, invitations }  })
 }
 
 export async function inviteOrgMemberAction(
@@ -114,9 +115,10 @@ export async function transferOrgOwnershipAction(
 /** Public-ish: any signed-in user may look at an invitation addressed to them. */
 export async function previewInvitationAction(
   token: string
-): Promise<InvitationPreview | null> {
-  await requireUser()
-  return previewInvitation(token)
+): Promise<InvitationPreview | null | ActionFailure> {
+  return guarded(async () => {
+    await requireUser()
+    return previewInvitation(token)  })
 }
 
 export async function acceptInvitationAction(

@@ -14,6 +14,7 @@ import { deleteAccountAction } from '@/lib/actions/account.actions'
 import { StepUpDialog } from '@/components/auth/step-up-dialog'
 import { DELETE_CONFIRM_PHRASE } from '@/lib/validations/account'
 import type { DeletionReceiptSummary } from '@/lib/services/account.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 // Save the receipt locally. Best-effort: a blocked download must not leave the
 // person unsure whether their account was actually deleted.
@@ -54,7 +55,7 @@ export function DeleteAccountDialog() {
   async function handleDelete(stepUpToken: string) {
     setBusy(true)
     try {
-      const summary = await deleteAccountAction({ confirmPhrase: phrase, stepUpToken })
+      const summary = await unwrap(deleteAccountAction({ confirmPhrase: phrase, stepUpToken }))
       // LD-607: hand over the signed proof before the session ends. It is the
       // only copy the person gets, and it is what makes "deleted" checkable.
       downloadReceipt(summary)

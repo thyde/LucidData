@@ -144,6 +144,8 @@ Return expected failures, do not throw them.
 
 Only `UserFacingError` is transported. Everything else keeps throwing and keeps being sanitized, which is what should happen to it.
 
+`lib/actions/__tests__/error-transport.test.ts` enforces this in the build. It walks the `lib/` import graph and fails if an action that can reach a `UserFacingError` is not wrapped, or if an action file wraps some of its exported functions but not others. If you add a `UserFacingError` to a service, expect that test to tell you which actions now need `guarded()`. Deriving a type from a guarded action needs `ActionData<T>` rather than `Awaited<ReturnType<...>>`, otherwise the failure case leaks into the derived type.
+
 ## User-facing copy
 
 When you write or edit user-facing text (UI labels, buttons, empty states, errors, toasts, onboarding, emails), apply the humanizer rules in [.github/skills/humanizer/SKILL.md](.github/skills/humanizer/SKILL.md). Use plain, neutral, second-person voice. Avoid em dashes, emoji in headings, Title Case headings, and promotional or rule-of-three phrasing. Confirm the copy matches the current Supabase plus client-side encryption model.

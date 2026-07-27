@@ -3,6 +3,7 @@ import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertRecoveryReadyForFirstWrite } from '@/lib/services/recovery-factor.service'
 import { parseProvenance } from '@/lib/validations/provenance'
 import type { VaultData, InsertVaultData, UpdateVaultData } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 export interface CreateVaultPayload {
   label: string
@@ -90,7 +91,7 @@ export async function updateVaultData(id: string, userId: string, payload: Updat
 
 export async function deleteVaultData(id: string, userId: string): Promise<void> {
   const entry = await vaultRepo.findVaultById(id, userId)
-  if (!entry) throw new Error('Vault entry not found')
+  if (!entry) throw new UserFacingError('Vault entry not found')
 
   await vaultRepo.deleteVaultEntry(id, userId)
   await createAuditEntry({

@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Json, OrgSubscription } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 export type Plan = OrgSubscription['plan']
 export type UsageEventType = 'credential_issued' | 'credential_verified'
@@ -101,6 +102,6 @@ export async function assertIssuanceQuota(organizationId: string): Promise<void>
   if (limit === Number.MAX_SAFE_INTEGER) return
   const issued = await countUsage(organizationId, 'credential_issued')
   if (issued >= limit) {
-    throw new Error(`Monthly issuance limit reached for the ${subscription.plan} plan (${limit}). Upgrade to issue more.`)
+    throw new UserFacingError(`Monthly issuance limit reached for the ${subscription.plan} plan (${limit}). Upgrade to issue more.`)
   }
 }

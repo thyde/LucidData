@@ -14,7 +14,6 @@ import {
 } from '@/lib/actions/org-team.actions'
 import { ORG_ROLE_DESCRIPTIONS } from '@/lib/validations/org-team'
 import { unwrap } from '@/lib/actions/unwrap'
-import type { ActionFailure } from '@/lib/actions/action-result'
 import { formatDate } from '@/lib/utils/date-formatter'
 import type {
   OrgInvitationSummary,
@@ -50,19 +49,18 @@ export function TeamManager({
   const ownerCount = members.filter((member) => member.role === 'owner').length
 
   async function refresh() {
-    const team = await listOrgTeamAction(orgId)
+    const team = await unwrap(listOrgTeamAction(orgId))
     setMembers(team.members)
     setInvitations(team.invitations)
   }
 
-  // Every action here can return a user-facing failure rather than throwing, so
-  // unwrapping in the one shared helper covers all of them and leaves the
-  // existing catch handling the message.
-  function run<T>(work: () => Promise<T | ActionFailure>) {
+  // Each call unwraps its own action, so a user-facing failure arrives here as
+  // an ordinary throw and the catch shows the message it carries.
+  function run<T>(work: () => Promise<T>) {
     setError(null)
     startTransition(async () => {
       try {
-        await unwrap(work())
+        await work()
         await refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : 'That change could not be saved.')
@@ -165,10 +163,10 @@ export function TeamManager({
                     disabled={pending || isLastOwner}
                     onChange={(e) =>
                       run(() =>
-                        changeOrgMemberRoleAction(orgId, {
+                        unwrap(changeOrgMemberRoleAction(orgId, {
                           userId: member.userId,
                           role: e.target.value,
-                        })
+                        }))
                       )
                     }
                   >
@@ -185,7 +183,7 @@ export function TeamManager({
                       disabled={pending}
                       onClick={() =>
                         run(() =>
-                          transferOrgOwnershipAction(orgId, { userId: member.userId })
+                          unwrap(transferOrgOwnershipAction(orgId, { userId: member.userId }))
                         )
                       }
                     >
@@ -197,7 +195,7 @@ export function TeamManager({
                     size="sm"
                     disabled={pending || isLastOwner}
                     onClick={() =>
-                      run(() => removeOrgMemberAction(orgId, { userId: member.userId }))
+                      run(() => unwrap(removeOrgMemberAction(orgId, { userId: member.userId })))
                     }
                   >
                     Remove
@@ -236,7 +234,7 @@ export function TeamManager({
                     variant="outline"
                     size="sm"
                     disabled={pending}
-                    onClick={() => run(() => revokeOrgInvitationAction(orgId, invitation.id))}
+                    onClick={() => run(() => unwrap(revokeOrgInvitationAction(orgId, invitation.id)))}
                   >
                     Revoke
                   </Button>

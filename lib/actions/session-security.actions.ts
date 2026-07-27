@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { z } from 'zod'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
@@ -43,45 +44,49 @@ async function requireUser(): Promise<{ id: string; email: string }> {
  * password never disturbs the caller's live session and a correct one never
  * replaces it. The password never leaves this action.
  */
-export async function requestStepUpAction(input: unknown): Promise<{ token: string }> {
-  const user = await requireUser()
-  const { action, password } = requestStepUpSchema.parse(input)
+export async function requestStepUpAction(input: unknown): Promise<{ token: string } | ActionFailure> {
+  return guarded(async () => {
+    const user = await requireUser()
+    const { action, password } = requestStepUpSchema.parse(input)
 
-  // Throttle so this cannot be used to brute force the password.
-  await assertRateLimit('verification', `stepup:${user.id}`)
+    // Throttle so this cannot be used to brute force the password.
+    await assertRateLimit('verification', `stepup:${user.id}`)
 
-  const throwaway = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false } }
-  )
-  const { error } = await throwaway.auth.signInWithPassword({
-    email: user.email,
-    password,
-  })
-  if (error) throw new Error('Incorrect password')
+    const throwaway = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false } }
+    )
+    const { error } = await throwaway.auth.signInWithPassword({
+      email: user.email,
+      password,
+    })
+    if (error) throw new UserFacingError('Incorrect password')
 
-  const token = await grantStepUp(user.id, action)
-  return { token }
+    const token = await grantStepUp(user.id, action)
+    return { token }  })
 }
 
 /** Verify a grant on behalf of an action handler. Throws when it is not valid. */
 export async function assertStepUpAction(
   action: StepUpAction,
   token: string
-): Promise<void> {
-  const user = await requireUser()
-  await consumeStepUp(user.id, action, token)
+): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const user = await requireUser()
+    await consumeStepUp(user.id, action, token)  })
 }
 
-export async function listSessionsAction(): Promise<SessionSummary[]> {
-  const user = await requireUser()
-  return listSessions(user.id)
+export async function listSessionsAction(): Promise<SessionSummary[] | ActionFailure> {
+  return guarded(async () => {
+    const user = await requireUser()
+    return listSessions(user.id)  })
 }
 
-export async function revokeSessionAction(input: unknown): Promise<void> {
-  const user = await requireUser()
-  const { sessionId, stepUpToken } = revokeSessionSchema.parse(input)
-  await consumeStepUp(user.id, 'revoke_session', stepUpToken)
-  await revokeSession(user.id, sessionId)
+export async function revokeSessionAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const user = await requireUser()
+    const { sessionId, stepUpToken } = revokeSessionSchema.parse(input)
+    await consumeStepUp(user.id, 'revoke_session', stepUpToken)
+    await revokeSession(user.id, sessionId)  })
 }

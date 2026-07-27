@@ -37,9 +37,10 @@ export async function fileRightsRequestAction(input: unknown): Promise<void | Ac
   })
 }
 
-export async function listRightsCasesAction(): Promise<rights.RightsCaseView[]> {
-  const userId = await getAuthenticatedUserId()
-  return rights.listCases(userId)
+export async function listRightsCasesAction(): Promise<rights.RightsCaseView[] | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return rights.listCases(userId)  })
 }
 
 export async function withdrawRightsCaseAction(input: unknown): Promise<void | ActionFailure> {

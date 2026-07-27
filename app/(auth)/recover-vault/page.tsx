@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
+import { unwrap } from '@/lib/actions/unwrap'
 
 export default function RecoverVaultPage() {
   const router = useRouter()
@@ -64,7 +65,7 @@ export default function RecoverVaultPage() {
         return
       }
 
-      const security = await getAccountSecurityAction()
+      const security = await unwrap(getAccountSecurityAction())
       const canRecoverVault =
         !!security?.key_salt && !!security?.wrapped_master_key && !!security?.recovery_code_salt
 

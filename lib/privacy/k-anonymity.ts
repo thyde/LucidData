@@ -13,6 +13,7 @@
  * shipped with a warning.
  */
 
+import { UserFacingError } from '@/lib/actions/action-result'
 import {
   classifyField,
   type GeneralizationKind,
@@ -195,7 +196,7 @@ export function achievedK(classes: EquivalenceClass[]): number {
   return classes.reduce((min, group) => Math.min(min, group.size), Infinity)
 }
 
-export class PrivacyGateError extends Error {
+export class PrivacyGateError extends UserFacingError {
   readonly reason: string
 
   constructor(reason: string) {

@@ -14,6 +14,7 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { evaluatePoolAction } from '@/lib/actions/marketplace.actions'
 import { formatCents } from '@/components/dashboard/chart-theme'
 import type { PoolEvaluation } from '@/lib/services/pool-evaluation.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 /**
  * LD-503: what a buyer would actually receive, shown before they pay.
@@ -41,7 +42,7 @@ export function PoolEvaluationDialog({
     setOpen(true)
     startTransition(async () => {
       try {
-        setEvaluation(await evaluatePoolAction(orgId, poolId))
+        setEvaluation(await unwrap(evaluatePoolAction(orgId, poolId)))
       } catch (error) {
         toast({
           title: 'Could not evaluate this pool',

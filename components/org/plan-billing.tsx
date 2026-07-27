@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { createCheckoutAction, createBillingPortalAction } from '@/lib/actions/billing.actions'
 import { PLAN_CATALOG, formatPlanPrice } from '@/lib/constants/billing-plans'
 import type { UsageSummary } from '@/lib/services/billing.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 const UPGRADE_PLANS = ['starter', 'growth'] as const
 
@@ -26,7 +27,7 @@ export function PlanBilling({ orgId, usage, canManageBilling, stripeEnabled }: P
     setError(null)
     setPending(plan)
     try {
-      const { url } = await createCheckoutAction(orgId, plan)
+      const { url } = await unwrap(createCheckoutAction(orgId, plan))
       window.location.assign(url)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start checkout.')
@@ -38,7 +39,7 @@ export function PlanBilling({ orgId, usage, canManageBilling, stripeEnabled }: P
     setError(null)
     setPending('portal')
     try {
-      const { url } = await createBillingPortalAction(orgId)
+      const { url } = await unwrap(createBillingPortalAction(orgId))
       window.location.assign(url)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not open the billing portal.')

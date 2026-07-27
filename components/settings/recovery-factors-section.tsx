@@ -24,6 +24,7 @@ import {
 } from '@/lib/actions/recovery.actions'
 import { formatDate } from '@/lib/utils/date-formatter'
 import type { RecoveryStatus } from '@/lib/services/recovery-factor.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 const TYPE_LABEL: Record<string, string> = {
   recovery_code: 'Recovery code',
@@ -63,7 +64,7 @@ export function RecoveryFactorsSection({
   function refresh() {
     startTransition(async () => {
       try {
-        setStatus(await getRecoveryStatusAction())
+        setStatus(await unwrap(getRecoveryStatusAction()))
       } catch {
         setError('The recovery status could not be refreshed.')
       }
@@ -177,7 +178,7 @@ export function RecoveryFactorsSection({
                   disabled={pending}
                   onClick={() =>
                     startTransition(async () => {
-                      await confirmRecoveryFactorAction({ factorId: factor.id })
+                      await unwrap(confirmRecoveryFactorAction({ factorId: factor.id }))
                       refresh()
                     })
                   }
@@ -190,7 +191,7 @@ export function RecoveryFactorsSection({
                   disabled={pending}
                   onClick={() =>
                     startTransition(async () => {
-                      await removeRecoveryFactorAction({ factorId: factor.id })
+                      await unwrap(removeRecoveryFactorAction({ factorId: factor.id }))
                       refresh()
                     })
                   }
@@ -219,7 +220,7 @@ export function RecoveryFactorsSection({
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                await declineRecoverySetupAction()
+                await unwrap(declineRecoverySetupAction())
                 refresh()
               })
             }

@@ -20,6 +20,7 @@ import {
   type BulkJobKind,
 } from '@/lib/validations/bulk'
 import type { BulkJobRowResult, BulkJobSummary } from '@/lib/services/bulk-job.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 /**
  * LD-604: run an operation across a cohort instead of one row at a time.
@@ -95,11 +96,11 @@ export function BulkOperations({
     if (!parsedRows) return
     startTransition(async () => {
       try {
-        const job = await createBulkJobAction(orgId, {
+        const job = await unwrap(createBulkJobAction(orgId, {
           kind,
           rows: parsedRows,
           confirmedCount: Number(confirmCount),
-        })
+        }))
         toast({
           title: 'Bulk job started',
           description: `${job.totalRows} row(s) queued. Progress appears below.`,
@@ -120,7 +121,7 @@ export function BulkOperations({
   function loadFailures(jobId: string) {
     startTransition(async () => {
       try {
-        const rows = await listFailedBulkRowsAction(orgId, { jobId })
+        const rows = await unwrap(listFailedBulkRowsAction(orgId, { jobId }))
         setFailures((current) => ({ ...current, [jobId]: rows }))
       } catch {
         toast({ title: 'Could not load failed rows', variant: 'destructive' })
@@ -131,7 +132,7 @@ export function BulkOperations({
   function cancel(jobId: string) {
     startTransition(async () => {
       try {
-        await cancelBulkJobAction(orgId, { jobId })
+        await unwrap(cancelBulkJobAction(orgId, { jobId }))
         toast({ title: 'Cancellation requested' })
         router.refresh()
       } catch (error) {
@@ -147,7 +148,7 @@ export function BulkOperations({
   function retry(jobId: string) {
     startTransition(async () => {
       try {
-        const job = await retryBulkJobAction(orgId, { jobId })
+        const job = await unwrap(retryBulkJobAction(orgId, { jobId }))
         toast({ title: `Retrying ${job.totalRows - job.succeededRows} row(s)` })
         router.refresh()
       } catch (error) {

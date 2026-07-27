@@ -1,3 +1,5 @@
+import { UserFacingError } from '@/lib/actions/action-result'
+
 /**
  * LD-401 credential format registry, shared types.
  *
@@ -109,9 +111,9 @@ export interface CredentialFormat {
 }
 
 /** Raised when a format is unknown, ambiguous, or malformed. */
-export class CredentialFormatError extends Error {
+export class CredentialFormatError extends UserFacingError {
   constructor(message: string) {
-    super(message)
+    super(message, 'credential_format')
     this.name = 'CredentialFormatError'
   }
 }

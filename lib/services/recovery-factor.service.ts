@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import * as userRepo from '@/lib/repositories/user.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { notifySecurityEvent } from '@/lib/services/security-notification.service'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /**
  * LD-105 recovery hardening.
@@ -179,7 +180,7 @@ export async function removeRecoveryFactor(userId: string, factorId: string): Pr
     .select('id, type')
     .maybeSingle()
   if (error) throw error
-  if (!data) throw new Error('Recovery factor not found')
+  if (!data) throw new UserFacingError('Recovery factor not found')
 
   await createAuditEntry({
     userId,

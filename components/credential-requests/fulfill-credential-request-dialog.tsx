@@ -14,6 +14,7 @@ import {
 import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
 import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
 import type { CredentialRequest } from '@/types/database.types'
+import { unwrap } from '@/lib/actions/unwrap'
 
 type RequestWithOrg = CredentialRequest & { organization: { name: string; email: string } | null }
 
@@ -44,7 +45,7 @@ export function FulfillCredentialRequestDialog({ open, request, onClose }: Props
 
   const { data: credentials, isLoading } = useQuery({
     queryKey: ['my-credentials'],
-    queryFn: getMyCredentialsAction,
+    queryFn: () => unwrap(getMyCredentialsAction()),
   })
 
   // Owned, claimed credentials whose schema type matches what was requested.
@@ -89,7 +90,7 @@ export function FulfillCredentialRequestDialog({ open, request, onClose }: Props
             )
           ),
         }))
-      return fulfillCredentialRequestAction(request.id, selections)
+      return unwrap(fulfillCredentialRequestAction(request.id, selections))
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['credential-requests'] })
@@ -98,7 +99,7 @@ export function FulfillCredentialRequestDialog({ open, request, onClose }: Props
   })
 
   const deny = useMutation({
-    mutationFn: () => denyCredentialRequestAction(request.id),
+    mutationFn: () => unwrap(denyCredentialRequestAction(request.id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['credential-requests'] })
       onClose()

@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
@@ -37,57 +38,62 @@ async function getAuthenticatedUserId(): Promise<string> {
 export async function createBulkJobAction(
   orgId: string,
   input: unknown
-): Promise<BulkJobSummary> {
-  const userId = await getAuthenticatedUserId()
-  await requireOrgMembership(orgId)
+): Promise<BulkJobSummary | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    await requireOrgMembership(orgId)
 
-  const verified = await requireVerifiedOrg(orgId)
-  if (!verified.ok) {
-    throw new Error('Verify your organization before running bulk operations')
-  }
+    const verified = await requireVerifiedOrg(orgId)
+    if (!verified.ok) {
+      throw new UserFacingError('Verify your organization before running bulk operations')
+    }
 
-  // A bulk job is the cheapest way to turn one mistake into thousands, so it is
-  // throttled on the same bucket as single issuance.
-  await assertRateLimit('credentialIssuance', orgId)
+    // A bulk job is the cheapest way to turn one mistake into thousands, so it is
+    // throttled on the same bucket as single issuance.
+    await assertRateLimit('credentialIssuance', orgId)
 
-  const payload = createBulkJobSchema.parse(input)
-  return createBulkJob(orgId, userId, payload)
+    const payload = createBulkJobSchema.parse(input)
+    return createBulkJob(orgId, userId, payload)  })
 }
 
-export async function listBulkJobsAction(orgId: string): Promise<BulkJobSummary[]> {
-  await requireOrgMembership(orgId)
-  return listBulkJobs(orgId)
+export async function listBulkJobsAction(orgId: string): Promise<BulkJobSummary[] | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(orgId)
+    return listBulkJobs(orgId)  })
 }
 
 export async function listFailedBulkRowsAction(
   orgId: string,
   input: unknown
-): Promise<BulkJobRowResult[]> {
-  await requireOrgMembership(orgId)
-  const { jobId } = bulkJobIdSchema.parse(input)
-  return listFailedRows(orgId, jobId)
+): Promise<BulkJobRowResult[] | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(orgId)
+    const { jobId } = bulkJobIdSchema.parse(input)
+    return listFailedRows(orgId, jobId)  })
 }
 
 export async function cancelBulkJobAction(
   orgId: string,
   input: unknown
-): Promise<BulkJobSummary> {
-  const userId = await getAuthenticatedUserId()
-  await requireOrgMembership(orgId)
-  const { jobId } = bulkJobIdSchema.parse(input)
-  const summary = await cancelBulkJob(orgId, userId, jobId)
-  revalidatePath(`/org/${orgId}`)
-  return summary
+): Promise<BulkJobSummary | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    await requireOrgMembership(orgId)
+    const { jobId } = bulkJobIdSchema.parse(input)
+    const summary = await cancelBulkJob(orgId, userId, jobId)
+    revalidatePath(`/org/${orgId}`)
+    return summary  })
 }
 
 export async function retryBulkJobAction(
   orgId: string,
   input: unknown
-): Promise<BulkJobSummary> {
-  const userId = await getAuthenticatedUserId()
-  await requireOrgMembership(orgId)
-  const { jobId } = bulkJobIdSchema.parse(input)
-  const summary = await retryFailedRows(orgId, userId, jobId)
-  revalidatePath(`/org/${orgId}`)
-  return summary
+): Promise<BulkJobSummary | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    await requireOrgMembership(orgId)
+    const { jobId } = bulkJobIdSchema.parse(input)
+    const summary = await retryFailedRows(orgId, userId, jobId)
+    revalidatePath(`/org/${orgId}`)
+    return summary  })
 }

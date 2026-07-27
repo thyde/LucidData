@@ -22,6 +22,7 @@ import { getOrCreateActiveIssuerKey } from '@/lib/services/issuer-key.service'
 import { signBytesWithPrivateKey } from '@/lib/crypto/credential-signing'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import type { IssuedCredential } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 export interface FormatExport {
   format: string
@@ -58,7 +59,7 @@ export async function exportCredentialAs(
     .eq('subject_user_id', userId)
     .maybeSingle()
   if (error) throw error
-  if (!data) throw new Error('Credential not found')
+  if (!data) throw new UserFacingError('Credential not found')
 
   const credential = data as IssuedCredential
 

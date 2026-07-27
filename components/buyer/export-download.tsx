@@ -5,6 +5,7 @@ import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/lib/hooks/use-toast'
 import { getExportAction } from '@/lib/actions/data-order.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 
 interface ExportDownloadProps {
   orgId: string
@@ -32,7 +33,7 @@ export function ExportDownload({ orgId, token, expiresAt }: ExportDownloadProps)
     setBusy(true)
     startTransition(async () => {
       try {
-        const data = await getExportAction(orgId, token)
+        const data = await unwrap(getExportAction(orgId, token))
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')

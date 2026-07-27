@@ -67,6 +67,16 @@ export function isActionFailure(value: unknown): value is ActionFailure {
 }
 
 /**
+ * The success half of an action's return type.
+ *
+ * For deriving a type from a guarded action without dragging the failure case
+ * into it:
+ *
+ *   type Row = ActionData<ReturnType<typeof listKeysAction>>[number]
+ */
+export type ActionData<T> = Exclude<Awaited<T>, ActionFailure>
+
+/**
  * Run an action body, returning a user-facing failure instead of throwing it.
  *
  * Anything that is not a `UserFacingError` is rethrown untouched, so it stays

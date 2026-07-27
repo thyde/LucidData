@@ -5,6 +5,7 @@ import { verifyCredentialSignature } from '@/lib/crypto/credential-verify'
 import { recordUsage, assertIssuanceQuota } from '@/lib/services/billing.service'
 import { createNotification } from '@/lib/services/notification.service'
 import type { IssuedCredential, Json } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /**
  * The context URI stamped into every signed credential.
@@ -321,7 +322,7 @@ export async function exportCredentialVc(
     .eq('subject_user_id', userId)
     .maybeSingle()
   if (error) throw error
-  if (!credential) throw new Error('Credential not found')
+  if (!credential) throw new UserFacingError('Credential not found')
   const cred = credential as IssuedCredential
 
   const { data: org } = await service

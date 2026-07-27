@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getStripe } from '@/lib/stripe/client'
 import { getOrCreateSubscription } from '@/lib/services/billing.service'
 import { priceIdForPlan, planForPriceId, type Plan } from '@/lib/constants/billing-plans'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 function appUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
@@ -59,7 +60,7 @@ export async function createCheckoutSession(organizationId: string, plan: Plan):
 export async function createBillingPortalSession(organizationId: string): Promise<string> {
   const subscription = await getOrCreateSubscription(organizationId)
   if (!subscription.stripe_customer_id) {
-    throw new Error('This organization has no billing account yet. Upgrade to a paid plan first.')
+    throw new UserFacingError('This organization has no billing account yet. Upgrade to a paid plan first.')
   }
   const session = await getStripe().billingPortal.sessions.create({
     customer: subscription.stripe_customer_id,

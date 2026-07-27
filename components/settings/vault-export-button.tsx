@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
 import { recordDataExportAction } from '@/lib/actions/account.actions'
 import { buildVaultExportDocument, downloadJson, type DecryptedExportEntry } from '@/lib/crypto/vault-export'
+import { unwrap } from '@/lib/actions/unwrap'
 
 // Exports the vault as a portable JSON-LD document. Entries are decrypted in the
 // browser with the in-memory master key; the server never sees plaintext.
@@ -22,7 +23,7 @@ export function VaultExportButton() {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      const entries = await getVaultEntriesAction()
+      const entries = await unwrap(getVaultEntriesAction())
 
       const decrypted: DecryptedExportEntry[] = await Promise.all(
         entries.map(async (entry) => {
@@ -53,7 +54,7 @@ export function VaultExportButton() {
         entries: decrypted,
       })
       downloadJson('lucid-vault-export.jsonld', doc)
-      await recordDataExportAction(decrypted.length)
+      await unwrap(recordDataExportAction(decrypted.length))
       toast({
         title: 'Vault exported',
         description: `${decrypted.length} ${decrypted.length === 1 ? 'entry' : 'entries'} downloaded`,

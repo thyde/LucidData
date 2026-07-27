@@ -20,6 +20,7 @@ import {
   rotateOrganizationApiKeyAction,
 } from '@/lib/actions/organization-api-key.actions'
 import type { OrganizationApiKeyMetadata } from '@/lib/repositories/organization-api-key.repository'
+import { unwrap } from '@/lib/actions/unwrap'
 
 interface ApiKeyManagerProps {
   organizationId: string
@@ -42,7 +43,7 @@ export function ApiKeyManager({ organizationId, initialKeys }: ApiKeyManagerProp
   function rotateKey() {
     startTransition(async () => {
       try {
-        const result = await rotateOrganizationApiKeyAction(organizationId, 'Primary key')
+        const result = await unwrap(rotateOrganizationApiKeyAction(organizationId, 'Primary key'))
         setKeys((current) => [
           result.key,
           ...current.map((key) =>
@@ -66,7 +67,7 @@ export function ApiKeyManager({ organizationId, initialKeys }: ApiKeyManagerProp
   function revokeKey(keyId: string) {
     startTransition(async () => {
       try {
-        const revoked = await revokeOrganizationApiKeyAction(organizationId, keyId)
+        const revoked = await unwrap(revokeOrganizationApiKeyAction(organizationId, keyId))
         setKeys((current) => current.map((key) => (key.id === keyId ? revoked : key)))
         setNewKey(null)
         toast({ title: 'API key revoked' })

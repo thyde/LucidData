@@ -1,5 +1,3 @@
-'use client'
-
 import { isActionFailure, type ActionFailure } from '@/lib/actions/action-result'
 
 /**
@@ -12,8 +10,12 @@ import { isActionFailure, type ActionFailure } from '@/lib/actions/action-result
  *
  *   await unwrap(fileRightsRequestAction(input))
  *
- * An error thrown here is an ordinary client-side Error, so `instanceof Error`
- * and `error.message` behave exactly as the existing handlers expect.
+ * An error thrown here is an ordinary Error, so `instanceof Error` and
+ * `error.message` behave exactly as the existing handlers expect.
+ *
+ * Deliberately carries no 'use client' directive. Server Components call
+ * actions too, and marking this a client boundary would make it unusable from
+ * the server half of the app.
  */
 export async function unwrap<T>(promise: Promise<T | ActionFailure>): Promise<T> {
   const result = await promise

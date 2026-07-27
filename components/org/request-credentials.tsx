@@ -16,6 +16,7 @@ import {
 } from '@/lib/actions/credential-request.actions'
 import type { CredentialRequest } from '@/types/database.types'
 import type { FulfilledCredentialView } from '@/lib/services/credential-request.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 const REQUESTABLE = Object.entries(VAULT_SCHEMA_TYPES).filter(
   ([key]) => key !== 'custom'
@@ -53,7 +54,7 @@ export function RequestCredentials({ orgId }: { orgId: string }) {
   const [busy, setBusy] = useState(false)
   const { data: requests = [], refetch } = useQuery<CredentialRequest[]>({
     queryKey: ['credential-requests', 'organization', orgId],
-    queryFn: () => listOrgCredentialRequestsAction(orgId),
+    queryFn: () => unwrap(listOrgCredentialRequestsAction(orgId)),
   })
 
   function toggleType(key: string) {
@@ -76,13 +77,13 @@ export function RequestCredentials({ orgId }: { orgId: string }) {
     }
     setBusy(true)
     try {
-      await createCredentialRequestAction(orgId, {
+      await unwrap(createCredentialRequestAction(orgId, {
         subjectEmail,
         purpose,
         requestedSchemaTypes: [...types],
         message: message || undefined,
         expiresInDays: Number(expiresInDays) || 30,
-      })
+      }))
       toast({
         title: 'Request sent',
         description: `If ${subjectEmail} has a Lucid account, it now appears in their requests.`,
@@ -196,7 +197,7 @@ function RequestRow({ orgId, request }: { orgId: string; request: CredentialRequ
     if (next && items === null) {
       setLoading(true)
       try {
-        setItems(await getRequestFulfillmentAction(orgId, request.id))
+        setItems(await unwrap(getRequestFulfillmentAction(orgId, request.id)))
       } finally {
         setLoading(false)
       }

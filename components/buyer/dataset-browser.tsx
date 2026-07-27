@@ -11,6 +11,7 @@ import { closePoolAction } from '@/lib/actions/marketplace.actions'
 import { categoryLabel, formatCents } from '@/components/dashboard/chart-theme'
 import { PoolEvaluationDialog } from '@/components/buyer/pool-evaluation-dialog'
 import type { DataPool } from '@/types/database.types'
+import { unwrap } from '@/lib/actions/unwrap'
 
 const PRICING_LABEL = {
   snapshot: 'One-time snapshot',
@@ -47,7 +48,7 @@ export function DatasetBrowser({ orgId, pools }: { orgId: string; pools: DataPoo
     setPendingId(pool.id)
     startTransition(async () => {
       try {
-        const result = await purchasePoolAction(orgId, { pool_id: pool.id, order_type: 'snapshot' })
+        const result = await unwrap(purchasePoolAction(orgId, { pool_id: pool.id, order_type: 'snapshot' }))
         if (result.kind === 'checkout') {
           window.location.href = result.url
           return
@@ -73,7 +74,7 @@ export function DatasetBrowser({ orgId, pools }: { orgId: string; pools: DataPoo
     setPendingId(pool.id)
     startTransition(async () => {
       try {
-        await closePoolAction(orgId, pool.id)
+        await unwrap(closePoolAction(orgId, pool.id))
         toast({ title: 'Pool closed' })
         router.refresh()
       } catch {

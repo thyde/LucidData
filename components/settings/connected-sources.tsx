@@ -35,7 +35,7 @@ export function ConnectedSources() {
 
   useEffect(() => {
     let active = true
-    listConnectorsAction()
+    unwrap(listConnectorsAction())
       .then((result) => {
         if (!active) return
         setAvailable(result.available)

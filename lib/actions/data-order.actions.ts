@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import {
   requireOrgMembership,
@@ -25,20 +26,23 @@ async function getAuthenticatedUserId(): Promise<string> {
 export async function purchasePoolAction(
   orgId: string,
   input: unknown
-): Promise<StartPurchaseResult> {
-  const userId = await getAuthenticatedUserId()
-  await requireVerifiedDataBuyer(orgId)
-  const parsed = purchasePoolSchema.parse(input)
-  return startPoolPurchase(orgId, userId, parsed)
+): Promise<StartPurchaseResult | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    await requireVerifiedDataBuyer(orgId)
+    const parsed = purchasePoolSchema.parse(input)
+    return startPoolPurchase(orgId, userId, parsed)  })
 }
 
-export async function getOrdersAction(orgId: string): Promise<DataOrder[]> {
-  await requireOrgMembership(orgId)
-  return listOrders(orgId)
+export async function getOrdersAction(orgId: string): Promise<DataOrder[] | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(orgId)
+    return listOrders(orgId)  })
 }
 
-export async function getExportAction(orgId: string, token: string): Promise<DatasetExport> {
-  const userId = await getAuthenticatedUserId()
-  await requireVerifiedDataBuyer(orgId)
-  return getExport(orgId, userId, token)
+export async function getExportAction(orgId: string, token: string): Promise<DatasetExport | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    await requireVerifiedDataBuyer(orgId)
+    return getExport(orgId, userId, token)  })
 }

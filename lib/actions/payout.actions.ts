@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import {
   createOnboardingLink,
@@ -18,14 +19,16 @@ async function getAuthedUser() {
 }
 
 /** Start (or resume) Stripe Connect onboarding for the current user's payouts. */
-export async function startPayoutOnboardingAction(): Promise<{ url: string }> {
-  const user = await getAuthedUser()
-  const url = await createOnboardingLink(user.id, user.email ?? null)
-  return { url }
+export async function startPayoutOnboardingAction(): Promise<{ url: string } | ActionFailure> {
+  return guarded(async () => {
+    const user = await getAuthedUser()
+    const url = await createOnboardingLink(user.id, user.email ?? null)
+    return { url }  })
 }
 
 /** Current payout/connect status and ledger for the signed-in user. */
-export async function getPayoutOverviewAction(): Promise<PayoutOverview> {
-  const user = await getAuthedUser()
-  return getPayoutOverview(user.id)
+export async function getPayoutOverviewAction(): Promise<PayoutOverview | ActionFailure> {
+  return guarded(async () => {
+    const user = await getAuthedUser()
+    return getPayoutOverview(user.id)  })
 }

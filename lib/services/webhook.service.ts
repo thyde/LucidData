@@ -25,6 +25,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import { hash } from '@/lib/crypto/hashing'
 import type { Json } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /** Events an organization can subscribe to. */
 export const WEBHOOK_EVENTS = [
@@ -186,9 +187,9 @@ export function verifySignature(
   return timingSafeEqual(a, b)
 }
 
-export class WebhookUrlError extends Error {
+export class WebhookUrlError extends UserFacingError {
   constructor(message: string) {
-    super(message)
+    super(message, 'webhook_url')
     this.name = 'WebhookUrlError'
   }
 }
@@ -339,10 +340,10 @@ export async function createWebhook(input: {
 }): Promise<CreatedWebhook> {
   assertDeliverableUrl(input.url)
   if (input.events.length === 0) {
-    throw new Error('Subscribe to at least one event')
+    throw new UserFacingError('Subscribe to at least one event')
   }
   for (const event of input.events) {
-    if (!isWebhookEvent(event)) throw new Error(`Unknown event: ${event}`)
+    if (!isWebhookEvent(event)) throw new UserFacingError(`Unknown event: ${event}`)
   }
 
   const secret = `whsec_${randomBytes(24).toString('base64url')}`

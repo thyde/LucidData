@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
 import { FulfillCredentialRequestDialog } from './fulfill-credential-request-dialog'
 import type { CredentialRequest } from '@/types/database.types'
+import { unwrap } from '@/lib/actions/unwrap'
 
 type RequestWithOrg = CredentialRequest & { organization: { name: string; email: string } | null }
 
@@ -28,7 +29,7 @@ export function CredentialRequestList() {
 
   const { data: requests, isLoading, error } = useQuery({
     queryKey: ['credential-requests'],
-    queryFn: getCredentialRequestsAction,
+    queryFn: () => unwrap(getCredentialRequestsAction()),
   })
 
   // Realtime: surface new requests as organizations send them.

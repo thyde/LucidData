@@ -9,6 +9,7 @@ import { startPayoutOnboardingAction } from '@/lib/actions/payout.actions'
 import { formatCents } from '@/components/dashboard/chart-theme'
 import { formatFeePercent } from '@/lib/constants/marketplace-economics'
 import type { PayoutOverview } from '@/lib/services/payout.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -24,7 +25,7 @@ export function PayoutsPanel({ overview }: { overview: PayoutOverview }) {
     setError(null)
     setPending(true)
     try {
-      const { url } = await startPayoutOnboardingAction()
+      const { url } = await unwrap(startPayoutOnboardingAction())
       window.location.href = url
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start payout setup.')

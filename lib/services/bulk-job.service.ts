@@ -29,6 +29,7 @@ import {
   type CreateBulkJobInput,
 } from '@/lib/validations/bulk'
 import type { BulkJob, Json } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /** Rows attempted per sweep. Bounded so one large job cannot starve the rest. */
 export const ROWS_PER_SWEEP = 200
@@ -91,7 +92,7 @@ export async function createBulkJob(
   input: CreateBulkJobInput
 ): Promise<BulkJobSummary> {
   if (input.rows.length > MAX_BULK_ROWS) {
-    throw new Error(`A bulk job is limited to ${MAX_BULK_ROWS} rows`)
+    throw new UserFacingError(`A bulk job is limited to ${MAX_BULK_ROWS} rows`)
   }
 
   const seen = new Set<string>()
@@ -189,7 +190,7 @@ export async function listFailedRows(
 ): Promise<BulkJobRowResult[]> {
   const service = createServiceClient()
   const job = await findJob(orgId, jobId)
-  if (!job) throw new Error('Job not found')
+  if (!job) throw new UserFacingError('Job not found')
 
   const { data, error } = await service
     .from('bulk_job_rows')
@@ -229,9 +230,9 @@ export async function cancelBulkJob(
   jobId: string
 ): Promise<BulkJobSummary> {
   const job = await findJob(orgId, jobId)
-  if (!job) throw new Error('Job not found')
+  if (!job) throw new UserFacingError('Job not found')
   if (['completed', 'failed', 'cancelled'].includes(job.status as string)) {
-    throw new Error('This job has already finished')
+    throw new UserFacingError('This job has already finished')
   }
 
   const service = createServiceClient()
@@ -264,7 +265,7 @@ export async function retryFailedRows(
   jobId: string
 ): Promise<BulkJobSummary> {
   const job = await findJob(orgId, jobId)
-  if (!job) throw new Error('Job not found')
+  if (!job) throw new UserFacingError('Job not found')
 
   const service = createServiceClient()
   const { data: reset, error } = await service
@@ -276,7 +277,7 @@ export async function retryFailedRows(
   if (error) throw error
 
   const retried = (reset ?? []).length
-  if (retried === 0) throw new Error('No failed rows to retry')
+  if (retried === 0) throw new UserFacingError('No failed rows to retry')
 
   const { data: updated, error: jobError } = await service
     .from('bulk_jobs')

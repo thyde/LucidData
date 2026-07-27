@@ -14,6 +14,7 @@ import {
 import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
 import { setRecoveryEscrowAction, rewrapVaultEntriesAction } from '@/lib/actions/account.actions'
 import { addRecoveryFactorAction } from '@/lib/actions/recovery.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 
 // Generate a fresh recovery code, escrow the (extractable) master key under it,
 // persist the wrapped bytes + salt, and return the code to show the user once.
@@ -24,16 +25,16 @@ export async function escrowMasterKeyWithNewCode(extractableMasterKey: CryptoKey
   const recoveryKey = await deriveRecoveryKey(code, salt)
   const wrapped = await wrapMasterKeyForRecovery(raw, recoveryKey)
   // The legacy escrow columns still back the password-reset recovery flow.
-  await setRecoveryEscrowAction({ wrapped_master_key: wrapped, recovery_code_salt: salt })
+  await unwrap(setRecoveryEscrowAction({ wrapped_master_key: wrapped, recovery_code_salt: salt }))
   // LD-105: also record it as a managed factor so the user can see and confirm
   // it. Best-effort: the escrow above is already durable, and failing here would
   // throw away the code before it was ever shown to the user.
-  await addRecoveryFactorAction({
+  await unwrap(addRecoveryFactorAction({
     type: 'recovery_code',
     label: 'Recovery code',
     wrappedMasterKey: wrapped,
     salt,
-  }).catch(() => undefined)
+  })).catch(() => undefined)
   return code
 }
 
@@ -61,12 +62,12 @@ export async function createRecoveryKitFromPassword(
   const salt = generateRecoverySalt()
   const kitKey = await deriveRecoveryKey(secret, salt)
   const wrapped = await wrapMasterKeyForRecovery(raw, kitKey)
-  await addRecoveryFactorAction({
+  await unwrap(addRecoveryFactorAction({
     type: 'recovery_kit',
     label,
     wrappedMasterKey: wrapped,
     salt,
-  })
+  }))
   return secret
 }
 
@@ -76,14 +77,14 @@ export async function rewrapAllEntries(
   newMasterKey: CryptoKey,
   reason: 'password_change' | 'recovery'
 ): Promise<number> {
-  const entries = await getVaultEntriesAction()
+  const entries = await unwrap(getVaultEntriesAction())
   const rewrapped = await Promise.all(
     entries.map(async (entry) => {
       const fields = await rewrapDek(oldMasterKey, newMasterKey, entry.encrypted_dek, entry.dek_salt)
       return { id: entry.id, ...fields }
     })
   )
-  await rewrapVaultEntriesAction({ reason, entries: rewrapped })
+  await unwrap(rewrapVaultEntriesAction({ reason, entries: rewrapped }))
   return rewrapped.length
 }
 

@@ -23,6 +23,7 @@ import { listBulkJobsAction } from '@/lib/actions/bulk-job.actions'
 import { createClient } from '@/lib/supabase/server'
 import { isStripeConfigured } from '@/lib/stripe/client'
 import { isEmailDeliveryConfigured } from '@/lib/services/notification-email.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 export default async function OrgDetailPage({
   params,
@@ -41,16 +42,16 @@ export default async function OrgDetailPage({
   const { organization, role } = membership
   const isIssuer = organization.org_type === 'issuer' || organization.org_type === 'both'
   const isVerifier = organization.org_type === 'verifier' || organization.org_type === 'both'
-  const overview = isIssuer ? await getIssuerOverviewAction(orgId) : null
-  const keyStatus = isIssuer ? await getKeyLifecycleStatusAction(orgId) : null
-  const issuerKeys = isIssuer ? await listIssuerPublicKeysAction(orgId) : []
-  const issued = overview?.domainVerified ? await listIssuedCredentialsAction(orgId) : []
-  const bulkJobs = overview?.domainVerified ? await listBulkJobsAction(orgId) : []
-  const usage = await getBillingOverviewAction(orgId)
+  const overview = isIssuer ? await unwrap(getIssuerOverviewAction(orgId)) : null
+  const keyStatus = isIssuer ? await unwrap(getKeyLifecycleStatusAction(orgId)) : null
+  const issuerKeys = isIssuer ? await unwrap(listIssuerPublicKeysAction(orgId)) : []
+  const issued = overview?.domainVerified ? await unwrap(listIssuedCredentialsAction(orgId)) : []
+  const bulkJobs = overview?.domainVerified ? await unwrap(listBulkJobsAction(orgId)) : []
+  const usage = await unwrap(getBillingOverviewAction(orgId))
   const stripeEnabled = isStripeConfigured()
   const emailConfigured = isEmailDeliveryConfigured()
-  const apiKeys = role === 'owner' ? await getOrganizationApiKeysAction(orgId) : []
-  const team = role === 'owner' ? await listOrgTeamAction(orgId) : null
+  const apiKeys = role === 'owner' ? await unwrap(getOrganizationApiKeysAction(orgId)) : []
+  const team = role === 'owner' ? await unwrap(listOrgTeamAction(orgId)) : null
   const supabase = await createClient()
   const {
     data: { user },

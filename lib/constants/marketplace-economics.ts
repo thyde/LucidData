@@ -1,3 +1,5 @@
+import { UserFacingError } from '@/lib/actions/action-result'
+
 /**
  * LD-505 marketplace economics.
  *
@@ -67,7 +69,7 @@ export function isOrderProfitable(totalCents: number, feeBps = PLATFORM_FEE_BPS)
   return orderMarginCents(totalCents, feeBps) > 0
 }
 
-export class MinimumOrderError extends Error {
+export class MinimumOrderError extends UserFacingError {
   constructor(totalCents: number) {
     super(
       `This dataset comes to $${(totalCents / 100).toFixed(2)}. The minimum order is $${(

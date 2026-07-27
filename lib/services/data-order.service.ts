@@ -9,6 +9,7 @@ import { recordOrderPayouts } from '@/lib/services/payout.service'
 import { assertOrderMeetsMinimum, computeOrderTotal } from '@/lib/constants/marketplace-economics'
 import { prepareRelease, type PrivacyReport } from '@/lib/privacy/k-anonymity'
 import type { DataOrder, Json } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 import {
   isMarketplaceCategoryAllowed,
   type PurchasePoolInput,
@@ -159,9 +160,9 @@ export async function startPoolPurchase(
   input: PurchasePoolInput
 ): Promise<StartPurchaseResult> {
   const pool = await poolRepo.findPoolByOrg(input.pool_id, orgId)
-  if (!pool) throw new Error('Pool not found for this organization')
+  if (!pool) throw new UserFacingError('Pool not found for this organization')
   if (!isMarketplaceCategoryAllowed(pool.category as Parameters<typeof isMarketplaceCategoryAllowed>[0])) {
-    throw new Error('This category is not available for marketplace sale')
+    throw new UserFacingError('This category is not available for marketplace sale')
   }
 
   const contributions = await contributionRepo.findActiveContributionsByPool(pool.id)
@@ -313,14 +314,14 @@ export async function getExport(
   token: string
 ): Promise<DatasetExport> {
   const order = await orderRepo.findOrderByToken(token)
-  if (!order || order.buyer_org_id !== orgId) throw new Error('Export not found')
-  if (order.status !== 'paid') throw new Error('This order has not been paid yet')
+  if (!order || order.buyer_org_id !== orgId) throw new UserFacingError('Export not found')
+  if (order.status !== 'paid') throw new UserFacingError('This order has not been paid yet')
   if (new Date(order.export_expires_at).getTime() <= Date.now()) {
-    throw new Error('This export link has expired')
+    throw new UserFacingError('This export link has expired')
   }
 
   const pool = await poolRepo.findPoolByOrg(order.pool_id, orgId)
-  if (!pool) throw new Error('Pool not found')
+  if (!pool) throw new UserFacingError('Pool not found')
 
   const records = await orderRepo.findOrderRecords(order.id)
 

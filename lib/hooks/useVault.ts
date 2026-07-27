@@ -6,6 +6,7 @@ import { useToast } from '@/lib/hooks/use-toast';
 import { getVaultEntriesAction, getVaultEntryAction, createVaultEntryAction, updateVaultEntryAction, deleteVaultEntryAction } from '@/lib/actions/vault.actions';
 import type { DecryptedVaultData } from '@/types';
 import type { VaultData } from '@/types/database.types';
+import { unwrap } from '@/lib/actions/unwrap'
 
 /**
  * React Query hooks for vault operations with client-side encryption.
@@ -62,7 +63,7 @@ export function useVaultList() {
   return useQuery<DecryptedVaultData[], Error>({
     queryKey: VAULT_KEYS.list(),
     queryFn: async () => {
-      const entries = await getVaultEntriesAction();
+      const entries = await unwrap(getVaultEntriesAction());
       return Promise.all(entries.map((entry) => decryptEntry(entry, decrypt)));
     },
     enabled: !isLocked,
@@ -79,7 +80,7 @@ export function useVaultEntry(id: string) {
   return useQuery<DecryptedVaultData, Error>({
     queryKey: VAULT_KEYS.detail(id),
     queryFn: async () => {
-      const entry = await getVaultEntryAction(id);
+      const entry = await unwrap(getVaultEntryAction(id));
       if (!entry) throw new Error('Vault entry not found');
       return decryptEntry(entry, decrypt);
     },
@@ -127,7 +128,7 @@ export function useCreateVault() {
   return useMutation<DecryptedVaultData, Error, CreateVaultPayload>({
     mutationFn: async (payload) => {
       const encryptedFields = await encrypt(JSON.stringify(payload.data));
-      const entry = await createVaultEntryAction({
+      const entry = await unwrap(createVaultEntryAction({
         label: payload.label,
         category: payload.category,
         description: payload.description,
@@ -135,7 +136,7 @@ export function useCreateVault() {
         schema_type: payload.schemaType,
         expires_at: payload.expiresAt?.toISOString(),
         ...encryptedFields,
-      });
+      }));
       return { ...entry, data: payload.data, client_ciphertext: undefined as unknown as string, encrypted_dek: undefined as unknown as string, dek_salt: undefined as unknown as string } as unknown as DecryptedVaultData;
     },
     onSuccess: () => {
@@ -183,7 +184,7 @@ export function useUpdateVault() {
         Object.assign(body, encryptedFields);
       }
 
-      const entry = await updateVaultEntryAction(id, body);
+      const entry = await unwrap(updateVaultEntryAction(id, body));
       const decryptedData = payload.data ?? null;
       const { client_ciphertext: _c, encrypted_dek: _d, dek_salt: _s, ...rest } = entry;
       void _c; void _d; void _s;
@@ -210,7 +211,7 @@ export function useDeleteVault() {
 
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      await deleteVaultEntryAction(id);
+      await unwrap(deleteVaultEntryAction(id));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: VAULT_KEYS.lists() });

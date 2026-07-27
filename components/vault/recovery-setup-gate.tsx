@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { unwrap } from '@/lib/actions/unwrap'
 import {
   declineRecoverySetupAction,
   getRecoveryStatusAction,
@@ -24,7 +25,7 @@ export function RecoverySetupGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    getRecoveryStatusAction()
+    unwrap(getRecoveryStatusAction())
       .then((status) => {
         if (!cancelled) setReady(status.vaultWriteAllowed)
       })
@@ -65,7 +66,7 @@ export function RecoverySetupGate({ children }: { children: React.ReactNode }) {
             setError(null)
             startTransition(async () => {
               try {
-                await declineRecoverySetupAction()
+                await unwrap(declineRecoverySetupAction())
                 setReady(true)
               } catch {
                 setError('That choice could not be saved. Try again.')

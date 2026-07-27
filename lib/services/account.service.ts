@@ -5,6 +5,7 @@ import { notifySecurityEvent } from '@/lib/services/security-notification.servic
 import { flushOwedBalance } from '@/lib/services/payout.service'
 import { eraseUser, type DeletionOutcome } from '@/lib/services/deletion.service'
 import { createClient } from '@/lib/supabase/server'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 export interface AccountSecurity {
   key_salt: string | null
@@ -104,7 +105,7 @@ export async function removePasskey(userId: string, passkeyId: string): Promise<
     .select('id')
     .maybeSingle()
   if (error) throw error
-  if (!data) throw new Error('Passkey not found')
+  if (!data) throw new UserFacingError('Passkey not found')
 
   await createAuditEntry({
     userId,
@@ -144,7 +145,7 @@ export async function deleteAccount(userId: string): Promise<DeletionOutcome> {
   // Read the email while the row still exists: it keys the invitations that do
   // not cascade, and it is hashed into the receipt.
   const user = await userRepo.findUserById(userId)
-  if (!user) throw new Error('Account not found')
+  if (!user) throw new UserFacingError('Account not found')
 
   return eraseUser(userId, user.email)
 }

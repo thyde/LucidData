@@ -3,6 +3,7 @@ import { generateIssuerKey, signWithPrivateKey } from '@/lib/crypto/credential-s
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { createNotification } from '@/lib/services/notification.service'
 import type { IssuerKey } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /** Public (non-secret) view of an issuer's signing key. */
 export interface IssuerPublicKey {
@@ -196,7 +197,7 @@ export async function declareIssuerKeyCompromised(
   const service = createServiceClient()
   const key = await getIssuerKeyById(keyId)
   if (!key || key.organization_id !== organizationId) {
-    throw new Error('Signing key not found for this organization')
+    throw new UserFacingError('Signing key not found for this organization')
   }
 
   const now = new Date().toISOString()

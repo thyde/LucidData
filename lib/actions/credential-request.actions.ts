@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
 import {
@@ -29,26 +30,29 @@ async function getAuthenticatedUserId(): Promise<string> {
 
 // --- Subject (individual user) side ---
 
-export async function getCredentialRequestsAction(): Promise<CredentialRequestWithOrg[]> {
-  const userId = await getAuthenticatedUserId()
-  return getCredentialRequestsForUser(userId)
+export async function getCredentialRequestsAction(): Promise<CredentialRequestWithOrg[] | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return getCredentialRequestsForUser(userId)  })
 }
 
 export async function fulfillCredentialRequestAction(
   requestId: string,
   selections: FulfillSelection[]
-): Promise<{ fulfilled: number }> {
-  const userId = await getAuthenticatedUserId()
-  const parsed = fulfillCredentialRequestSchema.parse({ selections })
-  return fulfillCredentialRequest(userId, requestId, parsed.selections)
+): Promise<{ fulfilled: number } | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const parsed = fulfillCredentialRequestSchema.parse({ selections })
+    return fulfillCredentialRequest(userId, requestId, parsed.selections)  })
 }
 
 export async function denyCredentialRequestAction(
   requestId: string,
   note?: string
-): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  await denyCredentialRequest(userId, requestId, note)
+): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    await denyCredentialRequest(userId, requestId, note)  })
 }
 
 // --- Organization (verifier) side ---
@@ -56,37 +60,40 @@ export async function denyCredentialRequestAction(
 export async function createCredentialRequestAction(
   organizationId: string,
   input: unknown
-): Promise<{ created: boolean }> {
-  const { organization } = await requireOrgMembership(organizationId, ['owner', 'verifier'])
-  // LD-109: an unverified organization may not reach a person at all.
-  if (!organization.verified_at) {
-    throw new Error('Verify your domain before requesting credentials from people')
-  }
-  await assertRateLimit('credentialRequest', organizationId)
+): Promise<{ created: boolean } | ActionFailure> {
+  return guarded(async () => {
+    const { organization } = await requireOrgMembership(organizationId, ['owner', 'verifier'])
+    // LD-109: an unverified organization may not reach a person at all.
+    if (!organization.verified_at) {
+      throw new UserFacingError('Verify your domain before requesting credentials from people')
+    }
+    await assertRateLimit('credentialRequest', organizationId)
 
-  const data = createCredentialRequestSchema.parse(input)
-  const request = await createCredentialRequest(organizationId, {
-    subjectEmail: data.subjectEmail,
-    purpose: data.purpose,
-    requestedSchemaTypes: data.requestedSchemaTypes,
-    message: data.message ?? null,
-    expiresInDays: data.expiresInDays,
-  })
-  // Neutral result: never reveal whether the email maps to a Lucid account.
-  return { created: request !== null }
+    const data = createCredentialRequestSchema.parse(input)
+    const request = await createCredentialRequest(organizationId, {
+      subjectEmail: data.subjectEmail,
+      purpose: data.purpose,
+      requestedSchemaTypes: data.requestedSchemaTypes,
+      message: data.message ?? null,
+      expiresInDays: data.expiresInDays,
+    })
+    // Neutral result: never reveal whether the email maps to a Lucid account.
+    return { created: request !== null }  })
 }
 
 export async function listOrgCredentialRequestsAction(
   organizationId: string
-): Promise<CredentialRequest[]> {
-  await requireOrgMembership(organizationId, ['owner', 'verifier'])
-  return getCredentialRequestsForOrg(organizationId)
+): Promise<CredentialRequest[] | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(organizationId, ['owner', 'verifier'])
+    return getCredentialRequestsForOrg(organizationId)  })
 }
 
 export async function getRequestFulfillmentAction(
   organizationId: string,
   requestId: string
-): Promise<FulfilledCredentialView[]> {
-  await requireOrgMembership(organizationId, ['owner', 'verifier'])
-  return getRequestFulfillment(organizationId, requestId)
+): Promise<FulfilledCredentialView[] | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(organizationId, ['owner', 'verifier'])
+    return getRequestFulfillment(organizationId, requestId)  })
 }

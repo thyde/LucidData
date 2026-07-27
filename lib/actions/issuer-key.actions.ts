@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
@@ -42,32 +43,36 @@ async function requireActingUser(organizationId: string): Promise<string> {
 
 export async function getKeyLifecycleStatusAction(
   organizationId: string
-): Promise<KeyLifecycleStatus> {
-  await requireOrgMembership(organizationId, ['owner', 'issuer_admin'])
-  return getKeyLifecycleStatus(organizationId)
+): Promise<KeyLifecycleStatus | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(organizationId, ['owner', 'issuer_admin'])
+    return getKeyLifecycleStatus(organizationId)  })
 }
 
 export async function listIssuerPublicKeysAction(organizationId: string) {
-  await requireOrgMembership(organizationId, ['owner', 'issuer_admin'])
-  return getIssuerPublicKeyHistory(organizationId)
+  return guarded(async () => {
+    await requireOrgMembership(organizationId, ['owner', 'issuer_admin'])
+    return getIssuerPublicKeyHistory(organizationId)  })
 }
 
 export async function rotateIssuerKeyAction(
   organizationId: string,
   input: unknown
-): Promise<{ keyId: string }> {
-  const actingUserId = await requireActingUser(organizationId)
-  const { reason } = rotateSchema.parse(input ?? {})
-  const key = await rotateIssuerKey(organizationId, actingUserId, reason)
-  // Only the identifier and public half ever leave the server.
-  return { keyId: key.key_id }
+): Promise<{ keyId: string } | ActionFailure> {
+  return guarded(async () => {
+    const actingUserId = await requireActingUser(organizationId)
+    const { reason } = rotateSchema.parse(input ?? {})
+    const key = await rotateIssuerKey(organizationId, actingUserId, reason)
+    // Only the identifier and public half ever leave the server.
+    return { keyId: key.key_id }  })
 }
 
 export async function declareIssuerKeyCompromisedAction(
   organizationId: string,
   input: unknown
-): Promise<{ affectedCredentials: number }> {
-  const actingUserId = await requireActingUser(organizationId)
-  const { keyId, compromisedAt } = compromiseSchema.parse(input)
-  return declareIssuerKeyCompromised(organizationId, actingUserId, keyId, compromisedAt)
+): Promise<{ affectedCredentials: number } | ActionFailure> {
+  return guarded(async () => {
+    const actingUserId = await requireActingUser(organizationId)
+    const { keyId, compromisedAt } = compromiseSchema.parse(input)
+    return declareIssuerKeyCompromised(organizationId, actingUserId, keyId, compromisedAt)  })
 }

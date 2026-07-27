@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -36,31 +37,36 @@ const addRecoveryFactorSchema = z.object({
 
 const factorIdSchema = z.object({ factorId: z.string().uuid() })
 
-export async function getRecoveryStatusAction(): Promise<RecoveryStatus> {
-  const userId = await getAuthenticatedUserId()
-  return getRecoveryStatus(userId)
+export async function getRecoveryStatusAction(): Promise<RecoveryStatus | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return getRecoveryStatus(userId)  })
 }
 
 export async function addRecoveryFactorAction(
   input: unknown
-): Promise<RecoveryFactorSummary> {
-  const userId = await getAuthenticatedUserId()
-  return addRecoveryFactor(userId, addRecoveryFactorSchema.parse(input))
+): Promise<RecoveryFactorSummary | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return addRecoveryFactor(userId, addRecoveryFactorSchema.parse(input))  })
 }
 
-export async function removeRecoveryFactorAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const { factorId } = factorIdSchema.parse(input)
-  await removeRecoveryFactor(userId, factorId)
+export async function removeRecoveryFactorAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { factorId } = factorIdSchema.parse(input)
+    await removeRecoveryFactor(userId, factorId)  })
 }
 
-export async function confirmRecoveryFactorAction(input: unknown): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const { factorId } = factorIdSchema.parse(input)
-  await confirmRecoveryFactor(userId, factorId)
+export async function confirmRecoveryFactorAction(input: unknown): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { factorId } = factorIdSchema.parse(input)
+    await confirmRecoveryFactor(userId, factorId)  })
 }
 
-export async function declineRecoverySetupAction(): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  await declineRecoverySetup(userId)
+export async function declineRecoverySetupAction(): Promise<void | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    await declineRecoverySetup(userId)  })
 }

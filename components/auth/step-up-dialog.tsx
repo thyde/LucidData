@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { requestStepUpAction } from '@/lib/actions/session-security.actions'
 import type { StepUpAction } from '@/lib/services/session-security.service'
+import { unwrap } from '@/lib/actions/unwrap'
 
 /**
  * LD-106: re-authentication for one sensitive action.
@@ -45,7 +46,7 @@ export function StepUpDialog({
     setBusy(true)
     setError(null)
     try {
-      const { token } = await requestStepUpAction({ action, password })
+      const { token } = await unwrap(requestStepUpAction({ action, password }))
       setPassword('')
       onOpenChange(false)
       await onConfirmed(token)

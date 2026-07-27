@@ -4,6 +4,7 @@ import { verifyIssuedCredential, type CredentialVerification } from '@/lib/servi
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { recordUsage } from '@/lib/services/billing.service'
 import type { CredentialShare, IssuedCredential } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -37,7 +38,7 @@ export async function createShare(
     .maybeSingle()
   if (credErr) throw credErr
   if (!credential || credential.subject_user_id !== userId) {
-    throw new Error('Credential not found')
+    throw new UserFacingError('Credential not found')
   }
 
   const token = crypto.randomBytes(32).toString('base64url')

@@ -1,5 +1,6 @@
 'use server'
 
+import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { z } from 'zod'
 import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
 import {
@@ -15,28 +16,31 @@ const keyIdSchema = z.string().uuid()
 
 export async function getOrganizationApiKeysAction(
   organizationId: string
-): Promise<OrganizationApiKeyMetadata[]> {
-  await requireOrgMembership(organizationId, ['owner'])
-  return getOrganizationApiKeys(organizationId)
+): Promise<OrganizationApiKeyMetadata[] | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(organizationId, ['owner'])
+    return getOrganizationApiKeys(organizationId)  })
 }
 
 export async function rotateOrganizationApiKeyAction(
   organizationId: string,
   name: string
-): Promise<RotatedOrganizationApiKey> {
-  const { organization } = await requireOrgMembership(organizationId, ['owner'])
-  // LD-109: no usable key exists until the organization proves it controls its
-  // domain, so a stranger cannot mint credentials under someone else's name.
-  if (!organization.verified_at) {
-    throw new Error('Verify your domain before creating an API key')
-  }
-  return rotateOrganizationApiKey(organizationId, keyNameSchema.parse(name))
+): Promise<RotatedOrganizationApiKey | ActionFailure> {
+  return guarded(async () => {
+    const { organization } = await requireOrgMembership(organizationId, ['owner'])
+    // LD-109: no usable key exists until the organization proves it controls its
+    // domain, so a stranger cannot mint credentials under someone else's name.
+    if (!organization.verified_at) {
+      throw new UserFacingError('Verify your domain before creating an API key')
+    }
+    return rotateOrganizationApiKey(organizationId, keyNameSchema.parse(name))  })
 }
 
 export async function revokeOrganizationApiKeyAction(
   organizationId: string,
   keyId: string
-): Promise<OrganizationApiKeyMetadata> {
-  await requireOrgMembership(organizationId, ['owner'])
-  return revokeOrganizationApiKey(keyIdSchema.parse(keyId))
+): Promise<OrganizationApiKeyMetadata | ActionFailure> {
+  return guarded(async () => {
+    await requireOrgMembership(organizationId, ['owner'])
+    return revokeOrganizationApiKey(keyIdSchema.parse(keyId))  })
 }

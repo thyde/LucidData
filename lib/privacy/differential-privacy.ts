@@ -13,6 +13,7 @@
  */
 
 import { createHash } from 'crypto'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /** Per-query epsilon. Smaller means more noise and more privacy. */
 export const DEFAULT_EPSILON = 0.5
@@ -23,7 +24,7 @@ export const DEFAULT_EPSILON_BUDGET = 5
 /** A count changes by at most 1 when one person is added or removed. */
 export const COUNT_SENSITIVITY = 1
 
-export class EpsilonExhaustedError extends Error {
+export class EpsilonExhaustedError extends UserFacingError {
   constructor(public readonly poolId: string) {
     super('This pool has reached its privacy budget. No further aggregates can be released.')
     this.name = 'EpsilonExhaustedError'

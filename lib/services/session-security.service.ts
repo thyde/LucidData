@@ -2,6 +2,7 @@ import { randomBytes, createHash } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /**
  * LD-106 session security and step-up authentication.
@@ -81,7 +82,7 @@ export async function consumeStepUp(
       success: false,
       metadata: { step_up_action: action },
     }).catch(() => undefined)
-    throw new Error('Confirm your password again to continue')
+    throw new UserFacingError('Confirm your password again to continue')
   }
 }
 

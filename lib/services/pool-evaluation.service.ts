@@ -36,6 +36,7 @@ import {
 import { computeOrderTotal } from '@/lib/constants/marketplace-economics'
 import { vouchedShare, type AssuranceMix } from '@/lib/constants/marketplace-integrity'
 import { getPoolAssuranceMix } from '@/lib/services/marketplace-integrity.service'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 export interface FieldCoverage {
   field: string
@@ -148,7 +149,7 @@ const REFUSAL_REASONS: Record<string, string> = {
  */
 export async function evaluatePool(poolId: string, orgId: string): Promise<PoolEvaluation> {
   const pool = await poolRepo.findPoolByOrg(poolId, orgId)
-  if (!pool) throw new Error('Pool not found for this organization')
+  if (!pool) throw new UserFacingError('Pool not found for this organization')
 
   const service = createServiceClient()
   const [coverageResult, freshnessResult, schemaMixResult] = await Promise.all([

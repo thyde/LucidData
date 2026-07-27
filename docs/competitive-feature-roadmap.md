@@ -2366,10 +2366,31 @@ Two properties are worth keeping.
 - **Safe by default.** Only `UserFacingError` is transported. A database error, a missing environment variable, or a bug still reaches the client as the generic message, because nobody wrote those for a reader. `lib/actions/__tests__/action-result.test.ts` asserts that directly, including that an arbitrary `Error` subclass is not treated as user-facing by accident.
 - **The compiler enforces it.** `guarded()` returns `T | ActionFailure`, so a call site cannot use the result without handling the failure. Converting an action produces type errors at every one of its callers, which is how the org team conversion found all five of its own in one pass.
 
-Converted so far: rights requests, marketplace contribution including the LD-506 duplicate and velocity
-limits, organization team management, and connector disconnect. The remaining services still throw, and
-the pattern is recorded in AGENTS.md so finishing them is mechanical rather than a judgement call. The
-order to do them in is whichever surface a person is most likely to hit an error on.
+The conversion is now complete. Every service message that was written for a reader raises
+`UserFacingError`, every action that can reach one returns through `guarded()`, and every call site
+unwraps. That is 20 of 29 action files, 85 actions, and 66 call sites across components, hooks, and two
+Server Component pages. The classes that already existed became user-facing too, so a rate limit, a
+privacy gate refusal, a minimum order, an exhausted privacy budget, an unsupported credential format,
+and a rejected webhook URL all explain themselves now.
+
+The split was a judgement rather than a rule. `This organization has no billing account yet. Upgrade to
+a paid plan first.` is an instruction to a person and is transported. `Stripe did not return a checkout
+URL.` describes a broken integration and stays sanitized, along with the connector secret errors, the
+email delivery failures, the API key invariants, and the webhook delivery responses. Roughly a third of
+the candidates were operational and were deliberately left alone.
+
+`lib/actions/__tests__/error-transport.test.ts` keeps it from regressing. It walks the `lib/` import
+graph, works out which actions can reach a `UserFacingError` through any depth of imports, and fails the
+build if one of them is not wrapped. It also fails if an action file wraps some of its exported
+functions but not others, which is the mistake actually made here: the first four files converted by
+hand had their mutations wrapped and their reads left behind, and the gate caught all four the first
+time it ran. The call-site half needs no test, because the widened return type means a caller that
+ignores the failure does not compile.
+
+Two smaller things came out of it. `unwrap` cannot carry a `'use client'` directive, because Server
+Components call actions too and the directive makes it unusable from the server half of the app.
+And a type derived from an action's return needs `ActionData<T>` now, otherwise the failure case leaks
+into the derived type.
 
 ### Capacity reality
 

@@ -12,8 +12,10 @@ import {
 } from '@/lib/actions/issuer-key.actions'
 import { formatDate } from '@/lib/utils/date-formatter'
 import type { KeyLifecycleStatus } from '@/lib/services/issuer-key.service'
+import { unwrap } from '@/lib/actions/unwrap'
+import type { ActionData } from '@/lib/actions/action-result'
 
-type PublicKeyRow = Awaited<ReturnType<typeof listIssuerPublicKeysAction>>[number]
+type PublicKeyRow = ActionData<ReturnType<typeof listIssuerPublicKeysAction>>[number]
 
 const STATUS_LABEL: Record<string, string> = {
   active: 'Active',
@@ -49,8 +51,8 @@ export function IssuerKeyManager({
   function refresh() {
     startTransition(async () => {
       const [nextStatus, nextKeys] = await Promise.all([
-        getKeyLifecycleStatusAction(orgId),
-        listIssuerPublicKeysAction(orgId),
+        unwrap(getKeyLifecycleStatusAction(orgId)),
+        unwrap(listIssuerPublicKeysAction(orgId)),
       ])
       setStatus(nextStatus)
       setKeys(nextKeys)
@@ -62,7 +64,7 @@ export function IssuerKeyManager({
     setMessage(null)
     startTransition(async () => {
       try {
-        const { keyId } = await rotateIssuerKeyAction(orgId, { reason: 'scheduled' })
+        const { keyId } = await unwrap(rotateIssuerKeyAction(orgId, { reason: 'scheduled' }))
         setMessage(`New signing key ${keyId} is now active. Credentials signed by the old key still verify.`)
         refresh()
       } catch (e) {
@@ -78,10 +80,10 @@ export function IssuerKeyManager({
     setMessage(null)
     startTransition(async () => {
       try {
-        const { affectedCredentials } = await declareIssuerKeyCompromisedAction(orgId, {
+        const { affectedCredentials } = await unwrap(declareIssuerKeyCompromisedAction(orgId, {
           keyId: compromiseKeyId,
           compromisedAt: new Date(compromisedAt).toISOString(),
-        })
+        }))
         setMessage(
           `Key marked compromised. ${affectedCredentials} credential(s) signed after that moment no longer verify, and their holders were notified.`
         )

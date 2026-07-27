@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /**
  * LD-109 rate limiting.
@@ -36,9 +37,9 @@ export const RATE_LIMITS = {
 
 export type RateLimitName = keyof typeof RATE_LIMITS
 
-export class RateLimitError extends Error {
+export class RateLimitError extends UserFacingError {
   constructor(message = 'Too many requests. Try again shortly.') {
-    super(message)
+    super(message, 'rate_limited')
     this.name = 'RateLimitError'
   }
 }

@@ -11,6 +11,7 @@ import {
   ensureIssuerKeyAction,
 } from '@/lib/actions/issuer.actions'
 import type { IssuerOverview } from '@/lib/actions/issuer.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 
 interface IssuerSetupProps {
   orgId: string
@@ -28,7 +29,7 @@ export function IssuerSetup({ orgId, overview }: IssuerSetupProps) {
   async function handleStart() {
     setBusy('start')
     try {
-      const record = await startDomainVerificationAction(orgId, domain)
+      const record = await unwrap(startDomainVerificationAction(orgId, domain))
       setChallenge(record)
       setVerified(false)
       toast({ title: 'Verification started', description: 'Add the DNS TXT record, then check verification.' })
@@ -42,7 +43,7 @@ export function IssuerSetup({ orgId, overview }: IssuerSetupProps) {
   async function handleCheck() {
     setBusy('check')
     try {
-      const result = await checkDomainVerificationAction(orgId)
+      const result = await unwrap(checkDomainVerificationAction(orgId))
       setVerified(result.verified)
       toast({
         title: result.verified ? 'Domain verified' : 'Not verified yet',
@@ -50,7 +51,7 @@ export function IssuerSetup({ orgId, overview }: IssuerSetupProps) {
         variant: result.verified ? undefined : 'destructive',
       })
       if (result.verified) {
-        const key = await ensureIssuerKeyAction(orgId)
+        const key = await unwrap(ensureIssuerKeyAction(orgId))
         setPublicKey(key)
       }
     } catch (e) {
@@ -63,7 +64,7 @@ export function IssuerSetup({ orgId, overview }: IssuerSetupProps) {
   async function handleCreateKey() {
     setBusy('key')
     try {
-      const key = await ensureIssuerKeyAction(orgId)
+      const key = await unwrap(ensureIssuerKeyAction(orgId))
       setPublicKey(key)
       toast({ title: 'Signing key ready' })
     } catch (e) {

@@ -1,5 +1,6 @@
 'use client'
 
+import { unwrap } from '@/lib/actions/unwrap'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEncryption } from '@/lib/context/encryption-context'
@@ -51,25 +52,25 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
     try {
       setState({ status: 'preparing', imported: 0, error: null })
 
-      let stored = await getIngestionKeyAction()
+      let stored = await unwrap(getIngestionKeyAction())
 
       // First run on this account: mint the keypair and publish the public
       // half so a worker has somewhere to seal to.
       if (!stored.publicKey || !stored.wrappedPrivateKey) {
         const pair = await generateIngestionKeypair()
         const wrapped = await encryptWithKey(masterKey, pair.privateKeyB64)
-        await publishIngestionKeyAction({
+        await unwrap(publishIngestionKeyAction({
           publicKey: pair.publicKeyB64,
           wrappedPrivateKey: wrapped,
           salt: 'master-key',
-        })
-        stored = await getIngestionKeyAction()
+        }))
+        stored = await unwrap(getIngestionKeyAction())
         // Nothing can be waiting yet, because the worker had no key until now.
         setState({ status: 'done', imported: 0, error: null })
         return
       }
 
-      const pending = await listPendingIngestAction()
+      const pending = await unwrap(listPendingIngestAction())
       if (pending.length === 0) {
         setState({ status: 'done', imported: 0, error: null })
         return
@@ -94,7 +95,7 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
           // so an imported entry is indistinguishable from one typed by hand
           // and nothing reaches the server without its wrapped key.
           const encrypted = await encrypt(JSON.stringify(payload))
-          await createVaultEntryAction({
+          await unwrap(createVaultEntryAction({
             label: sealedLabel ?? record.label,
             category: record.category,
             schema_type: record.schema_type,
@@ -104,7 +105,7 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
             ...(record.provider ? { source_record_id: record.provider_record_id } : {}),
             ...(record.captured_at ? { source_captured_at: record.captured_at } : {}),
             ...encrypted,
-          })
+          }))
           drained.push(record.id)
           imported += 1
         } catch {
@@ -114,7 +115,7 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
       }
 
       if (drained.length > 0) {
-        await clearPendingIngestAction({ ids: drained })
+        await unwrap(clearPendingIngestAction({ ids: drained }))
         queryClient.invalidateQueries({ queryKey: VAULT_KEYS.lists() })
       }
 

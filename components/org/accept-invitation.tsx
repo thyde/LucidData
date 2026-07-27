@@ -24,7 +24,7 @@ export function AcceptInvitation({ token }: { token: string }) {
 
   useEffect(() => {
     let cancelled = false
-    previewInvitationAction(token)
+    unwrap(previewInvitationAction(token))
       .then((result) => {
         if (cancelled) return
         setPreview(result)

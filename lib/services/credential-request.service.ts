@@ -6,6 +6,7 @@ import { createAuditEntry } from '@/lib/services/audit.service'
 import { createNotification } from '@/lib/services/notification.service'
 import { pendingRequestCountReached } from '@/lib/middleware/requireVerifiedOrg'
 import type { CredentialRequest, CredentialShare, IssuedCredential } from '@/types/database.types'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 export interface CreateCredentialRequestParams {
   subjectEmail: string
@@ -136,7 +137,7 @@ export async function fulfillCredentialRequest(
   if (loadErr) throw loadErr
   const request = reqRow as CredentialRequest
   if (request.status !== 'pending') {
-    throw new Error('This request has already been answered')
+    throw new UserFacingError('This request has already been answered')
   }
 
   const service = createServiceClient()
@@ -187,7 +188,7 @@ export async function denyCredentialRequest(
     .single()
   if (loadErr) throw loadErr
   if ((reqRow as { status: string }).status !== 'pending') {
-    throw new Error('This request has already been answered')
+    throw new UserFacingError('This request has already been answered')
   }
 
   const { error } = await supabase
