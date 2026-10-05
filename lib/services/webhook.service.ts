@@ -376,8 +376,8 @@ export async function createWebhook(input: {
  *
  * Queuing first rather than sending inline, so a slow or dead endpoint cannot
  * make a user-facing action hang. Dispatching in `after()` rather than waiting
- * for the scheduler, because the Vercel Hobby plan permits only a daily cron
- * and a webhook that arrives up to a day later is not a webhook. The scheduled
+ * for the scheduler, because the cron runs only hourly and a webhook that
+ * arrives up to an hour later is not a webhook. The scheduled
  * sweep stays as the retry net for anything this attempt fails to deliver.
  */
 export async function enqueueEvent(

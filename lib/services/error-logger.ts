@@ -1,8 +1,9 @@
 /**
  * Centralized error logging service
  * Replaces scattered console.error calls with structured logging
- * Can be extended to integrate with external services like Sentry
  */
+
+import { scrubLogEntry, type LogEntry } from '@/lib/utils/log-scrub';
 
 export enum ErrorSeverity {
   LOW = 'low',
@@ -31,7 +32,7 @@ class ErrorLogger {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
 
-    const logEntry = {
+    const logEntry: LogEntry = {
       timestamp,
       severity,
       message: errorMessage,
@@ -48,10 +49,14 @@ class ErrorLogger {
       }
     }
 
-    // In production, send to external service (e.g., Sentry, DataDog)
+    // In production, one scrubbed JSON line per event, which Vercel keeps in its runtime logs.
     if (process.env.NODE_ENV === 'production') {
-      // TODO: Integrate with Sentry or similar service
-      // Sentry.captureException(error, { contexts: { custom: context } });
+      const line = JSON.stringify(scrubLogEntry(logEntry));
+      if (severity === ErrorSeverity.CRITICAL || severity === ErrorSeverity.HIGH) {
+        console.error(line);
+      } else {
+        console.warn(line);
+      }
     }
   }
 

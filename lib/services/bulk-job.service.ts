@@ -82,9 +82,9 @@ export class DuplicateRowError extends Error {
  * Create a job and start it as soon as the response is out.
  *
  * Not inline, because thousands of rows would hold the request open. Not left
- * to the scheduler either: the Vercel plan permits a daily cron, and an
- * operator watching a progress bar that does not move for a day would
- * reasonably conclude the feature is broken.
+ * to the scheduler either: the cron runs hourly, and an operator watching a
+ * progress bar that does not move for an hour would reasonably conclude the
+ * feature is broken.
  */
 export async function createBulkJob(
   orgId: string,

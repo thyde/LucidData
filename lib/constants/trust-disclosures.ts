@@ -201,8 +201,9 @@ export const SUBPROCESSORS: Subprocessor[] = [
   },
   {
     name: 'Vercel',
-    role: 'Application hosting',
-    dataHandled: 'Request traffic and server logs. No vault plaintext, because none exists server side',
+    role: 'Application hosting and page-view counts',
+    dataHandled:
+      'Request traffic, server logs with email addresses and tokens removed, and cookieless page-view counts for public pages only. No vault plaintext, because none exists server side',
   },
   {
     name: 'Stripe',

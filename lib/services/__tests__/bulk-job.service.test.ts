@@ -256,9 +256,9 @@ beforeEach(() => {
 })
 
 describe('starting promptly', () => {
-  it('schedules the run for after the response, not for the daily sweep', async () => {
-    // The Vercel plan permits a daily cron. An operator watching a progress bar
-    // that does not move for a day would reasonably conclude this is broken.
+  it('schedules the run for after the response, not for the hourly sweep', async () => {
+    // The cron runs hourly. An operator watching a progress bar
+    // that does not move for an hour would reasonably conclude this is broken.
     await createBulkJob(ORG, ACTOR, {
       kind: 'credential_issue',
       rows: issueRows(1),

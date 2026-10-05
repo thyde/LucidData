@@ -2406,11 +2406,18 @@ Acceptance criteria.
 - [ ] A scripted sign-up without a CAPTCHA token is refused.
 - [ ] A preview deployment cannot reach production data.
 - [ ] A migration reaches production only through the workflow.
-- [ ] An error event contains no query string, email address, or health field, asserted by test.
+- [x] An error event contains no query string, email address, or health field, asserted by test.
 - [ ] The section 6 metrics can be measured from the analytics data.
 - [ ] A restore drill has run, and its date and result are published under LD-107.
 
 Tests. Scrubber unit tests. The nightly e2e run. A workflow dry run against staging.
+
+Progress, 2026-10-05.
+- Vercel is on Pro at $20 a month, so the cron now runs hourly instead of daily. Supabase Pro, at $25 a month, waits on a payment card; leaked-password protection and a staging project follow it.
+- `errorLogger` had been dropping every production event, because its production branch was a TODO. It now writes one scrubbed JSON line per event to the runtime logs. The scrubber removes email addresses, query strings, bearer tokens, JWTs, and long opaque tokens such as share links, and redacts any metadata that is not an identifier, a count, or a known descriptive field.
+- Preview deployments held the production service-role key and the issuer key secret. Both are now limited to production. Previews still read the production URL and anon key, which are public, so the preview criterion stays open until previews point at a staging project.
+- Vercel Web Analytics runs through a small first-party loader instead of the `@vercel/analytics` package, whose optional peer dependencies conflict with npm 11. It runs only on the production deployment, counts public marketing and sign-in pages, and strips query strings and fragments. Signed-in pages, share links, and invitations are never sent.
+- CAPTCHA reaches further than the sign-up form. Supabase checks it on every password sign-in, and the app re-checks passwords that way for step-up confirmation, password changes, and recovery code and factor management. Each of those needs a Turnstile token before the Supabase setting can be switched on, so that work ships as its own change first.
 
 ---
 
@@ -3027,7 +3034,7 @@ Setup that only an account owner can do, and that the specs above wait on:
 | Apple Developer Program as an organization, which needs a D-U-N-S number | LD-204, and the Safari build in LD-212 |
 | Google Play Console as an organization | LD-204 |
 | Chrome Web Store, Microsoft Partner Center, and Firefox add-on developer accounts | LD-212 |
-| Vercel Pro and Supabase Pro | LD-610 |
+| Vercel Pro (done 2026-10-05) and Supabase Pro | LD-610 |
 | Custom SMTP for Supabase Auth, and Turnstile keys | LD-610 |
 | A Strava API app, and Strava's approval for production use | LD-208 |
 | Oura, Whoop, Withings, and Polar developer apps, and the Garmin Connect Developer Program | LD-208 |
@@ -3344,8 +3351,11 @@ These were live defects in the codebase rather than missing features. Status upd
 | Order records survive account deletion with payload intact | `ON DELETE SET NULL` in [20260725150000_marketplace_transaction_integrity.sql](../supabase/migrations/20260725150000_marketplace_transaction_integrity.sql) | LD-607 | **Fixed** 2026-07-26. The payload is emptied and both source links cleared, leaving a counted placeholder with `redacted_at` set |
 | Marketplace sales become loss-making above a computable pool size | Fixed access fee in [data-order.service.ts](../lib/services/data-order.service.ts) against percentage processing costs | LD-505 | **Fixed.** 25% fee plus a minimum order, asserted profitable across eight pool sizes and every category |
 | `interests` and `other` categories have a zero access fee, so every sale loses money | [lib/constants/data-pricing.ts](../lib/constants/data-pricing.ts) | LD-505 | **Fixed.** Both repriced off zero |
+| Production errors were never recorded | The production branch of [lib/services/error-logger.ts](../lib/services/error-logger.ts) was a TODO | LD-610 | **Fixed** 2026-10-05. One scrubbed JSON line per event |
+| Preview deployments held production secrets | `SUPABASE_SERVICE_ROLE_KEY` and `ISSUER_KEY_SECRET` were scoped to Vercel's Preview environment | LD-610 | **Fixed in part** 2026-10-05. Both are production only. Previews keep the public URL and anon key until a staging project exists |
 
-Every defect found during validation is now fixed. The two GDPR Article 17 defects, where a deleted
+Every defect found during validation is fixed, apart from preview isolation, which waits for a staging
+project. The two GDPR Article 17 defects, where a deleted
 account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
 Deletion no longer relies on foreign key behaviour: what does not cascade is handled explicitly, the
 result is verified rather than assumed, and the person receives a signed receipt.
