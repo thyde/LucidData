@@ -133,7 +133,7 @@ lucid-mvp/
 │   ├── (auth)/            # Sign-in, register, passkey, and signup routes
 │   ├── (dashboard)/       # Vault, consent, audit, credentials, requests, settings
 │   ├── (org)/             # Organization and credential-issuer routes
-│   ├── api/               # Route handlers (auth, org, supabase, user)
+│   ├── api/               # Route handlers (auth, org, connectors, cron, stripe, user)
 │   └── sw.ts              # Serwist service-worker source
 ├── components/            # React components
 │   ├── ui/               # shadcn/ui primitives
