@@ -6,8 +6,8 @@ import { useCallback, useRef } from 'react'
 export const TURNSTILE_SCRIPT_SRC =
   'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 
-const LOAD_FAILED = 'The security check could not load. Check your connection and try again.'
-const CHECK_FAILED = 'The security check did not finish. Try again.'
+/** How long an invisible check may take before the request goes without a token. */
+export const TURNSTILE_WAIT_MS = 15_000
 
 interface TurnstileRenderOptions {
   sitekey: string
@@ -19,6 +19,8 @@ interface TurnstileRenderOptions {
   'expired-callback': () => void
   'error-callback': (code: string) => boolean
   'timeout-callback': () => void
+  'unsupported-callback': () => void
+  'before-interactive-callback': () => void
 }
 
 interface TurnstileApi {
@@ -44,12 +46,12 @@ function loadTurnstile(): Promise<TurnstileApi> {
     script.onload = () => {
       if (window.turnstile) return resolve(window.turnstile)
       loader = null
-      reject(new Error(LOAD_FAILED))
+      reject(new Error('Turnstile did not start'))
     }
     script.onerror = () => {
       loader = null
       script.remove()
-      reject(new Error(LOAD_FAILED))
+      reject(new Error('Turnstile did not load'))
     }
     document.head.appendChild(script)
   })
@@ -57,16 +59,19 @@ function loadTurnstile(): Promise<TurnstileApi> {
 }
 
 interface Waiter {
-  resolve: (token: string) => void
-  reject: (error: Error) => void
+  settle: (token: string | undefined) => void
+  /** Cloudflare is asking the visitor to interact, so stop the clock. */
+  hold: () => void
 }
 
 export interface Turnstile {
   /** Callback ref for an empty element. The widget stays invisible unless the visitor must interact. */
   attach: (node: HTMLDivElement | null) => (() => void) | undefined
   /**
-   * A single-use token for one Supabase Auth call, or undefined when this
-   * deployment has no site key and Supabase is not asking for one.
+   * A single-use token for one Supabase Auth call. Resolves undefined when the
+   * deployment has no site key or the check cannot finish; Supabase then decides
+   * whether to accept the request, so a check that never loads cannot leave a
+   * form waiting forever.
    */
   getToken: () => Promise<string | undefined>
 }
@@ -80,6 +85,8 @@ export function useTurnstile(action: string): Turnstile {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const widget = useRef<{ api: TurnstileApi; id: string } | null>(null)
   const ready = useRef<Promise<void> | null>(null)
+  const solving = useRef(false)
+  const interacting = useRef(false)
   const unused = useRef<string | null>(null)
   const waiter = useRef<Waiter | null>(null)
 
@@ -88,16 +95,13 @@ export function useTurnstile(action: string): Turnstile {
       if (!siteKey || !node) return undefined
       let detached = false
 
-      const settle = (outcome: { token: string } | { error: Error }) => {
+      const deliver = (token: string | undefined) => {
+        solving.current = false
+        interacting.current = false
         const pending = waiter.current
         waiter.current = null
-        if ('token' in outcome) {
-          if (pending) pending.resolve(outcome.token)
-          else unused.current = outcome.token
-        } else {
-          unused.current = null
-          pending?.reject(outcome.error)
-        }
+        if (pending) pending.settle(token)
+        else unused.current = token ?? null
       }
 
       const rendering = loadTurnstile().then((api) => {
@@ -108,20 +112,26 @@ export function useTurnstile(action: string): Turnstile {
           appearance: 'interaction-only',
           size: 'flexible',
           retry: 'never',
-          callback: (token) => settle({ token }),
+          callback: (token) => deliver(token),
           'expired-callback': () => {
             unused.current = null
           },
           'error-callback': () => {
-            settle({ error: new Error(CHECK_FAILED) })
+            deliver(undefined)
             return true
           },
-          'timeout-callback': () => settle({ error: new Error(CHECK_FAILED) }),
+          'timeout-callback': () => deliver(undefined),
+          'unsupported-callback': () => deliver(undefined),
+          'before-interactive-callback': () => {
+            interacting.current = true
+            waiter.current?.hold()
+          },
         })
-        if (!id) throw new Error(LOAD_FAILED)
+        if (!id) return
         widget.current = { api, id }
+        solving.current = true
       })
-      // Surfaced by getToken; this only stops an unhandled rejection before the first submit.
+      // A script that never loads only means no token; getToken handles it.
       rendering.catch(() => undefined)
       ready.current = rendering
 
@@ -130,9 +140,10 @@ export function useTurnstile(action: string): Turnstile {
         if (widget.current) widget.current.api.remove(widget.current.id)
         widget.current = null
         ready.current = null
+        solving.current = false
+        interacting.current = false
         unused.current = null
-        waiter.current?.reject(new Error(CHECK_FAILED))
-        waiter.current = null
+        waiter.current?.settle(undefined)
       }
     },
     [siteKey, action]
@@ -140,20 +151,43 @@ export function useTurnstile(action: string): Turnstile {
 
   const getToken = useCallback(async (): Promise<string | undefined> => {
     if (!siteKey) return undefined
-    if (!ready.current) throw new Error(LOAD_FAILED)
-    await ready.current
+    try {
+      await ready.current
+    } catch {
+      return undefined
+    }
     const current = widget.current
-    if (!current) throw new Error(LOAD_FAILED)
+    if (!current) return undefined
 
     const token = unused.current
     if (token) {
       unused.current = null
       return token
     }
-    return new Promise<string>((resolve, reject) => {
-      waiter.current?.reject(new Error(CHECK_FAILED))
-      waiter.current = { resolve, reject }
-      current.api.reset(current.id)
+    return new Promise<string | undefined>((resolve) => {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const entry: Waiter = {
+        settle: (value) => {
+          clearTimeout(timer)
+          if (waiter.current === entry) waiter.current = null
+          resolve(value)
+        },
+        hold: () => clearTimeout(timer),
+      }
+      if (!interacting.current) {
+        timer = setTimeout(() => {
+          // Treat the stuck check as abandoned so the next attempt starts afresh.
+          solving.current = false
+          entry.settle(undefined)
+        }, TURNSTILE_WAIT_MS)
+      }
+      waiter.current?.settle(undefined)
+      waiter.current = entry
+      // A check still running from page load delivers here; otherwise start a new one.
+      if (!solving.current) {
+        solving.current = true
+        current.api.reset(current.id)
+      }
     })
   }, [siteKey])
 

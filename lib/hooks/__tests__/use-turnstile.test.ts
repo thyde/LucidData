@@ -7,6 +7,7 @@ interface RenderOptions {
   appearance: string
   callback: (token: string) => void
   'error-callback': (code: string) => boolean
+  'before-interactive-callback': () => void
 }
 
 function fakeTurnstile() {
@@ -23,6 +24,7 @@ function fakeTurnstile() {
     api,
     solve: (token: string) => options!.callback(token),
     fail: () => options!['error-callback']('300030'),
+    interact: () => options!['before-interactive-callback'](),
   }
 }
 
@@ -38,10 +40,23 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllEnvs()
   delete window.turnstile
   document.head.querySelectorAll('script').forEach((script) => script.remove())
 })
+
+/** Render a widget, let it solve its first check, and use that token. */
+async function readyWidget() {
+  const fake = fakeTurnstile()
+  window.turnstile = fake.api
+  const { mod, turnstile } = await loadHook()
+  turnstile.attach(document.createElement('div'))
+  await vi.waitFor(() => expect(fake.api.render).toHaveBeenCalled())
+  fake.solve('token-1')
+  await turnstile.getToken()
+  return { fake, mod, turnstile }
+}
 
 describe('useTurnstile', () => {
   it('asks for no token when the deployment has no site key', async () => {
@@ -87,14 +102,7 @@ describe('useTurnstile', () => {
   })
 
   it('never hands out the same token twice', async () => {
-    const fake = fakeTurnstile()
-    window.turnstile = fake.api
-    const { turnstile } = await loadHook()
-
-    turnstile.attach(document.createElement('div'))
-    await vi.waitFor(() => expect(fake.api.render).toHaveBeenCalled())
-    fake.solve('token-1')
-    await turnstile.getToken()
+    const { fake, turnstile } = await readyWidget()
 
     const next = turnstile.getToken()
     await vi.waitFor(() => expect(fake.api.reset).toHaveBeenCalledWith('widget-1'))
@@ -103,19 +111,56 @@ describe('useTurnstile', () => {
     await expect(next).resolves.toBe('token-2')
   })
 
-  it('reports a failed check instead of waiting forever', async () => {
-    const fake = fakeTurnstile()
-    window.turnstile = fake.api
-    const { turnstile } = await loadHook()
-
-    turnstile.attach(document.createElement('div'))
-    await vi.waitFor(() => expect(fake.api.render).toHaveBeenCalled())
+  it('sends no token, rather than blocking the form, when the check fails', async () => {
+    const { fake, turnstile } = await readyWidget()
 
     const pending = turnstile.getToken()
     await vi.waitFor(() => expect(fake.api.reset).toHaveBeenCalled())
     fake.fail()
 
-    await expect(pending).rejects.toThrow(/security check/i)
+    await expect(pending).resolves.toBeUndefined()
+  })
+
+  it('gives up after the wait limit when the check never answers', async () => {
+    vi.useFakeTimers()
+    const { fake, mod, turnstile } = await readyWidget()
+
+    const pending = turnstile.getToken()
+    await vi.waitFor(() => expect(fake.api.reset).toHaveBeenCalledTimes(1))
+    await vi.advanceTimersByTimeAsync(mod.TURNSTILE_WAIT_MS)
+
+    await expect(pending).resolves.toBeUndefined()
+    // The abandoned check is replaced on the next attempt rather than waited on again.
+    void turnstile.getToken()
+    await vi.waitFor(() => expect(fake.api.reset).toHaveBeenCalledTimes(2))
+  })
+
+  it('keeps waiting while Cloudflare asks the visitor to interact', async () => {
+    vi.useFakeTimers()
+    const { fake, mod, turnstile } = await readyWidget()
+
+    let settled = false
+    const pending = turnstile.getToken().then((token) => {
+      settled = true
+      return token
+    })
+    await vi.waitFor(() => expect(fake.api.reset).toHaveBeenCalled())
+    fake.interact()
+    await vi.advanceTimersByTimeAsync(mod.TURNSTILE_WAIT_MS * 3)
+    expect(settled).toBe(false)
+
+    fake.solve('token-after-click')
+    await expect(pending).resolves.toBe('token-after-click')
+  })
+
+  it('sends no token when the script cannot load', async () => {
+    const { turnstile } = await loadHook()
+    turnstile.attach(document.createElement('div'))
+
+    const script = document.head.querySelector('script')!
+    script.dispatchEvent(new Event('error'))
+
+    await expect(turnstile.getToken()).resolves.toBeUndefined()
   })
 
   it('removes the widget when its element goes away', async () => {
@@ -128,6 +173,6 @@ describe('useTurnstile', () => {
     cleanup?.()
 
     expect(fake.api.remove).toHaveBeenCalledWith('widget-1')
-    await expect(turnstile.getToken()).rejects.toThrow(/could not load/i)
+    await expect(turnstile.getToken()).resolves.toBeUndefined()
   })
 })
