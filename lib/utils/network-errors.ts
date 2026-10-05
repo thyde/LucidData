@@ -66,6 +66,12 @@ export function analyzeError(error: unknown): NetworkErrorAnalysis {
  * @returns User-friendly error message
  */
 export function getAuthErrorMessage(error: unknown): string {
+  // Before the network checks: Turnstile's 'timeout-or-duplicate' would otherwise read as an outage.
+  const message = (error as Error | null)?.message ?? '';
+  if ((error as { code?: string } | null)?.code === 'captcha_failed' || /captcha protection/i.test(message)) {
+    return CAPTCHA_FAILED_MESSAGE;
+  }
+
   const analysis = analyzeError(error);
 
   if (analysis.isNetworkError) {
@@ -75,3 +81,6 @@ export function getAuthErrorMessage(error: unknown): string {
 
   return analysis.message;
 }
+
+export const CAPTCHA_FAILED_MESSAGE =
+  'The security check did not complete. Reload the page and try again. If this keeps happening, allow challenges.cloudflare.com in your browser or content blocker.';

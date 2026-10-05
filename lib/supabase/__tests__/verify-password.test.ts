@@ -62,7 +62,9 @@ describe('verifyPassword', () => {
       },
     })
 
-    await expect(verifyPassword('a@example.com', 'correct horse')).rejects.toThrow(/captcha/i)
+    await expect(verifyPassword('a@example.com', 'correct horse')).rejects.toThrow(
+      /security check did not complete/i
+    )
   })
 })
 
