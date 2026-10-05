@@ -28,10 +28,8 @@ import {
 import { sealToPublicKey } from '@/lib/crypto/ingestion-keys'
 import {
   FITNESS_CONNECTORS,
-  normalizeFitbitDay,
   normalizeStravaActivity,
   type FitnessProvider,
-  type FitbitDailySummary,
   type StravaActivity,
 } from '@/lib/connectors/fitness'
 import type { DataSource } from '@/types/database.types'
@@ -45,6 +43,7 @@ export const TOKEN_REFRESH_MARGIN_MS = 10 * 60 * 1000
 export function availableConnectors(): { id: ConnectorProvider; label: string }[] {
   if (!isConnectorStorageConfigured()) return []
   return (Object.values(FITNESS_CONNECTORS) as (typeof FITNESS_CONNECTORS)[FitnessProvider][])
+    .filter((def) => !def.retired)
     .filter((def) => Boolean(process.env[def.clientIdEnv] && process.env[def.clientSecretEnv]))
     .map((def) => ({ id: def.id, label: def.label }))
 }
@@ -68,6 +67,8 @@ export interface ConnectedSource {
   recordCount: number
   firstCapturedAt: string | null
   lastCapturedAt: string | null
+  // Set when the provider shut its API, so the panel offers disconnect instead of reconnect.
+  retiredReason: string | null
 }
 
 interface CoverageRow {
@@ -97,12 +98,11 @@ export async function listSources(userId: string): Promise<ConnectedSource[]> {
 
   return (data ?? []).map((source) => {
     const stats = coverage.get(source.provider as string)
+    const def = FITNESS_CONNECTORS[source.provider as FitnessProvider]
     return {
       id: source.id as string,
       provider: source.provider as string,
-      label:
-        FITNESS_CONNECTORS[source.provider as FitnessProvider]?.label ??
-        (source.provider as string),
+      label: def?.label ?? (source.provider as string),
       status: source.status as string,
       scopes: (source.scopes as string[]) ?? [],
       lastSyncedAt: (source.last_synced_at as string | null) ?? null,
@@ -111,6 +111,7 @@ export async function listSources(userId: string): Promise<ConnectedSource[]> {
       recordCount: Number(stats?.record_count ?? 0),
       firstCapturedAt: stats?.first_captured_at ?? null,
       lastCapturedAt: stats?.last_captured_at ?? null,
+      retiredReason: def?.retired?.reason ?? null,
     }
   })
 }
@@ -258,6 +259,12 @@ export async function syncSource(
   const service = createServiceClient()
   const result: SyncResult = { imported: 0, failed: 0 }
 
+  const def = FITNESS_CONNECTORS[source.provider as FitnessProvider]
+  if (def?.retired) {
+    await markSourceError(source.id, def.retired.reason)
+    return result
+  }
+
   const { data: user } = await service
     .from('users')
     .select('ingest_public_key')
@@ -296,8 +303,6 @@ export async function syncSource(
     )
     return result
   }
-
-  const def = FITNESS_CONNECTORS[source.provider as FitnessProvider]
 
   for (const record of records) {
     try {
@@ -442,39 +447,23 @@ async function fetchRecords(
   token: string,
   fetchImpl: typeof fetch
 ): Promise<NormalizedRecord[]> {
-  if (provider === 'strava') {
-    const response = await fetchImpl(
-      'https://www.strava.com/api/v3/athlete/activities?per_page=30',
-      { headers: { authorization: `Bearer ${token}` } }
-    )
-    if (!response.ok) throw new Error(`Strava returned ${response.status}`)
-    const activities = (await response.json()) as (StravaActivity & { id?: number })[]
-    return activities.map((activity, index) => ({
-      // Strava numbers its activities. Falling back to the start date plus the
-      // position keeps the idempotency key stable if a payload ever arrives
-      // without an id, rather than importing the same run every sync.
-      providerRecordId: String(activity.id ?? `${activity.start_date ?? 'unknown'}-${index}`),
-      label: activity.name ?? 'Activity',
-      capturedAt: activity.start_date ?? null,
-      payload: normalizeStravaActivity(activity),
-    }))
-  }
+  if (provider !== 'strava') throw new Error(`${provider} has no live sync`)
 
-  const day = new Date().toISOString().slice(0, 10)
   const response = await fetchImpl(
-    `https://api.fitbit.com/1/user/-/activities/date/${day}.json`,
+    'https://www.strava.com/api/v3/athlete/activities?per_page=30',
     { headers: { authorization: `Bearer ${token}` } }
   )
-  if (!response.ok) throw new Error(`Fitbit returned ${response.status}`)
-  const summary = (await response.json()) as FitbitDailySummary
-  return [
-    {
-      providerRecordId: day,
-      label: `Fitbit summary ${day}`,
-      capturedAt: `${day}T00:00:00.000Z`,
-      payload: normalizeFitbitDay(day, summary),
-    },
-  ]
+  if (!response.ok) throw new Error(`Strava returned ${response.status}`)
+  const activities = (await response.json()) as (StravaActivity & { id?: number })[]
+  return activities.map((activity, index) => ({
+    // Strava numbers its activities. Falling back to the start date plus the
+    // position keeps the idempotency key stable if a payload ever arrives
+    // without an id, rather than importing the same run every sync.
+    providerRecordId: String(activity.id ?? `${activity.start_date ?? 'unknown'}-${index}`),
+    label: activity.name ?? 'Activity',
+    capturedAt: activity.start_date ?? null,
+    payload: normalizeStravaActivity(activity),
+  }))
 }
 
 /**

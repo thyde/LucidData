@@ -22,6 +22,7 @@ function source(overrides: Partial<ConnectedSource> = {}): ConnectedSource {
     recordCount: 42,
     firstCapturedAt: '2026-01-02T00:00:00.000Z',
     lastCapturedAt: '2026-07-25T00:00:00.000Z',
+    retiredReason: null,
     ...overrides,
   }
 }
@@ -123,5 +124,27 @@ describe('SourceHealth', () => {
       screen.getByRole('button', { name: 'Disconnect and delete imported entries' })
     )
     expect(onDisconnect).toHaveBeenCalledWith(true)
+  })
+
+  it('explains a retired provider once and offers disconnect instead of reconnect', () => {
+    const reason = 'Google retired the Fitbit Web API.'
+    render(
+      <SourceHealth
+        source={source({
+          provider: 'fitbit',
+          label: 'Fitbit',
+          status: 'error',
+          lastError: reason,
+          retiredReason: reason,
+        })}
+        now={NOW}
+        onDisconnect={vi.fn()}
+      />
+    )
+
+    expect(screen.getAllByText(reason)).toHaveLength(1)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Reconnect' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument()
   })
 })

@@ -30,6 +30,11 @@ export async function GET(
     return NextResponse.redirect(`${settings}?connector=unknown`)
   }
 
+  // A grant started before the provider retired must not store a token that has nothing to call.
+  if (FITNESS_CONNECTORS[provider].retired) {
+    return NextResponse.redirect(`${settings}?connector=retired`)
+  }
+
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state')

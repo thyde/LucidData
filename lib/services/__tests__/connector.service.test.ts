@@ -71,9 +71,8 @@ vi.mock('@/lib/supabase/service', () => ({
   }),
 }))
 
-const { syncSource, ensureFreshToken, TOKEN_REFRESH_MARGIN_MS } = await import(
-  '@/lib/services/connector.service'
-)
+const { syncSource, ensureFreshToken, availableConnectors, TOKEN_REFRESH_MARGIN_MS } =
+  await import('@/lib/services/connector.service')
 const { generateIngestionKeypair, openSealed } = await import(
   '@/lib/crypto/ingestion-keys'
 )
@@ -204,6 +203,37 @@ describe('a sync with an ingestion key', () => {
     expect(result.imported).toBe(0)
     const marked = calls.find((call) => call.table === 'data_sources' && call.op === 'update')
     expect(marked?.patch?.status).toBe('error')
+  })
+})
+
+describe('a retired provider', () => {
+  it('is never offered, even when its credentials are configured', () => {
+    process.env.FITBIT_CLIENT_ID = 'fitbit-client'
+    process.env.FITBIT_CLIENT_SECRET = 'fitbit-secret'
+    try {
+      const offered = availableConnectors().map((entry) => entry.id)
+      expect(offered).toContain('strava')
+      expect(offered).not.toContain('fitbit')
+    } finally {
+      delete process.env.FITBIT_CLIENT_ID
+      delete process.env.FITBIT_CLIENT_SECRET
+    }
+  })
+
+  it('stops syncing and says why, before touching keys or the provider', async () => {
+    const fetchImpl = vi.fn()
+    const result = await syncSource(
+      source({ provider: 'fitbit' }),
+      fetchImpl as unknown as typeof fetch
+    )
+
+    expect(result).toEqual({ imported: 0, failed: 0 })
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(calls.some((call) => call.table === 'users')).toBe(false)
+    expect(calls.some((call) => call.table === 'pending_ingest')).toBe(false)
+    const marked = calls.find((call) => call.table === 'data_sources' && call.op === 'update')
+    expect(marked?.patch?.status).toBe('error')
+    expect(String(marked?.patch?.last_error)).toContain('Fitbit Web API')
   })
 })
 

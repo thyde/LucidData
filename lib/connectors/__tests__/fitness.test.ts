@@ -11,6 +11,11 @@ describe('FITNESS_CONNECTORS', () => {
     expect(FITNESS_CONNECTORS.strava.schemaType).toBe('fitness_activity')
     expect(FITNESS_CONNECTORS.fitbit.schemaType).toBe('fitness_daily')
   })
+
+  it('retires Fitbit, whose Web API Google turns off on 30 October 2026', () => {
+    expect(FITNESS_CONNECTORS.fitbit.retired?.on).toBe('2026-10-30')
+    expect(FITNESS_CONNECTORS.strava.retired).toBeUndefined()
+  })
 })
 
 describe('buildAuthorizeUrl', () => {

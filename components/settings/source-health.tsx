@@ -54,6 +54,7 @@ export function SourceHealth({
   const health = deriveSourceHealth(source.status, source.lastSyncedAt, now)
   const coverage = formatCoverage(source.firstCapturedAt, source.lastCapturedAt)
   const broken = health === 'error' || health === 'stale'
+  const retired = source.retiredReason !== null
 
   return (
     <li
@@ -88,21 +89,23 @@ export function SourceHealth({
         )}
       </dl>
 
-      {health === 'stale' && !source.lastError && (
+      {health === 'stale' && !source.lastError && !retired && (
         <p className="text-sm text-muted-foreground">
           This source has not sent anything for a while. Reconnect it if you expected newer
           records.
         </p>
       )}
 
-      {source.lastError && (
+      {retired && <p className="text-sm text-muted-foreground">{source.retiredReason}</p>}
+
+      {source.lastError && source.lastError !== source.retiredReason && (
         <p role="alert" className="text-sm text-destructive">
           {source.lastError}
         </p>
       )}
 
       <div className="flex flex-wrap gap-2">
-        {broken && (
+        {broken && !retired && (
           <Button size="sm" variant="outline" asChild>
             <a href={`/api/connectors/${source.provider}/authorize`}>Reconnect</a>
           </Button>

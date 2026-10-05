@@ -23,6 +23,11 @@ export async function GET(
     return NextResponse.json({ error: 'Unknown provider' }, { status: 404 })
   }
 
+  const def = FITNESS_CONNECTORS[provider]
+  if (def.retired) {
+    return NextResponse.json({ error: def.retired.reason }, { status: 410 })
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -31,7 +36,6 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const def = FITNESS_CONNECTORS[provider]
   const clientId = process.env[def.clientIdEnv]
   if (!clientId) {
     return NextResponse.json(

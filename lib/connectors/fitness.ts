@@ -20,6 +20,8 @@ export interface ConnectorDef {
   clientSecretEnv: string
   // The vault schema type this provider's records normalize into.
   schemaType: 'fitness_activity' | 'fitness_daily'
+  // Set once the provider shuts its API. A retired provider can only be disconnected.
+  retired?: { on: string; reason: string }
 }
 
 export const FITNESS_CONNECTORS: Record<FitnessProvider, ConnectorDef> = {
@@ -46,6 +48,11 @@ export const FITNESS_CONNECTORS: Record<FitnessProvider, ConnectorDef> = {
     clientIdEnv: 'FITBIT_CLIENT_ID',
     clientSecretEnv: 'FITBIT_CLIENT_SECRET',
     schemaType: 'fitness_daily',
+    retired: {
+      on: '2026-10-30',
+      reason:
+        'Google retired the Fitbit Web API, and it stops working on 30 October 2026. Fitbit can no longer be connected or synced. Entries you already imported stay in your vault.',
+    },
   },
 }
 
