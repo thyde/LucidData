@@ -2418,6 +2418,8 @@ Progress, 2026-10-05.
 - Preview deployments held the production service-role key and the issuer key secret. Both are now limited to production. Previews still read the production URL and anon key, which are public, so the preview criterion stays open until previews point at a staging project.
 - Vercel Web Analytics runs through a small first-party loader instead of the `@vercel/analytics` package, whose optional peer dependencies conflict with npm 11. It runs only on the production deployment, counts public marketing and sign-in pages, and strips query strings and fragments. Signed-in pages, share links, and invitations are never sent.
 - CAPTCHA reaches further than the sign-up form. Supabase checks it on every password sign-in, and the app re-checks passwords that way for step-up confirmation, password changes, and recovery code and factor management. Each of those needs a Turnstile token before the Supabase setting can be switched on, so that work ships as its own change first.
+- Supabase Auth still pointed at `lucid-data-lucid-data.vercel.app` as its site URL, and `luciddatabank.com` was missing from the redirect allowlist, so password-reset links that ask to return to `/recover-vault` fell back to the old address. The site URL is now `https://luciddatabank.com`, the domain is on the allowlist, and the server-side minimum password length is 8, matching the app's own validation.
+- Supabase auto-confirms sign-ups, so nobody has proved they own their email address. That matters here, because credentials, credential requests, and consent requests are matched to accounts by email. Confirmation needs custom SMTP first, and a registration flow that sets the key salt and recovery code on the first confirmed sign-in rather than straight after sign-up. Recorded as an open defect in section 9.
 
 ---
 
@@ -3353,9 +3355,10 @@ These were live defects in the codebase rather than missing features. Status upd
 | `interests` and `other` categories have a zero access fee, so every sale loses money | [lib/constants/data-pricing.ts](../lib/constants/data-pricing.ts) | LD-505 | **Fixed.** Both repriced off zero |
 | Production errors were never recorded | The production branch of [lib/services/error-logger.ts](../lib/services/error-logger.ts) was a TODO | LD-610 | **Fixed** 2026-10-05. One scrubbed JSON line per event |
 | Preview deployments held production secrets | `SUPABASE_SERVICE_ROLE_KEY` and `ISSUER_KEY_SECRET` were scoped to Vercel's Preview environment | LD-610 | **Fixed in part** 2026-10-05. Both are production only. Previews keep the public URL and anon key until a staging project exists |
+| Email ownership is never verified | Supabase Auth auto-confirms sign-ups, while [credential.service.ts](../lib/services/credential.service.ts) matches credentials to accounts by email | LD-610 | **Open.** Someone who registers with another person's address receives what is sent to it. Needs custom SMTP, then confirmation, then a registration flow that waits for it |
 
 Every defect found during validation is fixed, apart from preview isolation, which waits for a staging
-project. The two GDPR Article 17 defects, where a deleted
+project, and email verification, which waits for custom SMTP. The two GDPR Article 17 defects, where a deleted
 account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
 Deletion no longer relies on foreign key behaviour: what does not cascade is handled explicitly, the
 result is verified rather than assumed, and the person receives a signed receipt.
