@@ -10,6 +10,7 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { createClient } from '@/lib/supabase/client'
 import { verifyPassword } from '@/lib/supabase/verify-password'
+import { useTurnstile } from '@/lib/hooks/use-turnstile'
 import { deriveMasterKey, rewrapAllEntries, setupRecoveryFromPassword } from '@/lib/account/account-crypto'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
 
@@ -27,6 +28,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [newCode, setNewCode] = useState<string | null>(null)
+  const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('reauthenticate')
 
   function reset() {
     setCurrentPassword('')
@@ -61,7 +63,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       if (!user?.email) throw new Error('Not signed in')
 
       // Verify the current password.
-      if (!(await verifyPassword(user.email, currentPassword))) {
+      if (!(await verifyPassword(user.email, currentPassword, await getCaptchaToken()))) {
         setError('Current password is incorrect')
         return
       }
@@ -185,6 +187,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
+              <div ref={turnstileRef} />
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={busy}>
                 {busy ? 'Updating…' : 'Change password'}

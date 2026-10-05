@@ -2402,7 +2402,7 @@ Security. Every new vendor is a subprocessor and goes on the trust centre in the
 existing assurance tests check.
 
 Acceptance criteria.
-- [ ] A password reset email reaches an address outside the project team.
+- [x] A password reset email reaches an address outside the project team.
 - [ ] A scripted sign-up without a CAPTCHA token is refused.
 - [ ] A preview deployment cannot reach production data.
 - [ ] A migration reaches production only through the workflow.
@@ -2413,13 +2413,18 @@ Acceptance criteria.
 Tests. Scrubber unit tests. The nightly e2e run. A workflow dry run against staging.
 
 Progress, 2026-10-05.
-- Vercel is on Pro at $20 a month, so the cron now runs hourly instead of daily. Supabase Pro, at $25 a month, waits on a payment card; leaked-password protection and a staging project follow it.
+- Vercel is on Pro at $20 a month, so the cron now runs hourly instead of daily. Supabase is on Pro at $25 a month, with the spend cap on. The production database moved from Nano to Micro compute, which a paid organization is billed for either way, and which the plan's compute credit covers.
+- Leaked-password protection is on. Supabase rejects a password found in known breaches at sign-up and on change, and the app shows Supabase's message.
 - `errorLogger` had been dropping every production event, because its production branch was a TODO. It now writes one scrubbed JSON line per event to the runtime logs. The scrubber removes email addresses, query strings, bearer tokens, JWTs, and long opaque tokens such as share links, and redacts any metadata that is not an identifier, a count, or a known descriptive field.
 - Preview deployments held the production service-role key and the issuer key secret. Both are now limited to production. Previews still read the production URL and anon key, which are public, so the preview criterion stays open until previews point at a staging project.
 - Vercel Web Analytics runs through a small first-party loader instead of the `@vercel/analytics` package, whose optional peer dependencies conflict with npm 11. It runs only on the production deployment, counts public marketing and sign-in pages, and strips query strings and fragments. Signed-in pages, share links, and invitations are never sent.
-- CAPTCHA reaches further than the sign-up form. Supabase checks it on every password sign-in, and the app re-checks passwords that way for step-up confirmation, password changes, and recovery code and factor management. Each of those needs a Turnstile token before the Supabase setting can be switched on, so that work ships as its own change first.
+- CAPTCHA reaches further than the sign-up form. Supabase checks it on every password sign-in, and the app re-checks passwords that way for step-up confirmation, password changes, and recovery code and factor management. Every one of those calls now sends a Cloudflare Turnstile token when the deployment has a site key. The widget stays invisible unless Cloudflare needs the visitor to interact, and a token is used once. The Turnstile secret is stored in Supabase with CAPTCHA still switched off, so the switch can follow the deploy that sends tokens.
+- Step-up confirmation used to send the password to a server action, which signed in on the server. That put the password and the key salt in the same place, which the trust centre says never happens. The browser now signs in with Supabase directly and sends only the fresh session's access token. The server accepts it if Supabase validates it, it belongs to the same person, its `amr` claim shows a password sign-in in the last two minutes, and it is not the session making the request. The server then deletes that session, so each proof works once.
+- The service worker cached every cross-origin response for an hour, which would have included Turnstile's script, which Cloudflare forbids caching, and Supabase responses about the signed-in person. Cross-origin requests now always go to the network.
+- Production's migration history does not match the repository. The 46 migrations were applied by a tool that recorded them under the time they were applied, not under their file versions, so `supabase db push` would try to run all 46 again. The history needs repairing, as a metadata-only change, before the migration workflow can exist.
 - Supabase Auth still pointed at `lucid-data-lucid-data.vercel.app` as its site URL, and `luciddatabank.com` was missing from the redirect allowlist, so password-reset links that ask to return to `/recover-vault` fell back to the old address. The site URL is now `https://luciddatabank.com`, the domain is on the allowlist, and the server-side minimum password length is 8, matching the app's own validation.
 - Supabase auto-confirms sign-ups, so nobody has proved they own their email address. That matters here, because credentials, credential requests, and consent requests are matched to accounts by email. Confirmation needs custom SMTP first, and a registration flow that sets the key salt and recovery code on the first confirmed sign-in rather than straight after sign-up. Recorded as an open defect in section 9.
+- Custom SMTP is live. Supabase Auth sends through Resend as `LucidData <noreply@luciddatabank.com>`, with its own sending-only key scoped to the domain, and the limit is 30 emails an hour instead of 2. A reset email to a test address that is not on the project team was delivered, which closes the first criterion. Email confirmation is the next step, and it needs the registration change above.
 
 ---
 
@@ -3036,8 +3041,8 @@ Setup that only an account owner can do, and that the specs above wait on:
 | Apple Developer Program as an organization, which needs a D-U-N-S number | LD-204, and the Safari build in LD-212 |
 | Google Play Console as an organization | LD-204 |
 | Chrome Web Store, Microsoft Partner Center, and Firefox add-on developer accounts | LD-212 |
-| Vercel Pro (done 2026-10-05) and Supabase Pro | LD-610 |
-| Custom SMTP for Supabase Auth, and Turnstile keys | LD-610 |
+| Vercel Pro and Supabase Pro (both done 2026-10-05) | LD-610 |
+| Custom SMTP for Supabase Auth, and Turnstile keys (both done 2026-10-05) | LD-610 |
 | A Strava API app, and Strava's approval for production use | LD-208 |
 | Oura, Whoop, Withings, and Polar developer apps, and the Garmin Connect Developer Program | LD-208 |
 | A place on the Google Health API waitlist | LD-208 |
@@ -3355,10 +3360,12 @@ These were live defects in the codebase rather than missing features. Status upd
 | `interests` and `other` categories have a zero access fee, so every sale loses money | [lib/constants/data-pricing.ts](../lib/constants/data-pricing.ts) | LD-505 | **Fixed.** Both repriced off zero |
 | Production errors were never recorded | The production branch of [lib/services/error-logger.ts](../lib/services/error-logger.ts) was a TODO | LD-610 | **Fixed** 2026-10-05. One scrubbed JSON line per event |
 | Preview deployments held production secrets | `SUPABASE_SERVICE_ROLE_KEY` and `ISSUER_KEY_SECRET` were scoped to Vercel's Preview environment | LD-610 | **Fixed in part** 2026-10-05. Both are production only. Previews keep the public URL and anon key until a staging project exists |
-| Email ownership is never verified | Supabase Auth auto-confirms sign-ups, while [credential.service.ts](../lib/services/credential.service.ts) matches credentials to accounts by email | LD-610 | **Open.** Someone who registers with another person's address receives what is sent to it. Needs custom SMTP, then confirmation, then a registration flow that waits for it |
+| Email ownership is never verified | Supabase Auth auto-confirms sign-ups, while [credential.service.ts](../lib/services/credential.service.ts) matches credentials to accounts by email | LD-610 | **Open.** Someone who registers with another person's address receives what is sent to it. Custom SMTP is live since 2026-10-05; confirmation and a registration flow that waits for it remain |
+| Step-up confirmation sent the password to the server | `requestStepUpAction` in [session-security.actions.ts](../lib/actions/session-security.actions.ts) signed in on the server with the submitted password | LD-610 | **Fixed** 2026-10-05. The browser signs in with Supabase and sends a single-use proof; the server never receives the password |
+| The service worker cached cross-origin responses | Serwist's default rules kept Supabase responses and third-party scripts for an hour | LD-610 | **Fixed** 2026-10-05. Cross-origin requests always go to the network |
 
 Every defect found during validation is fixed, apart from preview isolation, which waits for a staging
-project, and email verification, which waits for custom SMTP. The two GDPR Article 17 defects, where a deleted
+project, and email verification, which waits for a registration flow that handles confirmation. The two GDPR Article 17 defects, where a deleted
 account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
 Deletion no longer relies on foreign key behaviour: what does not cascade is handled explicitly, the
 result is verified rather than assumed, and the person receives a signed receipt.

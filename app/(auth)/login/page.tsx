@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getAuthErrorMessage } from '@/lib/utils/network-errors';
 import { useEncryption } from '@/lib/context/encryption-context';
+import { useTurnstile } from '@/lib/hooks/use-turnstile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { unlock } = useEncryption();
+  const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,6 +60,7 @@ function LoginForm() {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: { captchaToken: await getCaptchaToken() },
       });
 
       if (error) {
@@ -179,6 +182,7 @@ function LoginForm() {
               </p>
             )}
           </div>
+          <div ref={turnstileRef} />
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <Button type="submit" className="w-full" disabled={loading}>

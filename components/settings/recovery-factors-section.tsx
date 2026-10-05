@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
 import { createClient } from '@/lib/supabase/client'
 import { verifyPassword } from '@/lib/supabase/verify-password'
+import { useTurnstile } from '@/lib/hooks/use-turnstile'
 import { createRecoveryKitFromPassword } from '@/lib/account/account-crypto'
 import {
   confirmRecoveryFactorAction,
@@ -53,6 +54,7 @@ export function RecoveryFactorsSection({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [pending, startTransition] = useTransition()
+  const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('reauthenticate')
 
   function reset() {
     setPassword('')
@@ -86,7 +88,7 @@ export function RecoveryFactorsSection({
       } = await supabase.auth.getUser()
       if (!user?.email) throw new Error('Not signed in')
 
-      if (!(await verifyPassword(user.email, password))) {
+      if (!(await verifyPassword(user.email, password, await getCaptchaToken()))) {
         setError('Incorrect password')
         return
       }
@@ -287,6 +289,7 @@ export function RecoveryFactorsSection({
                   autoFocus
                 />
               </div>
+              <div ref={turnstileRef} />
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={busy}>
                 {busy ? 'Creating...' : 'Create recovery kit'}

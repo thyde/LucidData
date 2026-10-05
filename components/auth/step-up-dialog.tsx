@@ -14,13 +14,17 @@ import { Label } from '@/components/ui/label'
 import { requestStepUpAction } from '@/lib/actions/session-security.actions'
 import type { StepUpAction } from '@/lib/services/session-security.service'
 import { unwrap } from '@/lib/actions/unwrap'
+import { createClient } from '@/lib/supabase/client'
+import { createPasswordProof } from '@/lib/supabase/verify-password'
+import { useTurnstile } from '@/lib/hooks/use-turnstile'
 
 /**
  * LD-106: re-authentication for one sensitive action.
  *
- * The grant it returns is single use and names the action, so it cannot be
- * cached and reused for something else. Callers must request a fresh one each
- * time.
+ * The password is checked by Supabase in the browser. The server receives proof
+ * of that check, never the password. The grant it returns is single use and
+ * names the action, so it cannot be cached and reused for something else.
+ * Callers must request a fresh one each time.
  */
 export function StepUpDialog({
   action,
@@ -40,13 +44,25 @@ export function StepUpDialog({
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('reauthenticate')
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      const { token } = await unwrap(requestStepUpAction({ action, password }))
+      const {
+        data: { user },
+      } = await createClient().auth.getUser()
+      if (!user?.email) throw new Error('Your session has ended. Sign in again.')
+
+      const proof = await createPasswordProof(user.email, password, await getCaptchaToken())
+      if (!proof) {
+        setError('Incorrect password')
+        return
+      }
+
+      const { token } = await unwrap(requestStepUpAction({ action, proof }))
       setPassword('')
       onOpenChange(false)
       await onConfirmed(token)
@@ -85,6 +101,7 @@ export function StepUpDialog({
               autoComplete="current-password"
             />
           </div>
+          <div ref={turnstileRef} />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={busy || password.length === 0}>
             {busy ? 'Confirming...' : 'Confirm'}

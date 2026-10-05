@@ -45,6 +45,12 @@ export const DATA_RESIDENCY: ResidencyEntry[] = [
     region: 'United States',
     note: 'Email carries a notification title and message text. It never carries vault content.',
   },
+  {
+    provider: 'Cloudflare',
+    what: 'Bot checks (Turnstile) on sign-up, sign-in, and password entry',
+    region: 'Global, at the Cloudflare location nearest the visitor',
+    note: 'The check sees the IP address and browser signals. It never sees an email address, a password, or vault content.',
+  },
 ]
 
 /**
@@ -317,7 +323,7 @@ export const SECURITY_QUESTIONNAIRE: QuestionnaireAnswer[] = [
   {
     question: 'Do you use subprocessors?',
     answer:
-      'Yes: Supabase, Vercel, Stripe, and Resend. Each is listed on the trust centre with the data it handles.',
+      'Yes: Supabase, Vercel, Stripe, Resend, and Cloudflare. Each is listed on the trust centre with the data it handles.',
   },
   {
     question: 'How long do you keep data?',

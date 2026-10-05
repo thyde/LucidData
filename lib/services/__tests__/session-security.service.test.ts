@@ -7,6 +7,7 @@ const revokedSelect = vi.fn()
 const rpc = vi.fn()
 const createAuditEntry = vi.fn()
 const getSession = vi.fn()
+const getUser = vi.fn()
 
 type Stubbed = ReturnType<typeof vi.fn> & { result?: { data: unknown; error: null } }
 
@@ -48,7 +49,10 @@ vi.mock('@/lib/supabase/service', () => ({
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({
-    auth: { getSession: () => Promise.resolve(getSession()) },
+    auth: {
+      getSession: () => Promise.resolve(getSession()),
+      getUser: (jwt: string) => Promise.resolve(getUser(jwt)),
+    },
     rpc: (...a: unknown[]) => rpc(...a),
   }),
 }))
@@ -56,9 +60,11 @@ vi.mock('@/lib/supabase/server', () => ({
 const {
   STEP_UP_ACTIONS,
   STEP_UP_TTL_SECONDS,
+  PASSWORD_PROOF_MAX_AGE_SECONDS,
   isStepUpAction,
   grantStepUp,
   consumeStepUp,
+  verifyPasswordProof,
   revokeSession,
   isSessionRevoked,
   decodeSessionId,
@@ -70,6 +76,20 @@ function jwtWithSessionId(sessionId: string): string {
   return `header.${payload}.signature`
 }
 
+const nowSeconds = () => Math.floor(Date.now() / 1000)
+
+function proof(claims: Record<string, unknown> = {}): string {
+  const payload = Buffer.from(
+    JSON.stringify({
+      sub: 'user-1',
+      session_id: 'proof-session',
+      amr: [{ method: 'password', timestamp: nowSeconds() }],
+      ...claims,
+    })
+  ).toString('base64url')
+  return `header.${payload}.signature`
+}
+
 beforeEach(() => {
   stepUpUpdate.mockReset()
   stepUpInsert.mockReset()
@@ -78,6 +98,7 @@ beforeEach(() => {
   rpc.mockReset().mockResolvedValue({ data: [], error: null })
   createAuditEntry.mockReset().mockResolvedValue(undefined)
   getSession.mockReset().mockReturnValue({ data: { session: null } })
+  getUser.mockReset().mockReturnValue({ data: { user: { id: 'user-1' } }, error: null })
   ;(stepUpUpdate as Stubbed).result = { data: { id: 'grant-1' }, error: null }
 })
 
@@ -137,6 +158,82 @@ describe('step-up actions', () => {
     // The query filters on action, so a mismatch resolves to no row.
     ;(stepUpUpdate as Stubbed).result = { data: null, error: null }
     await expect(consumeStepUp('user-1', 'export_vault', 'token')).rejects.toThrow()
+  })
+})
+
+describe('verifyPasswordProof', () => {
+  beforeEach(() => {
+    getSession.mockReturnValue({
+      data: { session: { access_token: jwtWithSessionId('live-session') } },
+    })
+    rpc.mockResolvedValue({ data: true, error: null })
+  })
+
+  it('accepts a fresh password sign-in and ends that session so it works once', async () => {
+    const token = proof()
+
+    await expect(verifyPasswordProof('user-1', 'delete_account', token)).resolves.toBeUndefined()
+    expect(getUser).toHaveBeenCalledWith(token)
+    expect(rpc).toHaveBeenCalledWith('revoke_my_session', { p_session_id: 'proof-session' })
+  })
+
+  it('rejects a proof that was already used, and audits it', async () => {
+    rpc.mockResolvedValue({ data: false, error: null })
+
+    await expect(verifyPasswordProof('user-1', 'delete_account', proof())).rejects.toThrow(
+      /Confirm your password again/
+    )
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'step_up_failed',
+        success: false,
+        metadata: { step_up_action: 'delete_account' },
+      })
+    )
+  })
+
+  it('rejects a password sign-in older than the allowed window', async () => {
+    const stale = proof({
+      amr: [{ method: 'password', timestamp: nowSeconds() - PASSWORD_PROOF_MAX_AGE_SECONDS - 5 }],
+    })
+
+    await expect(verifyPasswordProof('user-1', 'delete_account', stale)).rejects.toThrow()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a session that did not sign in with the password', async () => {
+    const otp = proof({ amr: [{ method: 'otp', timestamp: nowSeconds() }] })
+
+    await expect(verifyPasswordProof('user-1', 'delete_account', otp)).rejects.toThrow()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a token that Supabase does not accept', async () => {
+    getUser.mockReturnValue({ data: { user: null }, error: { message: 'invalid JWT' } })
+
+    await expect(verifyPasswordProof('user-1', 'delete_account', proof())).rejects.toThrow()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a token that belongs to someone else', async () => {
+    getUser.mockReturnValue({ data: { user: { id: 'user-2' } }, error: null })
+
+    await expect(verifyPasswordProof('user-1', 'delete_account', proof())).rejects.toThrow()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('never accepts, and so never deletes, the session making the request', async () => {
+    getSession.mockReturnValue({
+      data: { session: { access_token: jwtWithSessionId('proof-session') } },
+    })
+
+    await expect(verifyPasswordProof('user-1', 'delete_account', proof())).rejects.toThrow()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects something that is not a token', async () => {
+    await expect(verifyPasswordProof('user-1', 'delete_account', 'not-a-jwt')).rejects.toThrow()
+    expect(getUser).not.toHaveBeenCalled()
   })
 })
 

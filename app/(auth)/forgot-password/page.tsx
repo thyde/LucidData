@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { getAuthErrorMessage } from '@/lib/utils/network-errors'
+import { useTurnstile } from '@/lib/hooks/use-turnstile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,6 +15,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('password-reset')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -23,6 +25,7 @@ export default function ForgotPasswordPage() {
       const supabase = createClient()
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/recover-vault`,
+        captchaToken: await getCaptchaToken(),
       })
       if (resetError) {
         setError(getAuthErrorMessage(resetError))
@@ -73,6 +76,7 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
+            <div ref={turnstileRef} />
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={loading || !email}>

@@ -215,6 +215,12 @@ export const SUBPROCESSORS: Subprocessor[] = [
     role: 'Notification email, when configured',
     dataHandled: 'Email address, notification title, and message text. No vault content',
   },
+  {
+    name: 'Cloudflare',
+    role: 'Bot checks (Turnstile) on sign-up, sign-in, and password entry',
+    dataHandled:
+      'IP address and browser signals during the check. Never your email address, password, or vault content',
+  },
 ]
 
 /** What revocation can and cannot do, stated plainly. */

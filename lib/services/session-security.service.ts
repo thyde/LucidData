@@ -28,12 +28,70 @@ export type StepUpAction = (typeof STEP_UP_ACTIONS)[number]
 /** How long a confirmation stays usable. Short: it authorizes one action now. */
 export const STEP_UP_TTL_SECONDS = 120
 
+/** How recently the password sign-in behind a step-up proof must have happened. */
+export const PASSWORD_PROOF_MAX_AGE_SECONDS = 120
+
 export function isStepUpAction(value: string): value is StepUpAction {
   return (STEP_UP_ACTIONS as readonly string[]).includes(value)
 }
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
+}
+
+/**
+ * LD-106: accept a step-up only from a password sign-in the browser made moments
+ * ago. The browser sends that session's access token, not the password, so the
+ * password never reaches our servers. Supabase validates the token, and the
+ * session is then deleted, so each proof works once.
+ */
+export async function verifyPasswordProof(
+  userId: string,
+  action: StepUpAction,
+  proof: string
+): Promise<void> {
+  if (await acceptPasswordProof(userId, proof)) return
+  await createAuditEntry({
+    userId,
+    eventType: 'step_up_failed',
+    action: `Re-authentication failed for ${action}`,
+    success: false,
+    metadata: { step_up_action: action },
+  }).catch(() => undefined)
+  throw new UserFacingError('Confirm your password again to continue')
+}
+
+async function acceptPasswordProof(userId: string, proof: string): Promise<boolean> {
+  const claims = decodeClaims(proof)
+  const proofSessionId = typeof claims?.session_id === 'string' ? claims.session_id : null
+  const signedInAt = claims ? passwordSignInTime(claims) : null
+  if (!proofSessionId || signedInAt === null) return false
+  if (Date.now() / 1000 - signedInAt > PASSWORD_PROOF_MAX_AGE_SECONDS) return false
+
+  const supabase = await createClient()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  // Never accept, and so never delete, the session this request is made with.
+  if (proofSessionId === decodeSessionId(session?.access_token ?? null)) return false
+
+  const { data, error } = await supabase.auth.getUser(proof)
+  if (error || data.user?.id !== userId) return false
+
+  const { data: ended, error: endError } = await supabase.rpc('revoke_my_session', {
+    p_session_id: proofSessionId,
+  })
+  return !endError && ended === true
+}
+
+/** When the token's session last proved the password, from Supabase's `amr` claim. */
+function passwordSignInTime(claims: Record<string, unknown>): number | null {
+  if (!Array.isArray(claims.amr)) return null
+  const entry = claims.amr.find(
+    (item): item is { method: string; timestamp: unknown } =>
+      typeof item === 'object' && item !== null && item.method === 'password'
+  )
+  return typeof entry?.timestamp === 'number' ? entry.timestamp : null
 }
 
 /**
@@ -179,12 +237,19 @@ export async function isSessionRevoked(sessionId: string): Promise<boolean> {
  * mark the caller's own session as current.
  */
 export function decodeSessionId(accessToken: string | null): string | null {
+  const claims = decodeClaims(accessToken)
+  return typeof claims?.session_id === 'string' ? claims.session_id : null
+}
+
+function decodeClaims(accessToken: string | null): Record<string, unknown> | null {
   if (!accessToken) return null
   const parts = accessToken.split('.')
   if (parts.length !== 3) return null
   try {
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
-    return typeof payload.session_id === 'string' ? payload.session_id : null
+    const payload: unknown = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
+    return typeof payload === 'object' && payload !== null
+      ? (payload as Record<string, unknown>)
+      : null
   } catch {
     return null
   }

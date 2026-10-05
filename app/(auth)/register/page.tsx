@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getAuthErrorMessage } from '@/lib/utils/network-errors';
 import { useEncryption } from '@/lib/context/encryption-context';
 import { generateKeySalt } from '@/lib/crypto/key-derivation';
+import { useTurnstile } from '@/lib/hooks/use-turnstile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ import { setupRecoveryFromPassword } from '@/lib/account/account-crypto';
 export default function RegisterPage() {
   const router = useRouter();
   const { unlock } = useEncryption();
+  const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -70,6 +72,7 @@ export default function RegisterPage() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: { captchaToken: await getCaptchaToken() },
       });
 
       if (error) {
@@ -81,6 +84,7 @@ export default function RegisterPage() {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
+          options: { captchaToken: await getCaptchaToken() },
         });
 
         if (signInError) {
@@ -188,6 +192,7 @@ export default function RegisterPage() {
               </p>
             )}
           </div>
+          <div ref={turnstileRef} />
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <Button type="submit" className="w-full" disabled={loading}>

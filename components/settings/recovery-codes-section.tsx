@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 import { verifyPassword } from '@/lib/supabase/verify-password'
+import { useTurnstile } from '@/lib/hooks/use-turnstile'
 import { setupRecoveryFromPassword } from '@/lib/account/account-crypto'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
 
@@ -22,6 +23,7 @@ export function RecoveryCodesSection({ keySalt, generatedAt }: RecoveryCodesSect
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [code, setCode] = useState<string | null>(null)
+  const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('reauthenticate')
 
   function reset() {
     setPassword('')
@@ -44,7 +46,7 @@ export function RecoveryCodesSection({ keySalt, generatedAt }: RecoveryCodesSect
       if (!user?.email) throw new Error('Not signed in')
 
       // Verify the password before escrowing a key derived from it.
-      if (!(await verifyPassword(user.email, password))) {
+      if (!(await verifyPassword(user.email, password, await getCaptchaToken()))) {
         setError('Incorrect password')
         return
       }
@@ -119,6 +121,7 @@ export function RecoveryCodesSection({ keySalt, generatedAt }: RecoveryCodesSect
                   autoFocus
                 />
               </div>
+              <div ref={turnstileRef} />
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={busy || !password}>
                 {busy ? 'Generating…' : 'Generate code'}
