@@ -83,7 +83,7 @@ Production rollout is an operational task rather than a feature. Hosted database
 ## Local setup
 
 ### Prerequisites
-- Node.js 20+ LTS
+- Node.js 22+ LTS
 - npm
 - Git
 - Docker Desktop (the local Supabase stack runs in containers)

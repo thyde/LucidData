@@ -17,7 +17,7 @@ Core ideas:
 
 ## Setup and commands
 
-Requirements: Node.js 20 or later, npm, Docker Desktop, and the Supabase CLI (installed as a dev dependency).
+Requirements: Node.js 22 or later, npm, Docker Desktop, and the Supabase CLI (installed as a dev dependency).
 
 ```bash
 npm install            # install dependencies

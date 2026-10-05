@@ -2313,8 +2313,8 @@ typed-array view, which is validated through a check that is not realm-sensitive
 
 Three things follow.
 
-- **Pass views, not buffers.** `lib/crypto/runtime.ts` gained `asBytes()` and every crypto call in the directory goes through it. This matters past CI: Node 20 is still supported, and React Native splits the page realm from a native implementation in exactly the same way, which is the portability LD-204 depends on.
-- **Pin CI to the oldest supported runtime.** Running CI above the floor is what hid this. The workflow stays on Node 20 with a comment saying why, and `package.json` now declares `engines.node >= 20` to match what AGENTS.md already told contributors.
+- **Pass views, not buffers.** `lib/crypto/runtime.ts` gained `asBytes()` and every crypto call in the directory goes through it. This matters past CI: React Native splits the page realm from a native implementation in exactly the same way, which is the portability LD-204 depends on.
+- **Pin CI to the oldest supported runtime.** Running CI above the floor is what hid this. The workflow pins the floor with a comment saying why, and `package.json` declares the same floor in `engines.node`. **Updated 2026-10-05:** Node 20 reached end of life in April 2026, so the floor moved to Node 22 in both places, and AGENTS.md and the README say the same.
 - **Reproduce the environment difference in a test rather than relying on CI to find it.** `lib/crypto/__tests__/realm-safety.test.ts` wraps `SubtleCrypto` in a proxy that refuses bare buffers the way Node 20 does, and runs the vault and sealed-box round trips through it. Two of its tests assert the wrapper rejects what it claims to, because a guard that cannot fail is not a guard.
 
 ### 6.12 There is no Phase 5
