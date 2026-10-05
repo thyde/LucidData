@@ -1,13 +1,14 @@
 # Competitive feature roadmap
 
 Research date: 2026-07-25
-Last delivery update: 2026-07-27
+Last delivery update: 2026-10-05
 Status: active. **Phase 1 and Phase 2 are delivered. Phase 3 and Phase 4 are in progress.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
-Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-a-defect-found-while-building-phase-2) for a defect found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
+Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-defects-found-while-building-phase-2) for defects found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
 Phase 3: [section 6.9](#69-phase-3-delivery-record) for the record.
 Phase 4: [section 6.10](#610-phase-4-delivery-record) for the record, and [section 6.11](#611-the-ci-failure-and-why-it-went-unnoticed) for a CI failure worth reading before trusting a green deployment.
 Cross-cutting: [section 6.13](#613-every-error-message-was-being-thrown-away-in-production) for why a server action must return an expected failure rather than throw it.
+Direction: re-sequenced 2026-10-05 around personal health and fitness data, US first, with the web app, iOS and Android apps, and Chrome, Edge, Firefox, and Safari extensions all in scope. [Section 6.14](#614-re-sequencing-for-the-health-and-fitness-focus) has the new order and [section 8.1](#81-decisions-taken) the decisions behind it.
 Owner: product
 Audience: agentic coding tools and the engineers reviewing their output
 
@@ -63,7 +64,7 @@ These are deliberately excluded from the next 12 months. Adopting any of them re
 this document rather than a note elsewhere.
 
 - Browsing capture that is not preceded by user-facing transparency. Collection is in scope through LD-206 and LD-207, but the order is fixed: the extension must show the user who is tracking them before it ever offers to monetize their browsing. Shipping collection first would make LucidData the thing it criticises.
-- Full native clients that duplicate the web application. LD-204 is scoped to capture and presentation that the web cannot perform.
+- Native clients that duplicate the whole web application. Since 2026-10-05, LD-204 covers capture, the vault, the health timeline, sharing, and settings. The marketplace, payouts, and the organization portal stay on the web.
 - Blockchain or token mechanics of the kind Vana uses.
 - Self-hosting and single-tenant deployment.
 
@@ -184,6 +185,9 @@ These products set the bar users and buyers will judge LucidData against.
 | eIDAS 2 / EUDI | Relying parties must register, declare purpose, request minimal attributes, and issue disclosure receipts. Member states must offer wallets by end of 2026 | P1 | [EUDI regulation](https://digital-strategy.ec.europa.eu/en/policies/eudi-regulation) |
 | W3C and OpenID | VC 2.0, OpenID4VCI 1.0, and OpenID4VP 1.0 are final. SD-JWT is RFC 9901 while SD-JWT VC remains a draft | P1, version-gated | [VC 2.0](https://www.w3.org/TR/vc-data-model-2.0/), [OpenID4VP](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html), [RFC 9901](https://www.rfc-editor.org/rfc/rfc9901.html) |
 | CFPB 1033 | Compliance dates stayed on 29 October 2025. Keep financial connectivity feature-flagged and claim no deadline | Monitor | [CFPB](https://www.consumerfinance.gov/rules-policy/rules-under-development/personal-financial-data-rights/) |
+| FTC Health Breach Notification Rule | A vendor of personal health records outside HIPAA must notify affected people and the FTC after a breach of unsecured health data, and the media when a breach is large. The 2024 amendments made clear that health apps drawing on several sources are covered | P0 for the health focus | [FTC](https://www.ftc.gov/legal-library/browse/rules/health-breach-notification-rule) |
+| Washington My Health My Data Act | Consent before collecting or sharing consumer health data, a signed authorization before any sale, deletion on request, and a separate consumer health data privacy policy linked from the homepage. Enforced by the attorney general and through private action | P0 for the health focus | [Washington AG](https://www.atg.wa.gov/protecting-washingtonians-personal-health-data-and-privacy) |
+| Apple App Review 5.1.1 and 5.1.3 | HealthKit data may not be used for advertising or data mining, or disclosed to third parties except for health management or consented research. No health data in iCloud. A privacy policy inside the app, in-app account deletion, and a legal entity rather than an individual as the submitter of a health app | P0 for the iOS app | [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) |
 
 ## 4. Gap analysis
 
@@ -208,6 +212,17 @@ Scoring is 1 to 5. Priority is a judgement, not a formula, but it follows the sc
 | LD-109 | Anyone can register an organization and contact users | 4 | 3 | 2 | 5 | 3 | 3 | verified | P0 |
 | LD-505 | The marketplace loses money as pools grow | 3 | 4 | 2 | 3 | 5 | 3 | verified | P0 |
 | LD-607 | Deleted accounts leave personal data behind | 4 | 3 | 2 | 5 | 2 | 3 | verified | P0 |
+| LD-110 | No terms of service, privacy policy, or consumer health privacy policy | 5 | 5 | 2 | 5 | 4 | 2 | verified | P0 |
+| LD-111 | Marketing promises earnings the product cannot deliver | 4 | 2 | 2 | 5 | 3 | 1 | verified | P0 |
+| LD-208 | Connectors are hard-coded per provider, with no backfill, push delivery, or terms policy | 4 | 3 | 3 | 4 | 3 | 4 | verified | P0 |
+| LD-209 | No schemas for sleep, vitals, body measurements, or nutrition | 5 | 3 | 2 | 2 | 3 | 2 | verified | P0 |
+| LD-210 | Health exports arrive as zip files the importer cannot open | 5 | 1 | 2 | 2 | 2 | 2 | verified | P0 |
+| LD-212 | The extension cannot be installed from any browser store | 4 | 2 | 3 | 3 | 2 | 3 | verified | P0 |
+| LD-214 | Imported health data has no timeline or trend view | 5 | 2 | 3 | 2 | 4 | 3 | inferred | P0 |
+| LD-608 | Product logic is reachable only through Next.js server actions | 3 | 4 | 2 | 3 | 3 | 4 | verified | P0 |
+| LD-609 | Code the apps must share lives inside the web package | 2 | 2 | 1 | 3 | 2 | 3 | verified | P0 |
+| LD-610 | Production runs on hobby tiers with no staging, monitoring, or analytics | 3 | 5 | 1 | 5 | 3 | 3 | verified | P0 |
+| LD-204 | Health platform data is unreachable from a browser | 5 | 3 | 4 | 3 | 4 | 5 | verified | P0 |
 | LD-104 | No access path when a user dies or loses capacity | 5 | 2 | 5 | 4 | 3 | 4 | verified | P1 |
 | LD-405 | Incorrect credentials cannot be corrected or superseded | 4 | 5 | 3 | 4 | 3 | 3 | verified | P1 |
 | LD-605 | Privileged access is unattributed and the audit chain is not anchored | 2 | 5 | 4 | 5 | 3 | 4 | verified | P1 |
@@ -217,19 +232,24 @@ Scoring is 1 to 5. Priority is a judgement, not a formula, but it follows the sc
 | LD-606 | No way to report, block, or suspend a bad actor | 3 | 3 | 2 | 4 | 2 | 3 | verified | P1 |
 | LD-206 | Users cannot see who is collecting data on them | 5 | 2 | 5 | 5 | 3 | 3 | inferred | P1 |
 | LD-404 | Credentials cannot be presented or checked in person | 5 | 4 | 5 | 4 | 4 | 4 | inferred | P1 |
-| LD-204 | Health platform data is unreachable from a browser | 5 | 3 | 4 | 3 | 4 | 5 | verified | P1 |
 | LD-401 | Credentials are not standards-interoperable | 3 | 5 | 5 | 4 | 4 | 5 | verified | P1 |
 | LD-502 | Marketplace ships copies, not governed access | 3 | 5 | 5 | 5 | 5 | 5 | verified | P1 |
 | LD-402 | No derived proofs such as age or income band | 4 | 5 | 5 | 4 | 4 | 4 | verified | P1 |
 | LD-202 | No sync health surface or provenance | 4 | 3 | 3 | 4 | 2 | 3 | verified | P1 |
 | LD-503 | Buyers cannot evaluate supply before purchase | 2 | 5 | 3 | 3 | 5 | 3 | verified | P1 |
 | LD-304 | Export exists but import round-trip does not | 4 | 2 | 4 | 4 | 2 | 3 | verified | P1 |
+| LD-112 | Passkey sign-in still asks for the password, and every reload locks the vault | 5 | 1 | 3 | 3 | 3 | 3 | verified | P1 |
+| LD-211 | No route for US medical records | 5 | 3 | 4 | 3 | 3 | 4 | inferred | P1 |
+| LD-305 | A person cannot share a health summary with a clinician or coach | 5 | 4 | 4 | 4 | 4 | 3 | inferred | P1 |
+| LD-611 | No console for operators, and no webhook management for organizations | 2 | 5 | 1 | 4 | 3 | 3 | verified | P1 |
+| LD-612 | No consumer plan, though the financial model depends on one | 2 | 1 | 2 | 1 | 5 | 2 | verified | P1 |
 | LD-103 | No vault search at scale | 4 | 1 | 2 | 2 | 2 | 3 | verified | P2 |
 | LD-403 | No delegation or household roles | 3 | 3 | 3 | 3 | 3 | 4 | inferred | P2 |
 | LD-203 | No provider export adapters | 4 | 2 | 3 | 2 | 3 | 4 | verified | P2 |
 | LD-504 | No offer targeting | 2 | 4 | 2 | 2 | 4 | 3 | verified | P2 |
 | LD-205 | Provider exports are abandoned partway | 3 | 2 | 2 | 2 | 2 | 3 | inferred | P2 |
 | LD-207 | Browsing data cannot be contributed or earned from | 3 | 4 | 3 | 2 | 4 | 4 | inferred | P2 |
+| LD-213 | Social and platform data has no route in beyond Google Takeout | 3 | 2 | 2 | 2 | 2 | 3 | inferred | P2 |
 
 Strategic reading: LucidData's problem is not feature count. It is that a new user sees an empty vault, a buyer cannot evaluate supply, and neither can verify the privacy claim. The P0 set fixes exactly that.
 
@@ -633,6 +653,127 @@ against the API issuance route. A rate-limit test. A test that an unverified org
 
 ---
 
+### LD-110 Legal terms and US consumer health privacy
+
+Priority: P0. Effort: small to build, with legal review on the critical path. Depends on: LD-101.
+
+Rationale. The product has no terms of service, no privacy policy, and no processing agreement, which a
+search of the repository confirmed on 2026-10-05. Every store listing needs a privacy policy URL: Apple,
+Google Play, and all four browser stores. Apple also wants the policy reachable inside the app. With
+health and fitness as the focus, US health privacy law applies on top of that. The FTC Health Breach
+Notification Rule covers a vendor of personal health records outside HIPAA. Washington's My Health My
+Data Act requires consent before collecting or sharing consumer health data, a signed authorization
+before any sale, and a separate consumer health data privacy policy linked from the homepage. Nevada
+and Connecticut have similar provisions. The trust centre describes what the system does, but it is not
+a contract.
+
+Stories.
+- As a person storing health records, I want to read what LucidData may and may not do with them before I sign up.
+- As an organization, I want terms and a processing agreement I can send to legal without a sales call.
+- As the operator, I want to know which version of the terms each person accepted.
+
+Scope. Terms of service, a privacy policy, a consumer health data privacy policy, organization terms
+with a data processing agreement, and a cookie statement if a non-essential cookie is ever set.
+Versioned acceptance at registration and again after a material change. A breach notification procedure
+that meets the FTC rule.
+
+Non-goals. Writing the legal text in code. Counsel drafts and approves it; this spec builds the place it
+lives and the record of who agreed to which version.
+
+Implementation.
+- Pages under `app/(marketing)/legal/`, public in the middleware allowlist and linked from the footer. The consumer health data privacy policy also gets its own link on the homepage, as the Washington act requires.
+- Keep document versions in a typed constant, `lib/constants/legal.ts`, so the version a person accepted can be recorded and compared.
+- Record acceptance (document, version, accepted at) with an audit entry, and prompt again when a version changes. A new table needs row level security and a deletion-manifest entry.
+- Add the FTC notification steps to the incident runbook in [lib/constants/assurance.ts](../lib/constants/assurance.ts), next to the existing 72-hour Article 33 path.
+
+Security. The acceptance record is evidence. Append to it rather than overwrite it, and state its
+retention reason in the deletion manifest.
+
+Acceptance criteria.
+- [ ] Terms, privacy policy, consumer health data privacy policy, and organization terms are published without authentication.
+- [ ] The consumer health data privacy policy has its own link on the homepage.
+- [ ] Registration records the accepted version, and a version change prompts the person again.
+- [ ] The incident runbook covers FTC notification, including the media notice for a large breach.
+- [ ] Counsel has approved the published text, and the approval date is recorded.
+- [ ] Copy passes the humanizer rules.
+
+Tests. A Playwright check that each legal page is public. A unit test that a stale accepted version
+triggers the prompt. A check that the homepage links the health policy.
+
+---
+
+### LD-111 Health-first positioning and accurate claims
+
+Priority: P0. Effort: small. Depends on: LD-110 for the legal links.
+
+Rationale. The homepage leads with "Earn from your data", the individuals page with "Get paid", and the
+hero says people "never see a cent" of the data market. Section 7.3 found a realistic contributor earns a
+few dollars to thirty dollars a year, and LD-501 left only credential data sellable. The health focus adds
+data that must never be sold: `health` is a restricted category here, Apple guideline 5.1.3 forbids it
+for HealthKit data, and the Strava and Google terms restrict onward sharing. The pricing table also
+labels the business tier "Most popular" with no usage behind the label. LD-101 exists so that the product
+makes no claim it cannot back, and Apple guideline 2.3.1 treats misleading marketing as grounds for
+removal.
+
+Scope. Rewrite the homepage hero and feature grid, the individuals page, the pricing table, and the
+footer tagline around the health vault: data from every device in one encrypted place, shared on the
+person's terms. Where the marketplace still appears, describe it as a small optional payment for
+credential data, with the amount shown before consent.
+
+Implementation.
+- Edit [components/marketing/sections.tsx](../components/marketing/sections.tsx), [app/(marketing)/for-individuals/page.tsx](../app/%28marketing%29/for-individuals/page.tsx), [components/marketing/pricing-table.tsx](../components/marketing/pricing-table.tsx), and [components/marketing/footer.tsx](../components/marketing/footer.tsx).
+- Where copy states a number or a promise, keep it in a typed constant so a test can hold it to the model.
+
+Acceptance criteria.
+- [ ] No consumer-facing page offers income or payment as the reason to sign up.
+- [ ] No page implies that health data can be sold.
+- [ ] No tier is labelled "Most popular" until usage supports it.
+- [ ] Every encryption claim matches the custody table from LD-101.
+- [ ] Copy passes the humanizer rules, and the marketing e2e specs match the new copy.
+
+Tests. A unit test that scans the marketing components for banned earnings phrases. The existing
+marketing and accessibility e2e specs.
+
+---
+
+### LD-112 Passkey vault unlock and reload-safe sessions
+
+Priority: P1. Effort: medium. Depends on: LD-105 for the factor model.
+
+Rationale. A passkey signs a person in, and then
+[components/auth/vault-unlock-dialog.tsx](../components/auth/vault-unlock-dialog.tsx) asks for the
+password anyway, because the master key is derived from it. The key also lives only in memory, so every
+hard reload locks the vault. A person checking a daily health view meets both on every visit. The
+WebAuthn PRF extension lets a passkey produce a stable secret on supporting authenticators. That secret
+can wrap a copy of the master key in the same way the LD-105 recovery factors do.
+
+Scope. A passkey PRF factor that unwraps the master key at sign-in. The password path where PRF is not
+supported. An evaluation of a reload-safe session key, with its trade-off disclosed before it ships.
+
+Non-goals. Replacing the password as the root secret. Changing the PBKDF2 parameters.
+
+Implementation.
+- Add a `passkey_prf` type to `recovery_factors`, bound to a credential id, rather than creating a parallel table.
+- Request the PRF extension at passkey registration and sign-in, derive a wrapping key from the PRF output with HKDF, and wrap and unwrap the master key in the browser.
+- For reloads, evaluate a non-extractable AES-KW key kept in IndexedDB for the session and cleared by idle lock, sign-out, and session revocation. Ship it only with a trust centre entry that says what an attacker with script execution could do.
+
+Security.
+- The server stores the wrapped key and the credential id. It never sees PRF output.
+- Removing a passkey removes its factor in the same transaction.
+- Follow [lib/crypto/AGENTS.md](../lib/crypto/AGENTS.md): known-answer vectors, round trips, a wrong-key failure, and a key-custody entry, which the trust-disclosure test enforces.
+
+Acceptance criteria.
+- [ ] On an authenticator with PRF support, passkey sign-in opens the vault without the password.
+- [ ] Without PRF support, the password path works unchanged.
+- [ ] A wrong PRF output fails to unwrap, asserted by test.
+- [ ] Deleting a passkey deletes its factor.
+- [ ] The trust centre lists the new factor and any session key.
+
+Tests. A wrap and unwrap round trip with a fixed PRF vector. A wrong-secret failure. A test that factor
+removal follows passkey removal.
+
+---
+
 ### LD-201 Connector framework with zero-knowledge ingestion
 
 Priority: P0. Effort: large. Depends on: LD-102 for failure notices.
@@ -695,6 +836,8 @@ Tests. Round-trip unit tests for seal and open. A test that a wrong key fails to
 Telemetry. Connect starts and completions, time to first imported record, sync success rate by provider, refresh failures, disconnect reasons.
 
 Rollout. Ship behind a feature flag. Strava first, Fitbit second. Note that the Fitbit Web API is deprecating in September 2026 in favour of the Google Health API, so treat the Fitbit adapter as short-lived and keep the provider interface stable.
+
+**Updated 2026-10-05:** the Fitbit connector is retired. Google turns the Fitbit Web API off on 30 October 2026. See [section 6.14](#614-re-sequencing-for-the-health-and-fitness-focus).
 
 Provider expansion, decided 2026-07-26. The connector framework only fits providers that expose a
 server-to-server API, because the sync worker runs while the person is away. That set is: Garmin
@@ -763,7 +906,7 @@ Tests. Fixture-based unit tests per adapter, including a malformed file and a ve
 
 ### LD-204 Mobile application
 
-Priority: P1. Effort: large. Depends on: stage A none, stage B requires LD-201.
+Priority: P0, raised from P1 on 2026-10-05. Effort: large. Depends on: stage A none, stage B requires LD-201.
 
 Rationale. The app earns its place twice, for reasons that are independent of each other.
 
@@ -804,6 +947,19 @@ is scoped to Health Connect and HealthKit rather than to named brands.
 
 The practical consequence for sequencing: every Android-side wearable is blocked behind LD-204 stage
 B. Anyone asking why Samsung or Xiaomi is missing should be pointed here rather than at LD-201.
+
+**Decision, 2026-10-05: stages A and B ship together, built with Expo.** With health and fitness as
+the focus, capture is the reason to install the app, so stage B is no longer a follow-up and the
+priority moves to P0. The app uses Expo and React Native and installs `react-native-quick-crypto` as
+`globalThis.crypto`. The pinned known-answer vectors decide whether the portable crypto core really does
+run unchanged on it. The app imports shared code from LD-609 and calls the LD-608 API. Its scope widens
+to the vault, the LD-214 timeline, LD-305 sharing, sources, notifications, and settings, including
+in-app account deletion, which Apple requires. The marketplace, payouts, and the organization portal
+stay out of the binary. Background capture while the vault is
+locked seals each record to the ingestion public key with the LD-201 sealed box and uploads it to
+`pending_ingest`, so the drain after unlock is the same path the server connectors use. Apple expects a
+health app to come from a legal entity rather than an individual, so the developer account must be an
+organization account. The Android build needs Google Play's Health Connect permission declaration.
 
 Stories.
 - As a user, I want my health data to arrive automatically, because re-entering it by hand is not realistic.
@@ -1019,6 +1175,238 @@ Do not launch both at once, because bundling them recreates the model this produ
 
 ---
 
+### LD-208 Connector framework v2
+
+Priority: P0. Effort: medium. Depends on: LD-201, LD-601.
+
+Rationale. LD-201 proved the sealed-box pipeline, but its shape does not scale past a few providers.
+`fetchRecords` in [lib/services/connector.service.ts](../lib/services/connector.service.ts) branches per
+provider. Strava returns the latest 30 activities and nothing older. There is no backfill window, no
+cursor, no rate-limit handling, and no way to receive the push notifications that Garmin, Oura,
+Withings, and Whoop use. The only cadence is the daily cron that the Vercel Hobby plan allows. Provider
+terms also differ in ways the code must enforce: Strava's API agreement lets a person's data be shown
+only to that person and shared only with their explicit consent, and Google restricts onward use of
+health data. Fitbit was retired on 2026-10-05 because Google is turning its Web API off. Providers can
+disappear, and the framework needs a clean way to say so.
+
+Scope. A provider module interface and registry. PKCE where the provider supports it. Cursors and a
+backfill range. Signed webhook ingestion. Per-source scheduling. A terms policy per provider that the
+consent and contribution paths enforce. Retirement as a first-class state.
+
+Implementation.
+- One module per provider under `lib/connectors/providers/`. Each exports its definition, authorize and token exchange, refresh, revoke, a paged fetch that takes a cursor and a start date, a normalizer, an optional webhook verifier, and a `termsPolicy` covering onward transfer, display to others, and AI use.
+- Add `sync_cursor`, `backfill_from`, `next_sync_at`, and `rate_limited_until` to `data_sources`. The table's existing row level security and deletion-manifest entry already cover the new columns.
+- `app/api/connectors/[provider]/webhook/route.ts` verifies the provider signature, never logs the body, and schedules a sync of that one source.
+- Run the cron hourly once LD-610 moves hosting off Hobby, and let `next_sync_at` decide which sources are due.
+- Keep the `retired` flag from the Fitbit change: a retired provider is never offered, a grant cannot complete, and an existing source stops syncing with the reason shown.
+
+Security.
+- Webhook routes have to be public, so they verify signatures and fail closed.
+- A provider whose terms forbid onward transfer can never reach a marketplace pool or an organization grant. Assert this in code, not configuration.
+
+Acceptance criteria.
+- [ ] Strava runs through the new interface with no change in behaviour, proven by the existing tests.
+- [ ] A first sync backfills to `backfill_from`, and later syncs fetch only new records.
+- [ ] A rate-limit response defers the source rather than marking it broken.
+- [ ] A webhook with a bad signature is refused and stores nothing.
+- [ ] Records from a provider whose terms forbid onward transfer cannot be contributed or granted.
+- [ ] Adding a provider needs no edit outside its own module and the registry.
+
+Tests. Recorded fixtures per provider. Cursor idempotency. Signature rejection. A test that every
+provider module declares a terms policy.
+
+---
+
+### LD-209 Health schema expansion
+
+Priority: P0. Effort: small. Depends on: LD-501 for the classification rules.
+
+Rationale. The vault knows two fitness shapes, `fitness_activity` and `fitness_daily`, in
+[lib/schemas/vault-schemas.ts](../lib/schemas/vault-schemas.ts). HealthKit, Health Connect, and the
+wearable APIs also deliver sleep, heart rate variability, blood oxygen, body measurements, and
+nutrition. Today those could only land in `custom`, which loses their structure.
+
+Scope. Add `sleep_session`, `vitals_daily`, `body_measurement`, and `nutrition_daily`, all in the
+`health` category, with form fields and a classification for every field.
+
+Non-goals. Raw sample streams. Store daily aggregates and sessions, the way the platforms' own
+statistics APIs return them, so a year of data stays in the thousands of entries rather than the
+millions. Reproductive and menstrual data, which waits on open decision 12.
+
+Implementation.
+- Zod schemas, `VAULT_SCHEMA_TYPES` entries, and `SCHEMA_FORM_FIELDS` for each type.
+- A classification for every field in [lib/privacy/quasi-identifiers.ts](../lib/privacy/quasi-identifiers.ts). The build fails without one.
+
+Acceptance criteria.
+- [ ] Each new type accepts a realistic record and rejects a malformed one.
+- [ ] Every field is classified, enforced by the existing test.
+- [ ] The types sit in the restricted `health` category and cannot enter a pool.
+- [ ] Manual entry works for each type through the schema form.
+
+Tests. Schema round trips, the existing classification test, and a test that the category is restricted.
+
+---
+
+### LD-210 Archive import and health export adapters
+
+Priority: P0. Effort: medium. Depends on: LD-203, LD-209.
+
+Rationale. The exports people already have come as zip files: Apple Health's `export.zip`, Google
+Takeout (which now holds Fitbit data), Garmin, Strava's bulk export, and Samsung Health. The importer
+reads one unzipped file at a time and stops at 1,000 records, so the person has to unzip by hand and pick
+a single file. Until the mobile app ships, these files are the only route for Apple Health and Fitbit
+history. After it ships, they are still the fastest way to bring in years of history at once.
+
+Scope. Streaming unzip in the browser. Batched import past the 1,000-record cap, with progress and
+resume. Adapters for Fitbit data in Takeout, Garmin, the Strava bulk export, Samsung Health, and Oura,
+each mapped to the LD-209 types.
+
+Implementation.
+- Add a small, audited zip reader that streams entries rather than loading the archive into memory.
+- Extend [lib/vault/adapters/index.ts](../lib/vault/adapters/index.ts) with one module per export, each with `detect` and `parse`, as LD-203 established.
+- Write in batches through the vault path, deduplicating on `source_record_id` so a re-import adds nothing.
+- Add a walkthrough per source to [extension/src/sources.js](../extension/src/sources.js). The existing test checks that each one names its adapter.
+
+Security. Parsing stays in the browser. Treat archive paths as untrusted: reject absolute paths and `..`
+segments, and cap the total uncompressed size so a zip bomb cannot exhaust memory.
+
+Acceptance criteria.
+- [ ] An Apple Health `export.zip` imports without manual unzipping.
+- [ ] An import of more than 1,000 records completes in batches and can resume.
+- [ ] Re-importing the same archive creates no duplicates.
+- [ ] Each new adapter parses a fixture into typed entries.
+- [ ] A zip bomb and a path-traversal entry are refused.
+
+Tests. A fixture archive per adapter, a duplicate import, an oversized archive, and a traversal entry.
+
+---
+
+### LD-211 US health records
+
+Priority: P1. Effort: large. Depends on: LD-204 for the iOS route, LD-208 for the server route.
+
+Rationale. Wearable data is only part of a personal health record. The rest sits with providers and
+insurers, and in the US a consumer app has two ways to reach it. On iPhone, HealthKit exposes the
+clinical records a person has already connected in the Health app. On the server, certified EHRs must
+offer patient access over SMART on FHIR, and payers must offer patient access APIs.
+
+Scope. Read clinical records through HealthKit in the iOS app. Connect to patient access endpoints
+directly or through an aggregator, as open decision 14 settles. Store records as FHIR resources inside
+the vault envelope.
+
+Non-goals. Acting as a HIPAA business associate. A person pulling their own records through patient
+access is using their own right of access.
+
+Security.
+- Clinical records are the most sensitive data the vault will hold. They never reach a pool, a log, or an analytics event.
+- An aggregator holds tokens between the person and their provider, so choosing one makes it a disclosed subprocessor under LD-101.
+
+Acceptance criteria.
+- [ ] On iOS, connected clinical records import as typed entries that name their source institution.
+- [ ] At least one server route, direct or through an aggregator, completes a patient access authorization and import.
+- [ ] Clinical records are excluded from every contribution path, asserted by test.
+- [ ] The trust centre names any aggregator as a subprocessor.
+
+Tests. FHIR fixtures for the common resource types. A test that clinical records cannot reach a
+contribution path.
+
+---
+
+### LD-212 Cross-browser extension builds and store release
+
+Priority: P0. Effort: medium. Depends on: LD-205, LD-206, LD-110 for the privacy policy URL.
+
+Rationale. The extension only loads unpacked, and only in Chromium browsers.
+[extension/manifest.json](../extension/manifest.json) declares a `service_worker` background, which
+Firefox does not support, and it has no Firefox add-on id. Safari has no `downloads` API on macOS or
+iOS, and Firefox for Android does not support it either, so the tier 0 handoff cannot work there as
+written. The manifest also lists `http://localhost:3000/*` in its host permissions and content script
+matches. A store reviewer will question that, and it should not ship.
+
+Scope. A build that emits one package per browser. A namespace shim. A fallback where `downloads` is
+missing. Store listings for Chrome, Edge, Firefox, and Safari.
+
+Implementation.
+- `extension/scripts/build.mjs` writes `dist/chrome`, `dist/edge`, `dist/firefox`, and `dist/safari` from one source manifest. Production builds drop localhost. The Firefox build gets `background.scripts`, `browser_specific_settings.gecko` with an add-on id, and the data collection declaration Mozilla now requires. Separate manifests also avoid Chrome versions before 121, which refuse a manifest that declares both background forms.
+- A `browser`/`chrome` namespace shim so the same source runs everywhere.
+- Where `downloads` is missing, tier 0 opens the vault import page with the walkthrough instead of watching for the file.
+- Safari ships inside a container app built with `xcrun safari-web-extension-converter`, under the organization Apple developer account.
+- CI runs the existing extension tests against every emitted manifest, and `web-ext lint` against the Firefox build.
+
+Security.
+- Each browser's install-time permission set stays exactly what LD-205 pinned. A test fails if any emitted manifest widens it.
+- Store privacy disclosures must match `extension/tiers.json` and the trust centre page.
+
+Acceptance criteria.
+- [ ] Each emitted package loads in its browser and completes the bridge handshake.
+- [ ] No production manifest contains localhost.
+- [ ] Every emitted manifest holds the pinned permission set and nothing more.
+- [ ] Tier 0 works, or falls back cleanly, on Safari and Firefox for Android.
+- [ ] Listings are live in all four stores, and `/trust/extension` links to them.
+
+Tests. A snapshot test per emitted manifest. A Playwright run that loads the Chromium build. The
+existing tier and URL-safety tests.
+
+---
+
+### LD-213 Platform data through portability channels
+
+Priority: P2. Effort: medium. Depends on: LD-210.
+
+Rationale. Social and platform APIs are closed or narrow. Meta retired the Instagram Basic Display API in
+December 2024. Facebook Graph access to personal posts needs Meta's app review and is granted narrowly.
+Spotify's extended API access needs Spotify's approval. What stays open are the export files every major
+platform must provide, and Meta's program that lists approved services as destinations in its export
+tool. Google's Data Portability API exists, but Google built it for EU users under the Digital Markets
+Act, so for a US-first product Takeout is the practical route.
+
+Scope. Export adapters for Facebook, Instagram, Spotify, Netflix, Amazon, LinkedIn, and X archives. An
+application to Meta's data portability destination program once the adapters work.
+
+Non-goals. Scraping, or any automation that uses a person's credentials on another site.
+
+Acceptance criteria.
+- [ ] Each adapter parses a fixture export into typed or custom entries.
+- [ ] Each source has a walkthrough that names its adapter.
+- [ ] Nothing from these sources can be sold without a classification, which already fails closed.
+
+Tests. A fixture export per adapter, including a malformed file.
+
+---
+
+### LD-214 Health timeline and insights
+
+Priority: P0. Effort: medium. Depends on: LD-209, and LD-103 at scale.
+
+Rationale. Imported health entries appear in the vault as a list of encrypted records. Nothing shows a
+week of sleep next to resting heart rate, or which device a number came from. For a health product this
+view is what brings people back, and it has to be built in the browser because the server cannot read
+the data.
+
+Scope. A timeline with daily charts per metric, gaps shown as gaps, a source label on each value, and
+simple trends. The mobile app runs the same aggregation code.
+
+Non-goals. Diagnosis or medical advice. Apple guideline 1.4.1 scrutinises medical claims, and the
+product makes none.
+
+Implementation.
+- Decrypt and aggregate in the browser, in a pure module that LD-609 shares with the app.
+- Read from the LD-103 IndexedDB index so a year of daily entries renders quickly, and clear it on lock.
+- Make onboarding start with connecting a source or importing an Apple Health export.
+
+Security. Aggregates are plaintext in memory and in the local index. Treat them like the LD-103 index:
+never sent to the server, and cleared on lock and sign-out.
+
+Acceptance criteria.
+- [ ] A year of daily entries renders in under two seconds on a mid-range laptop.
+- [ ] Each value shows its source, and overlapping sources are not counted twice.
+- [ ] Nothing derived from health entries leaves the browser.
+- [ ] The view is keyboard accessible and passes the axe scan.
+
+Tests. Aggregation unit tests with overlapping sources. A network-silence test. The accessibility suite.
+
+---
+
 ### LD-301 Rights and data subject request engine
 
 Priority: P0. Effort: large. Depends on: LD-102.
@@ -1140,6 +1528,36 @@ Acceptance criteria.
 - [ ] Importing a tampered export fails with a clear error.
 
 Tests. A property-style round-trip test over generated entries. A tampered-export rejection test. A large-export performance test.
+
+---
+
+### LD-305 Health summary sharing
+
+Priority: P1. Effort: medium. Depends on: LD-214, LD-303.
+
+Rationale. The most common thing a person does with health data is show it to someone: a doctor at an
+appointment, a coach, a physiotherapist. Consent grants in this product are built for organizations with
+accounts, and a clinician in a ten-minute appointment will not register one.
+
+Scope. A time-limited, revocable share of chosen categories over a date range, opened from a link or QR
+code without an account. An optional PDF or FHIR bundle generated in the browser.
+
+Implementation.
+- Encrypt the snapshot in the browser with a random key carried in the link fragment, which browsers do not send to the server. The server stores ciphertext and an expiry.
+- Reuse the public verification route pattern from [app/verify/[token]/page.tsx](../app/verify/%5Btoken%5D/page.tsx) for the viewer.
+- Each share produces an LD-303 consent receipt and an audit entry. Revoking a share deletes its ciphertext.
+
+Security.
+- The share screen says plainly that a recipient can keep what they saw. Revoking stops future views; it cannot undo a screenshot.
+- Every share has an expiry, with a short default.
+
+Acceptance criteria.
+- [ ] A person shares chosen categories over a date range, and the recipient opens the share without an account.
+- [ ] The server cannot read a share, asserted by test.
+- [ ] An expired or revoked share no longer opens.
+- [ ] Every share and revocation produces a receipt and an audit entry.
+
+Tests. A fragment-key round trip. A server-side read attempt that fails. Expiry and revocation tests.
 
 ---
 
@@ -1899,6 +2317,157 @@ entry fails.
 
 ---
 
+### LD-608 Versioned client API
+
+Priority: P0. Effort: medium. Depends on: none.
+
+Rationale. Mutations run through Next.js server actions, and only the web app can call those. The mobile
+app, the extension, and partner integrations need a stable HTTP surface. The service layer already holds
+the logic, so the API can stay thin.
+
+Scope. `app/api/v1/` handlers for the profile and key salt, vault entries, sources and the sealed ingest
+queue, consents, requests, credentials, audit, notifications, and account deletion with step-up. An
+OpenAPI document generated from the same Zod schemas.
+
+Implementation.
+- Authenticate with `Authorization: Bearer <Supabase access token>`, checked with `auth.getUser`. Create the request's Supabase client with the person's token so row level security applies. Never use the service role for these reads and writes.
+- Validate input with the schemas in `lib/validations/`. Vault writes require `client_ciphertext`, `encrypted_dek`, and `dek_salt`.
+- Return `UserFacingError` messages as a JSON error body with a 4xx status, and keep every other error generic, matching the server action rule.
+- Publish `/api/v1/openapi` the way [lib/validations/org-api.ts](../lib/validations/org-api.ts) feeds `/api/org/openapi`.
+- Add `/api/v1` to the middleware allowlist; the handlers authenticate.
+
+Security.
+- Rate limit with the LD-109 limiter.
+- No endpoint accepts a user id from the caller.
+- CORS stays closed. Native apps do not need it, and the extension uses its host permission.
+
+Acceptance criteria.
+- [ ] A missing or invalid token returns 401.
+- [ ] A request for another person's data returns nothing, because row level security refuses it rather than a check someone could forget.
+- [ ] The OpenAPI document matches the Zod schemas.
+- [ ] Server actions and v1 handlers call the same service functions.
+
+Tests. Auth and ownership tests per resource. An OpenAPI snapshot. A test that a `UserFacingError`
+message survives and an internal error does not.
+
+---
+
+### LD-609 Shared core package
+
+Priority: P0. Effort: medium. Depends on: none.
+
+Rationale. The mobile app needs the key derivation, envelope encryption, sealed box, schemas,
+validation, privacy classification, and normalizers the web app uses, with no drift between the two.
+That code sits inside the Next.js package, next to server-only modules.
+
+Scope. Move the pure modules into `packages/core` in an npm workspace, keeping the web app at the
+repository root to limit churn. Leave re-exports at the old paths and remove them over time.
+
+Implementation.
+- Candidates: the browser crypto in `lib/crypto/` (not the server signing modules), `lib/schemas/`, `lib/validations/`, `lib/privacy/`, the `lib/connectors/` normalizers, `lib/vault/import-parsers.ts`, and `lib/vault/adapters/`.
+- An ESLint boundary rule that forbids `next/*`, the Supabase server clients, and Node-only modules inside the package.
+- Point the build-gate tests that read `lib/crypto/` and the schema files at the new paths.
+
+Acceptance criteria.
+- [ ] Typecheck, lint, unit tests, and the production build pass with no change in behaviour.
+- [ ] The package imports nothing from Next.js or the server.
+- [ ] The trust-disclosure, classification, and deletion-manifest gates still fail when they should.
+
+Tests. The existing suite, plus the boundary rule in CI.
+
+---
+
+### LD-610 Production hardening and observability
+
+Priority: P0. Effort: medium. Depends on: none.
+
+Rationale. Production runs on Vercel Hobby, which Vercel limits to non-commercial use and to daily cron
+jobs, and on a Supabase plan without leaked-password protection. Supabase Auth's built-in email service
+only delivers to the project's own team, at a few messages an hour, so password reset for real users
+depends on custom SMTP. There is no CAPTCHA and no staging environment. Migrations are applied by hand,
+errors go only to the console, and nothing measures the success metrics in section 6. A product holding
+health data also needs backups that have been restored at least once.
+
+Scope.
+- Vercel Pro and Supabase Pro, with backups and a tested restore.
+- Custom SMTP for Supabase Auth through the existing Resend domain, and Cloudflare Turnstile on sign-up, sign-in, and password reset.
+- A staging Supabase project, preview deployments pointed at it, and migrations applied by a GitHub Action: to staging on merge, to production on approval.
+- `supabase db reset` and `supabase db lint` in CI, plus a nightly Playwright run against a local stack.
+- Error reporting through [lib/services/error-logger.ts](../lib/services/error-logger.ts) that scrubs bodies, query strings, email addresses, and health fields.
+- Cookieless first-party analytics for the measures of success, and no third-party pixels on signed-in or health pages.
+
+Non-goals. Session replay, which would capture plaintext the browser has just decrypted.
+
+Security. Every new vendor is a subprocessor and goes on the trust centre in the same change, which the
+existing assurance tests check.
+
+Acceptance criteria.
+- [ ] A password reset email reaches an address outside the project team.
+- [ ] A scripted sign-up without a CAPTCHA token is refused.
+- [ ] A preview deployment cannot reach production data.
+- [ ] A migration reaches production only through the workflow.
+- [ ] An error event contains no query string, email address, or health field, asserted by test.
+- [ ] The section 6 metrics can be measured from the analytics data.
+- [ ] A restore drill has run, and its date and result are published under LD-107.
+
+Tests. Scrubber unit tests. The nightly e2e run. A workflow dry run against staging.
+
+---
+
+### LD-611 Operator console and webhook management
+
+Priority: P1. Effort: medium. Depends on: LD-301, LD-506, LD-602.
+
+Rationale. Section 6.6 records service functions with no screen: advancing a rights case (pause,
+resume, extend, resolve), releasing a held payout, and registering an organization webhook. Until they
+have one, an operator acts through the service role by hand, which is what LD-605 exists to stop.
+
+Scope. An operator console behind a separate role, for rights cases, payout holds, and abuse reports. A
+webhook management page in the organization portal for owners.
+
+Implementation.
+- An operator role checked in the server action, never inferred from an email domain.
+- Every operator action writes an audit entry naming the operator, and LD-605 attribution applies.
+- Webhook management calls the existing `createWebhook`, keeps its SSRF guard, shows the signing secret once, and supports rotation and deletion.
+
+Security. A person can never advance their own rights case or release their own payout hold, asserted by
+test.
+
+Acceptance criteria.
+- [ ] An operator can pause, resume, extend, and resolve a rights case, each with a stated reason.
+- [ ] An operator can release a held payout, with a reason.
+- [ ] An organization owner can add, rotate, and remove a webhook endpoint.
+- [ ] Every operator action is audited with the operator's identity.
+
+Tests. Role checks, self-action refusal, and the webhook lifecycle.
+
+---
+
+### LD-612 Consumer subscription
+
+Priority: P1. Effort: small. Depends on: LD-110.
+
+Rationale. Section 7.4 finds consumer subscriptions are the largest revenue line in the sustainable
+scenario, and [lib/constants/billing-plans.ts](../lib/constants/billing-plans.ts) offers individuals
+nothing. The health focus draws a clear line between free and paid.
+
+Scope. A free tier and one paid tier at about four dollars a month. A proposed split, to confirm: free
+covers manual entry, file import, and one connected source; paid covers every source, full history
+backfill, health summary sharing, and later account continuity under LD-104.
+
+Implementation.
+- Stripe Billing for individuals, following the patterns in [lib/services/stripe-billing.service.ts](../lib/services/stripe-billing.service.ts). A new table needs row level security and a deletion-manifest entry.
+- The iOS app links out to web checkout on the US storefront, which Apple guideline 3.1.1(a) permits there, subject to open decision 13.
+
+Acceptance criteria.
+- [ ] A person can subscribe, change plan, and cancel on the web.
+- [ ] Limits are enforced on the server, never only in the interface.
+- [ ] Cancelling never deletes data. It stops syncs beyond the free limit.
+
+Tests. Plan limit tests, webhook-driven state changes, and a cancellation test.
+
+---
+
 ## 6. Sequenced roadmap
 
 Sequencing is driven by dependencies and by the fact that trust and acquisition gate everything else.
@@ -2206,8 +2775,8 @@ None of these block Phase 3. They are recorded so they are not lost.
 
 | Item | State | Why it matters |
 | --- | --- | --- |
-| Strava and Fitbit OAuth apps | Not created | LD-201 connectors cannot complete an authorization round trip without them. Both require an account we do not control |
-| Extension store listings | Not started | Chrome, Edge, and Firefox each need their own submission. Firefox additionally needs `browser_specific_settings`, and Chrome needs a paid developer account |
+| Strava OAuth app | Not created | LD-201 and LD-208 cannot complete an authorization round trip without it. Fitbit was dropped on 2026-10-05 when Google retired its Web API; see section 6.14 |
+| Extension store listings | Not started | Chrome, Edge, Firefox, and Safari each need their own submission, now tracked as LD-212. Firefox needs `browser_specific_settings` and a script background, Safari needs a container app, and Chrome needs a paid developer account |
 | DMARC enforcement | At `p=none` | Monitoring only. Tightening to `quarantine` should wait for a few weeks of reports, so a legitimate sender is not silently dropped |
 
 Closed since this table was written: the DMARC record, the Resend sending domain and API key, and the
@@ -2219,17 +2788,34 @@ Status: started 2026-07-27. LD-506 is delivered, LD-401 is delivered in part, an
 blocking dependency removed. The per-spec record is in
 [section 6.9](#69-phase-3-delivery-record).
 
+Re-sequenced on 2026-10-05 for the health and fitness focus; see
+[section 6.14](#614-re-sequencing-for-the-health-and-fitness-focus). These come first, in this order:
+
+- LD-610 production hardening and observability
+- LD-110 legal terms and US consumer health privacy
+- LD-111 health-first positioning and accurate claims
+- LD-609 shared core package
+- LD-608 versioned client API
+- LD-209 health schema expansion
+- LD-204 mobile application, stages A and B together (portable crypto core delivered)
+- LD-208 connector framework v2
+- LD-210 archive import and health export adapters
+- LD-212 cross-browser extension builds and store release
+- LD-214 health timeline and insights
+- LD-112 passkey vault unlock and reload-safe sessions
+
+The earlier queue follows, unchanged apart from LD-204 moving up:
+
 - LD-401 standards-based credential formats (delivered in part)
 - LD-402 derived proofs (unblocked by LD-401)
 - LD-405 credential correction, supersession, and renewal (unblocked by LD-401)
-- LD-204 mobile application, stage A (portable crypto core delivered)
 - LD-304 portable import and transfer
 - LD-506 marketplace integrity and fraud controls (delivered)
 - LD-606 abuse reporting and enforcement
 - LD-605 platform integrity and insider controls
 - LD-502 governed access, started
 
-Exit criteria: a LucidData credential verifies in an external wallet, buyers can purchase a verified claim rather than a copy, and a credential can be held on a phone.
+Exit criteria: a LucidData credential verifies in an external wallet, buyers can purchase a verified claim rather than a copy, and a credential can be held on a phone. Added 2026-10-05: a person can install the app on iOS or Android, bring in their Apple Health or Health Connect history, and see it in the timeline on the phone and on the web.
 
 ### 6.9 Phase 3 delivery record
 
@@ -2260,8 +2846,18 @@ on status is a candidate defect, and the compiler will not point at any of them.
 Status: started 2026-07-27. LD-203 is delivered. The record is in
 [section 6.10](#610-phase-4-delivery-record).
 
-- LD-404 proximity credential presentation
-- LD-204 mobile application, stage B health capture
+Re-sequenced on 2026-10-05. These come first, in this order:
+
+- LD-305 health summary sharing
+- LD-612 consumer subscription
+- LD-611 operator console and webhook management
+- LD-211 US health records
+- LD-213 platform data through portability channels
+
+The earlier queue follows:
+
+- LD-404 proximity credential presentation, deprioritized on 2026-10-05
+- LD-204 stage B health capture, moved to phase 3 on 2026-10-05
 - LD-104 account continuity for death and incapacity
 - LD-502 governed access, completed
 - LD-203 provider export adapters, with the LD-205 walkthroughs (delivered)
@@ -2274,6 +2870,9 @@ Phase 4 is over-subscribed and will not fit in three months. It is listed in pri
 as a commitment. If capacity is limited, LD-404 and LD-204 stage B are the two that matter, because
 together they complete the in-person credential use case. LD-207 should slip rather than ship rushed,
 since it is the highest-risk path in the product.
+
+Superseded on 2026-10-05: LD-204 stage B moved to phase 3, and LD-305 and LD-612 are now the two that
+matter most here. LD-404 waits until an issuer vertical needs in-person checks.
 
 ### 6.10 Phase 4 delivery record
 
@@ -2392,6 +2991,49 @@ Components call actions too and the directive makes it unusable from the server 
 And a type derived from an action's return needs `ActionData<T>` now, otherwise the failure case leaks
 into the derived type.
 
+### 6.14 Re-sequencing for the health and fitness focus
+
+Decided on 2026-10-05, with the reasons recorded in section 8.1. Open decision 5 asked for a vertical.
+The answer is personal health and fitness data, US first, with every surface in scope: the web app for
+individuals and organizations, iOS and Android apps, and extensions for Chrome, Edge, Firefox, and
+Safari. The mobile app is built with Expo and React Native.
+
+What changed, and why the order is what it is:
+
+1. **The web app could not go to a store or a phone as it stood.** Every store needs a privacy policy, a health app needs US health privacy terms, and the apps need an HTTP API and shared code. LD-110, LD-608, LD-609, and LD-610 come first because the rest depends on them.
+2. **Most health data is reachable only from a phone.** Apple Health has no web API, and Samsung Health and most Android wearables reach third parties through Health Connect. That puts the LD-204 app, with capture in its first release, at the centre of the plan rather than at a later stage.
+3. **The marketplace is not the pitch.** Health data stays unsellable here, by design and under Apple's and the providers' terms. LD-111 removes the earnings claims, and LD-612 adds the consumer plan the financial model already assumed.
+4. **Fitbit is gone.** Google turns the Fitbit Web API off on 30 October 2026, and its successor, the Google Health API, has a waitlist. Fitbit data now arrives through Health Connect on Android and through Takeout, which LD-210 covers.
+
+Capacity is one person working with AI agents, so the queue is strictly ordered and one spec is in flight
+at a time, on its own branch.
+
+Three fixes were made on 2026-10-05, ahead of the specs, because they could not wait:
+
+| Change | Why |
+| --- | --- |
+| Fitbit connector retired | It is no longer offered, a grant can neither start nor finish, and an existing source stops syncing with the reason shown. No Fitbit OAuth app had been registered, so no user was affected |
+| Unused `/api/supabase` proxy removed | It was public and unused, reflected any origin with credentials allowed, and logged full request URLs |
+| Node floor raised to 22 | Node 20 reached end of life in April 2026. CI, `engines`, AGENTS.md, and the README now agree |
+
+Deprioritized, not cancelled: LD-404 proximity presentation, LD-502 governed access, LD-207 browsing
+contribution, and LD-403 delegation. None of them serves the health focus, and LD-404 also needs an
+issuer vertical. Each keeps its place behind the new work.
+
+Setup that only an account owner can do, and that the specs above wait on:
+
+| Item | Needed by |
+| --- | --- |
+| Apple Developer Program as an organization, which needs a D-U-N-S number | LD-204, and the Safari build in LD-212 |
+| Google Play Console as an organization | LD-204 |
+| Chrome Web Store, Microsoft Partner Center, and Firefox add-on developer accounts | LD-212 |
+| Vercel Pro and Supabase Pro | LD-610 |
+| Custom SMTP for Supabase Auth, and Turnstile keys | LD-610 |
+| A Strava API app, and Strava's approval for production use | LD-208 |
+| Oura, Whoop, Withings, and Polar developer apps, and the Garmin Connect Developer Program | LD-208 |
+| A place on the Google Health API waitlist | LD-208 |
+| Counsel's review of the LD-110 documents | LD-110, and every store submission |
+
 ### Capacity reality
 
 A dependency and capacity pass over all 40 specs found no circular dependencies, but it found that every
@@ -2402,6 +3044,9 @@ criteria as the definition of a phase, and let the dates move.
 The longest dependency chain is only three steps, so the constraint is width rather than depth. That
 means adding engineers helps, and that the highest-fan-out specs, LD-303, LD-601, LD-201, and LD-501,
 should start as early as their dependencies allow.
+
+The sixteen specs added on 2026-10-05 were checked the same way. They add no cycle, and the longest new
+chain is still three steps, for example LD-209 to LD-214 to LD-305.
 
 ### Measures of success
 
@@ -2416,6 +3061,7 @@ Registrations alone will hide the adoption problem visible across this category.
 - Buyer conversion from pool view to purchase.
 - Extension installs, tier 1 enablement, and whether extension arrivals retain better than direct signups.
 - Credential presentations performed, and signups attributable to having been on the verifying side of one.
+- Added 2026-10-05: health sources connected per person, days of history imported, and timeline visits per week.
 
 ## 7. Financial model
 
@@ -2633,12 +3279,16 @@ These need a human decision before the dependent specs can be executed.
 2. Connector token custody. LD-201 requires a server-held key to call provider APIs. This is a real, disclosed narrowing of the zero-knowledge claim. Confirm the tradeoff is acceptable and that LD-101 will disclose it.
 3. Delegation key model. LD-403 cannot proceed until the key-sharing approach is chosen and threat-modelled.
 4. Export versus governed access. Decide whether raw export remains a first-class product or becomes a fallback. This determines how much of LD-502 is worth building.
-5. Vertical wedge. Every surviving competitor narrowed. Employment, education, and identity credentials fit the existing organization tooling better than consumer fitness data. Choosing a wedge would sharpen Phase 2 and Phase 3.
-6. Distribution model. DataSapien reaches consumers by embedding in brands' existing apps rather than asking them to adopt one. Decide whether LucidData stays a destination product, offers an embeddable path later, or accepts slower consumer growth funded by organization revenue. This shapes how much consumer acquisition work is worth funding.
-7. Issuer onboarding vertical. LD-404 only answers "is this tradesperson insured" if an insurer or trade body issues that credential. Pick one vertical and secure a launch issuer before building the presentation flow, otherwise it ships with nothing authoritative to present. Trade licensing and professional indemnity are the closest fit to the existing issuer tooling.
+5. Vertical wedge. **Decided 2026-10-05: personal health and fitness data, US first.** See section 8.1 and section 6.14. The original question: every surviving competitor narrowed. Employment, education, and identity credentials fit the existing organization tooling better than consumer fitness data. Choosing a wedge would sharpen Phase 2 and Phase 3.
+6. Distribution model. **Decided in part 2026-10-05:** LucidData stays a destination product on every surface, with its own web app, mobile apps, and browser extensions. An embeddable path is not ruled out. The original question: DataSapien reaches consumers by embedding in brands' existing apps rather than asking them to adopt one. Decide whether LucidData stays a destination product, offers an embeddable path later, or accepts slower consumer growth funded by organization revenue. This shapes how much consumer acquisition work is worth funding.
+7. Issuer onboarding vertical. **Deferred 2026-10-05,** together with LD-404, behind the health focus. LD-404 only answers "is this tradesperson insured" if an insurer or trade body issues that credential. Pick one vertical and secure a launch issuer before building the presentation flow, otherwise it ships with nothing authoritative to present. Trade licensing and professional indemnity are the closest fit to the existing issuer tooling.
 8. Browsing data appetite. LD-207 is the highest-return and highest-risk item here. Decide whether LucidData wants to be in the browsing data market at all before LD-206 ships, because LD-206 builds the collection capability either way and the answer changes what is said to users at that point.
 9. Platform fee level. LD-505 requires a number. A fee high enough to fund the service reduces what contributors earn, and contributor earnings are already modest: at current guidance a person in the financial category earns roughly 1.50 dollars per sale. Decide whether the marketplace is a revenue line or an acquisition feature funded by organization subscriptions, because that answer sets the fee and changes how the product should be described to users.
 10. Verification pricing. Section 7.6 shows per-check fees are worth roughly twelve times more to an individual than pool sales, and the buyer compares them to a manual check rather than to a data feed. Decide the fee, the subject's share, and whether verification is metered separately from the organization subscription. This is the single highest-leverage pricing decision in the document and it should be settled before LD-404 is built, because it changes what that feature is for.
+11. Health business model. Decide who pays on the organization side of a health product: research studies that recruit people and receive consented data under ethics review, tools for coaches and clinicians, or nobody for now. Selling to clinics may make LucidData a HIPAA business associate, which counsel should weigh before LD-305 grows an organization surface.
+12. Reproductive and menstrual data. Decide whether to leave it out of LD-209 and the app's permissions entirely, or to hold it under stronger protections. In some US states it carries legal risk that other health data does not.
+13. Mobile billing. Decide between web checkout linked from the US App Store build, which Apple guideline 3.1.1(a) permits on the US storefront, and in-app purchase. Recheck the guideline at submission, because it has changed recently and may change again.
+14. Health records route. Decide between registering directly with each EHR over SMART on FHIR and using an aggregator for LD-211. An aggregator is faster but holds tokens between the person and the provider and becomes a disclosed subprocessor, the same trade-off that led to the 2026-07-26 decision against a connector aggregator.
 
 ### 8.1 Decisions taken
 
@@ -2646,6 +3296,13 @@ These need a human decision before the dependent specs can be executed.
 |---|---|---|
 | 2026-07-26 | Android wearable data arrives through Health Connect, not per-vendor connectors | Samsung Health and Xiaomi have no server-to-server API, and Google Fit is closed to new developers and deprecated. Every Android-side wearable is therefore blocked behind LD-204 stage B, which raises its priority. See the decision note in LD-204 |
 | 2026-07-26 | No connector aggregator | Terra, Rook, and Vital would collapse many providers into one integration but would hold provider tokens between the person and the provider. Rejected for now, and recorded in LD-201 so it is a considered position rather than an oversight |
+| 2026-10-05 | The vertical is personal health and fitness data, US first | Closes open decision 5. Phases 3 and 4 were re-sequenced in section 6.14, and LD-110 to LD-112, LD-208 to LD-214, LD-305, and LD-608 to LD-612 were added |
+| 2026-10-05 | Every surface is in scope: web, iOS, Android, and the Chrome, Edge, Firefox, and Safari extensions | LD-204 widens beyond capture and presentation, LD-212 covers store release, and section 1.2 was updated |
+| 2026-10-05 | The mobile app is built with Expo and React Native | The portable crypto core from LD-204 stage A and the LD-609 shared package are reused rather than rewritten in Swift and Kotlin. Stages A and B ship together |
+| 2026-10-05 | The Fitbit connector is retired | Google turns the Fitbit Web API off on 30 October 2026, and its successor has a waitlist. Fitbit data arrives through Health Connect and Takeout instead |
+| 2026-10-05 | Health data is never sellable | Already enforced by the marketplace validation, and now a stated product position, which Apple guideline 5.1.3 and the provider terms require anyway. LD-111 removes the earnings claims from marketing |
+| 2026-10-05 | The supported Node floor is 22 | Node 20 reached end of life in April 2026. Recorded in section 6.11 |
+| 2026-10-05 | LD-404, LD-502, LD-207, and LD-403 wait behind the health work | None of them serves the health focus, and LD-404 also needs an issuer vertical that open decision 7 has deferred |
 
 ## 9. Validation status
 
@@ -2670,8 +3327,9 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 | Phase 4 implementation | In progress | LD-203 delivered 2026-07-27, which closed the last open LD-205 criterion. See section 6.10. LD-404 cannot start until Phase 3 supplies LD-401, LD-402, and LD-204 stage A, and four further Phase 4 specs are blocked on open decisions rather than on work |
 | Continuous integration | **Fixed 2026-07-27** | CI had failed on every run for thirty-four commits while production deployed cleanly, because Vercel runs only the build. The cause was a real portability defect in the crypto layer rather than a flaky test. See section 6.11 |
 | Server action error transport | **Fixed in part 2026-07-27** | Every user-facing error message thrown from a server action was replaced by framework boilerplate in production, across the whole product. Invisible in development, because the sanitization is production-only. Infrastructure and the four highest-traffic surfaces are converted; the rest is mechanical. See section 6.13 |
-| Legal review | **Not done** | Blocks open decisions 1 and 9, and parts of LD-107 |
-| User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions |
+| Health focus re-sequencing | Done 2026-10-05 | Section 6.14 and sixteen new specs. Checked against current sources: the Fitbit Web API shutdown, Supabase Auth's default email limits, browser support for extension APIs, Strava's API agreement, and the FTC, Washington, and Apple health rules |
+| Legal review | **Not done** | Blocks open decisions 1, 9, 11, and 13, all of LD-110, and parts of LD-107. Now on the critical path, because every store submission needs LD-110 |
+| User and buyer interviews | **Not done** | LD-404 and LD-107 rest on unvalidated assumptions. So does the health focus: LD-214 and LD-305 assume what people want to see and share |
 | Team pre-mortem | **Not done** | No strategic risk pass has been run |
 
 ### Defects found during validation
@@ -2694,8 +3352,8 @@ result is verified rather than assumed, and the person receives a signed receipt
 
 ### Before this spec is considered final
 
-1. Legal review of the questions in open decisions 1 and 9, plus US state data broker registration, FCRA exposure if credentials inform hiring, and money transmission on payouts.
-2. Interviews with prospective users and at least one institutional buyer, to test the LD-404 and LD-107 assumptions before funding them.
+1. Legal review of the questions in open decisions 1 and 9, plus US state data broker registration, FCRA exposure if credentials inform hiring, and money transmission on payouts. Since 2026-10-05, also the US health privacy obligations in LD-110: the FTC Health Breach Notification Rule, the Washington My Health My Data Act, and state laws such as California's CMIA.
+2. Interviews with prospective users and at least one institutional buyer, to test the LD-404, LD-107, LD-214, and LD-305 assumptions before funding them.
 3. A team pre-mortem.
 
 ## 10. Source index
@@ -2707,3 +3365,5 @@ Direct competitors: [Inrupt](https://www.inrupt.com/products/enterprise-wallet-i
 Adjacent products: [Optery pricing](https://www.optery.com/pricing/), [Optery security](https://www.optery.com/optery-security/), [Incogni](https://incogni.com/), [DeleteMe plans](https://joindeleteme.com/privacy-protection-plans/), [Permission Slip](https://permissionslipcr.com/), [Plaid Link](https://plaid.com/docs/link/), [Terra docs](https://docs.tryterra.co/), [Terra pricing](https://tryterra.co/pricing), [Apple Health](https://support.apple.com/en-us/108779), [Health Connect](https://developer.android.com/health-and-fitness/health-connect), [SpruceID Verify](https://docs.verify.spruceid.com/getting-started/overview/), [Entra Verified ID](https://learn.microsoft.com/en-us/entra/verified-id/introduction-to-verifiable-credentials-architecture), [EUDI ARF](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework), [Snowflake sharing](https://docs.snowflake.com/en/user-guide/data-sharing-intro), [AWS Data Exchange](https://docs.aws.amazon.com/data-exchange/latest/userguide/what-is.html), [Databricks Clean Rooms](https://docs.databricks.com/aws/en/clean-rooms/), [BigQuery sharing](https://cloud.google.com/bigquery/docs/analytics-hub-introduction).
 
 Regulatory and standards: [EDPB access guidelines](https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-012022-data-subject-rights-right-access_en), [EDPB portability](https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-right-data-portability-under-regulation-2016679_en), [EDPB consent](https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-052020-consent-under-regulation-2016679_en), [CCPA](https://oag.ca.gov/privacy/ccpa), [GPC](https://oag.ca.gov/privacy/ccpa/gpc), [UK DUAA](https://www.gov.uk/guidance/data-use-and-access-act-2025-data-protection-and-privacy-changes), [Data Governance Act](https://digital-strategy.ec.europa.eu/en/policies/data-governance-act), [Data Act](https://digital-strategy.ec.europa.eu/en/policies/data-act), [EUDI regulation](https://digital-strategy.ec.europa.eu/en/policies/eudi-regulation), [VC 2.0](https://www.w3.org/TR/vc-data-model-2.0/), [OpenID4VCI](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html), [OpenID4VP](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html), [RFC 9901 SD-JWT](https://www.rfc-editor.org/rfc/rfc9901.html), [CFPB 1033 reconsideration](https://www.consumerfinance.gov/rules-policy/rules-under-development/personal-financial-data-rights-reconsideration/), [FHIR R4](https://hl7.org/fhir/R4/http.html), [SMART App Launch](https://hl7.org/fhir/smart-app-launch/).
+
+Added 2026-10-05 for the health focus: [Fitbit Web API](https://dev.fitbit.com/build/reference/web-api/), [Google Health API](https://developers.google.com/health), [Google Data Portability API](https://developers.google.com/data-portability), [Meta data portability](https://developers.facebook.com/docs/data-portability/), [Strava API agreement](https://www.strava.com/legal/api), [Supabase custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [MDN extension background key](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/background), [MDN compatibility data for the downloads API](https://github.com/mdn/browser-compat-data/blob/main/webextensions/api/downloads.json), [FTC Health Breach Notification Rule](https://www.ftc.gov/legal-library/browse/rules/health-breach-notification-rule), [Washington My Health My Data Act](https://www.atg.wa.gov/protecting-washingtonians-personal-health-data-and-privacy), [Apple App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/).
