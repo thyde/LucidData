@@ -64,6 +64,12 @@ This file is self-contained: the patterns below live in its own sections. The ol
 
 ---
 
+## Budget
+
+Spending has a hard limit of $150 a month across every paid service. Do not exceed it without the owner's explicit permission. Tokens and time do not count. Before any action that adds or raises a charge, check the cost table and rules under Budget in [AGENTS.md](../AGENTS.md), and stop to ask if the new total would pass the limit or the price is unknown.
+
+---
+
 ## User-Facing Copy
 
 When generating or editing user-facing copy, apply the **humanizer** rules ([.github/skills/humanizer/SKILL.md](.github/skills/humanizer/SKILL.md)) directly as you write it. This covers README and docs, UI labels, button text, empty states, error and toast messages, onboarding copy, and email or notification text.
@@ -445,6 +451,7 @@ When implementing new features:
 - [ ] Follow naming conventions (PascalCase components, camelCase functions, kebab-case files)
 - [ ] Run the humanizer skill over any user-facing copy you add or change
 - [ ] Use `cn()` utility for className merging in components
+- [ ] Keep the monthly spend under the $150 limit; ask before adding any charge that would pass it
 
 ---
 

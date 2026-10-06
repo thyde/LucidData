@@ -4,6 +4,24 @@ Guidance for AI coding agents working in this repository. Read this before makin
 
 Planned work lives in exactly one place. [docs/competitive-feature-roadmap.md](docs/competitive-feature-roadmap.md) is the single definitive roadmap: the prioritized list of features to build and gaps to close, with numbered specs an agent can execute one at a time. Do not plan from the README or from design documents under `docs/`.
 
+## Budget
+
+Spending on this project has a hard limit of $150 a month across every paid service. Do not take any action that could push the monthly total over it without the owner's explicit permission in the conversation. Tokens and time do not count toward the limit.
+
+- Before anything that adds or raises a charge (a plan change, compute size, add-on, new paid service, domain, seat, or usage beyond an included allowance), add the new cost to the committed total below. If the result is over $150, or the price is unknown, stop and ask.
+- Keep every cap in place. Supabase's spend cap stays on, and Vercel's on-demand budget stays low enough that production pauses before the total can pass the limit.
+- When a cost changes, update this table in the same change.
+
+| Service | Plan | Monthly cost | Cap |
+| --- | --- | --- | --- |
+| Vercel | Pro, one seat | $20, plus usage beyond the $20 credit | On-demand budget of $60 pauses production at 100% |
+| Supabase | Pro; production and staging on Micro compute | About $34, with production compute covered by the $10 credit | Spend cap on; compute is billed outside it |
+| Domains | luciddatabank.com, .co, and .app at Vercel | About $4.25 ($51.05 a year, due July 2027, auto-renew off) | Fixed |
+| Zoho Mail | Mail Lite 5 GB, one licence, yearly | About $1 | Fixed |
+| Resend, Cloudflare, GitHub | Free plans | $0 | Free-tier limits |
+
+Committed total: about $60 a month. With every cap reached: about $120. Recorded 2026-10-06.
+
 ## What this project is
 
 LucidData is a privacy-first personal data bank. Users own, control, and share their data on their terms. The app is built with Next.js 16.2.10 (App Router, React 19.2.7), Supabase (Postgres, Auth, Realtime), and client-side encryption using the Web Crypto API.
@@ -179,3 +197,4 @@ When you write or edit user-facing text (UI labels, buttons, empty states, error
 - Confirm every new table has RLS enabled with `auth.uid()`-scoped policies, and every new query is scoped by the authenticated `userId`.
 - Confirm no service-role client is used for user-facing data, and no secrets or plaintext appear in logs, errors, or the diff.
 - Regenerate `types/database.types.ts` if you changed the schema.
+- Confirm nothing you did adds a charge that takes the monthly total over $150, and update the Budget table if a cost changed.
