@@ -1,0 +1,96 @@
+name: Migrations
+
+# Applies supabase/migrations to the hosted databases: staging first, then
+# production once a reviewer approves the production environment. This is the
+# only route a migration takes to production.
+#
+# Each database password is an environment secret named SUPABASE_DB_PASSWORD,
+# so a job only ever sees the password of the environment it runs in. Project
+# refs and pooler hosts are not secret and are written here.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/migrations.yml'
+      - '.github/actions/setup-supabase-cli/**'
+      - '.github/supabase-ca-2021.crt'
+  workflow_dispatch:
+
+# One migration run at a time, and never cancel one that has started: stopping
+# a push halfway through would leave a database between two schema versions.
+concurrency:
+  group: migrations
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Verify the server certificate and host name against Supabase's root CA, so
+  # the password cannot be sent to anything that merely answers on the address.
+  # The default is TLS without verification. The file is "Supabase Root 2021
+  # CA" from the dashboard's database settings, SHA-256 fingerprint
+  # 80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA,
+  # and it expires on 2031-04-26.
+  PGSSLMODE: verify-full
+  PGSSLROOTCERT: ${{ github.workspace }}/.github/supabase-ca-2021.crt
+
+jobs:
+  staging:
+    name: Apply to staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: migrations-staging
+    env:
+      # Session pooler, IPv4. The direct database host is IPv6 only, and
+      # GitHub-hosted runners have no IPv6.
+      DB_URL: postgresql://postgres.hbcxjxbljutlsmmhqgof@aws-0-us-west-2.pooler.supabase.com:5432/postgres
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Install Supabase CLI
+        uses: ./.github/actions/setup-supabase-cli
+
+      - name: Pending migrations
+        run: supabase db push --db-url "$DB_URL" --dry-run
+
+      - name: Apply
+        run: supabase db push --db-url "$DB_URL" --yes
+
+      - name: Confirm history matches the repository
+        run: supabase db push --db-url "$DB_URL" --dry-run | tee "$RUNNER_TEMP/after.txt" && grep -q "up to date" "$RUNNER_TEMP/after.txt"
+
+  production:
+    name: Apply to production
+    needs: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Required reviewers on this environment are what make this an approval
+    # step. The job waits here until one of them approves.
+    environment: migrations-production
+    env:
+      DB_URL: postgresql://postgres.abseucpagkibumlsndun@aws-1-us-west-2.pooler.supabase.com:5432/postgres
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Install Supabase CLI
+        uses: ./.github/actions/setup-supabase-cli
+
+      - name: Pending migrations
+        run: supabase db push --db-url "$DB_URL" --dry-run
+
+      - name: Apply
+        run: supabase db push --db-url "$DB_URL" --yes
+
+      - name: Confirm history matches the repository
+        run: supabase db push --db-url "$DB_URL" --dry-run | tee "$RUNNER_TEMP/after.txt" && grep -q "up to date" "$RUNNER_TEMP/after.txt"

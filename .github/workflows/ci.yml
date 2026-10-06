@@ -45,7 +45,28 @@ jobs:
       - name: Production build
         run: npm run build
 
-# Note: Playwright end-to-end tests (npm run test:e2e) are intentionally not run
-# here. They need browser downloads and a running app/Supabase stack. Add a
-# separate job with `npx playwright install --with-deps` and the test:e2e:ci
-# script when you want e2e coverage in CI.
+  database:
+    name: Migrations, schema lint, and security invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Supabase CLI
+        uses: ./.github/actions/setup-supabase-cli
+
+      # Starting on an empty volume applies every migration in order, the same
+      # as `supabase db reset`. A migration that only works on a database that
+      # already exists fails here.
+      - name: Build the database from every migration
+        run: supabase db start
+
+      - name: Lint the schema
+        run: supabase db lint --local --fail-on error
+
+      - name: Security invariants
+        run: supabase test db
+
+# Note: Playwright end-to-end tests run nightly in nightly-e2e.yml against a
+# local Supabase stack, because they take longer than a pull request should.

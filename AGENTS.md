@@ -43,6 +43,9 @@ Database and migrations:
 - Migrations are forward-only. Never edit a migration that has already been applied or deployed; write a new one. Name files `YYYYMMDDHHMMSS_short_description.sql` to keep ordering.
 - Every new table MUST `ENABLE ROW LEVEL SECURITY` and ship user-scoped policies in the same migration (see RLS below). A table without RLS is exposed through the public PostgREST API with the anon key.
 - Regenerate types with `npx supabase gen types` into `types/database.types.ts` after any schema change.
+- Migrations reach the hosted databases only through `.github/workflows/migrations.yml`. When a migration lands on `main`, it is applied to the staging project, then to production after a reviewer approves the `migrations-production` environment. Never apply a migration to production by hand, from the dashboard, or through an MCP tool, because that puts production's history out of step with the repository.
+- Vercel deploys `main` straight away, but the production migration waits for approval. Ship a schema change in its own pull request, approve its production run, then merge the code that depends on it. Removing a column or table follows the reverse order: stop using it first, then drop it.
+- `supabase/tests/database/` holds pgTAP tests that CI runs against a database built from every migration. They check that every public table has RLS, that every `SECURITY DEFINER` function pins `search_path` and is closed to `anon`, and that signed-in users can execute only a reviewed list of them. Exposing a new RPC means adding it to that list.
 - There is no ORM. Do not add Prisma.
 
 Environment variables (never commit `.env.local`):
@@ -167,7 +170,7 @@ When you write or edit user-facing text (UI labels, buttons, empty states, error
 
 ## CI
 
-`.github/workflows/ci.yml` runs typecheck, lint, the Vitest suite, and a production build on pushes to `main` and on every pull request. It does not run Playwright e2e because those tests need browser downloads and a running app plus Supabase. Run `npm run test:e2e` locally when you change UI flows.
+`.github/workflows/ci.yml` runs on pushes to `main` and on every pull request. One job runs typecheck, lint, the Vitest suite, and a production build. A second job builds a database from every migration, lints the schema with `supabase db lint`, and runs the pgTAP tests with `supabase test db`. `.github/workflows/nightly-e2e.yml` runs the Playwright suite against a production build and a local Supabase stack every night. Run `npm run test:e2e` locally when you change UI flows rather than waiting for the nightly run.
 
 ## Before you finish
 

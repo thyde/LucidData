@@ -1,0 +1,29 @@
+name: Install Supabase CLI
+description: >
+  Installs the Supabase CLI release that package-lock.json pins, after checking
+  its SHA-256. The migration workflow holds database credentials, so it installs
+  one verified binary instead of running npm install or a third-party action.
+
+runs:
+  using: composite
+  steps:
+    - name: Download and verify
+      shell: bash
+      env:
+        # Keep in step with "node_modules/supabase" in package-lock.json. The
+        # checksum is the linux_amd64 line of the release's checksums.txt.
+        SUPABASE_CLI_VERSION: 2.109.1
+        SUPABASE_CLI_SHA256: 36d87b7fe6b4bcfe89ac47a4354e526cff22480224de426d7b370f6934556976
+      run: |
+        set -euo pipefail
+        archive="supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz"
+        dir="$RUNNER_TEMP/supabase-cli"
+        mkdir -p "$dir"
+        curl --fail --silent --show-error --location --retry 3 \
+          --output "$dir/$archive" \
+          "https://github.com/supabase/cli/releases/download/v${SUPABASE_CLI_VERSION}/${archive}"
+        echo "${SUPABASE_CLI_SHA256}  $dir/$archive" | sha256sum --check --strict
+        tar -xzf "$dir/$archive" -C "$dir"
+        rm "$dir/$archive"
+        echo "$dir" >> "$GITHUB_PATH"
+        "$dir/supabase" --version

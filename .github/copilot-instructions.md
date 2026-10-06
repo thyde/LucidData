@@ -263,6 +263,7 @@ See [README.md](README.md) for local setup and service URLs.
 - **Production build:** `npm run build` (uses Webpack for Serwist)
 - **Local Supabase stack:** `npx supabase start` (applies migrations); Studio at http://127.0.0.1:54323
 - **New migration:** add a SQL file under `supabase/migrations/`, then `npx supabase migration up --local`
+- **Hosted databases:** migrations reach staging and production only through `.github/workflows/migrations.yml` (production after approval). Never apply one by hand; see AGENTS.md for ordering schema and code changes
 - **Regenerate types:** generate from Supabase, then preserve the application aliases at the end of `types/database.types.ts`
 - **Local checks:** `npm run typecheck`, `npm run lint`, `npm run test:run`, and `npm run build`
 - **Browser tests:** `npm run test:e2e` (Playwright)
