@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { MfaChallenge } from '@/components/auth/mfa-challenge'
 import { SignOutButton } from '@/components/auth/sign-out-button'
+import { safeRedirectPath } from '@/lib/utils/safe-redirect'
 
 function TwoFactorInner() {
   const router = useRouter()
   const params = useSearchParams()
-  const redirectTo = params.get('redirectedFrom') || '/dashboard'
+  const redirectTo = safeRedirectPath(params.get('redirectedFrom'))
 
   return (
     <Card>

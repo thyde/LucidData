@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getAuthErrorMessage } from '@/lib/utils/network-errors';
 import { useEncryption } from '@/lib/context/encryption-context';
 import { useTurnstile } from '@/lib/hooks/use-turnstile';
+import { safeRedirectPath } from '@/lib/utils/safe-redirect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +28,7 @@ function LoginForm() {
   const [passkeyKeySalt, setPasskeyKeySalt] = useState<string | null>(null);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
-  const redirectTo = searchParams.get('redirectedFrom') || '/dashboard';
+  const redirectTo = safeRedirectPath(searchParams.get('redirectedFrom'));
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;

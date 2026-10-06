@@ -25,4 +25,9 @@ const serwist = new Serwist({
   disableDevLogs: true,
 })
 
+// Earlier workers filled this cache with cross-origin responses; nothing reads it now.
+self.addEventListener('activate', (event) => {
+  event.waitUntil(caches.delete('cross-origin'))
+})
+
 serwist.addEventListeners()
