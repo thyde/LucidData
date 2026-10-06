@@ -2405,7 +2405,7 @@ Acceptance criteria.
 - [x] A password reset email reaches an address outside the project team.
 - [x] A scripted sign-up without a CAPTCHA token is refused.
 - [x] A preview deployment cannot reach production data.
-- [ ] A migration reaches production only through the workflow.
+- [x] A migration reaches production only through the workflow.
 - [x] An error event contains no query string, email address, or health field, asserted by test.
 - [ ] The section 6 metrics can be measured from the analytics data.
 - [ ] A restore drill has run, and its date and result are published under LD-107.
@@ -2428,6 +2428,9 @@ Progress, 2026-10-05.
 - Supabase Auth still pointed at `lucid-data-lucid-data.vercel.app` as its site URL, and `luciddatabank.com` was missing from the redirect allowlist, so password-reset links that ask to return to `/recover-vault` fell back to the old address. The site URL is now `https://luciddatabank.com`, the domain is on the allowlist, and the server-side minimum password length is 8, matching the app's own validation.
 - Supabase auto-confirms sign-ups, so nobody has proved they own their email address. That matters here, because credentials, credential requests, and consent requests are matched to accounts by email. Confirmation needs custom SMTP first, and a registration flow that sets the key salt and recovery code on the first confirmed sign-in rather than straight after sign-up. Recorded as an open defect in section 9.
 - Custom SMTP is live. Supabase Auth sends through Resend as `LucidData <noreply@luciddatabank.com>`, with its own sending-only key scoped to the domain, and the limit is 30 emails an hour instead of 2. A reset email to a test address that is not on the project team was delivered, which closes the first criterion. Email confirmation is the next step, and it needs the registration change above.
+- Migrations reach the hosted databases only through `.github/workflows/migrations.yml`. A merge that touches `supabase/migrations` applies them to staging, then to production once the owner approves the `migrations-production` environment. Only `main` can deploy to either environment, and administrators cannot skip the approval. Each job holds only its own database password, both rotated for this and stored nowhere else, and connects through the session pooler with the server's certificate and host name checked against Supabase's root CA. The CLI's default checks neither, so the workflow sets `verify-full`, and a local test confirmed the CLI then refuses a wrong CA and a wrong host name. The first run found both databases up to date, which closes the migration criterion.
+- CI builds a database from every migration on each pull request, lints it with `supabase db lint`, and runs pgTAP tests: row level security on every public table, `search_path` pinned on every `SECURITY DEFINER` function, none of them callable by `anon`, a reviewed list callable by signed-in users, and a table privilege behind every policy for signed-in users. Each test failed against a deliberate violation before it was kept. The Playwright suite runs nightly against a production build and a local Supabase stack, and its first run passed.
+- Spending is capped below the owner's limit of $150 a month. Vercel's on-demand budget is $60 and pauses production when it is reached, and Supabase's spend cap is on. The committed total is about $60 a month and the worst case about $120; [AGENTS.md](../AGENTS.md) keeps the table.
 
 ---
 
