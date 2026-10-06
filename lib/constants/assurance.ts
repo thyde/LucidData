@@ -131,8 +131,9 @@ export const RECOVERY_OBJECTIVES: RecoveryObjective[] = [
     scenario: 'Database loss or corruption',
     rpo: '24 hours',
     rto: '8 hours',
-    mechanism: 'Supabase daily automated backups with point-in-time recovery on paid plans.',
-    lastTestedAt: null,
+    mechanism:
+      'Supabase takes a physical backup every day and keeps seven days of them. A backup can be restored in place or into a new project. Point-in-time recovery is not enabled, so a restore returns the database to the last daily backup.',
+    lastTestedAt: '2026-10-06',
   },
   {
     scenario: 'Application hosting failure',
@@ -156,7 +157,7 @@ export const RECOVERY_OBJECTIVES: RecoveryObjective[] = [
  * not a capability, and a buyer is entitled to know which one they are reading.
  */
 export const RECOVERY_TESTING_STATEMENT =
-  'No recovery drill has been performed. The objectives above are design targets derived from our provider capabilities, not measurements. We will publish the date and outcome of the first drill here when it happens.'
+  'The first recovery drill ran on 2026-10-06. The previous day\'s production backup was restored into a separate, temporary database, which was ready four minutes after the request. Every table, every account, the migration history, and the latest entry in the audit hash chain matched production as of the backup, and the temporary copy was then deleted. The drill covered the database only. The other objectives are still design targets, and the time to point the application at a restored database was not measured.'
 
 export interface IncidentRole {
   role: string

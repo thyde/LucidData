@@ -39,6 +39,18 @@ describe('nothing is claimed that has not happened', () => {
     }
   })
 
+  it('publishes the date of every drill it relies on', () => {
+    for (const entry of RECOVERY_OBJECTIVES) {
+      if (entry.lastTestedAt === null) continue
+      expect(RECOVERY_TESTING_STATEMENT).toContain(entry.lastTestedAt)
+    }
+  })
+
+  it('does not claim point-in-time recovery, which is not enabled', () => {
+    const database = RECOVERY_OBJECTIVES.find((entry) => entry.scenario.startsWith('Database'))
+    expect(database?.mechanism.toLowerCase()).toContain('point-in-time recovery is not enabled')
+  })
+
   it('does not claim measured uptime while it is unmeasured', () => {
     if (!AVAILABILITY_TARGET.measured) {
       expect(AVAILABILITY_TARGET.note.toLowerCase()).toContain('do not yet publish')

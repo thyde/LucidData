@@ -74,7 +74,7 @@ test.describe('Trust centre', () => {
       page.getByText('We do not offer EU or UK data residency', { exact: false })
     ).toBeVisible()
     await expect(
-      page.getByText('No recovery drill has been performed', { exact: false })
+      page.getByText('The drill covered the database only', { exact: false })
     ).toBeVisible()
     await expect(page.getByText('72 hours from becoming aware', { exact: false })).toBeVisible()
   })
