@@ -6,6 +6,17 @@
 
 import { test, expect } from '@playwright/test';
 import { clearSession, getUniqueEmail, fillFormField, signup, TEST_USER } from '../helpers/auth';
+import { createAdminClient } from '../helpers/supabase-admin';
+
+async function recordedSignupSource(email: string): Promise<string | null> {
+  const { data, error } = await createAdminClient()
+    .from('users')
+    .select('signup_source')
+    .eq('email', email)
+    .single();
+  if (error) throw error;
+  return data.signup_source;
+}
 
 test.describe('Signup Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -80,6 +91,19 @@ test.describe('Signup Flow', () => {
 
     // Should display user info
     await expect(page.locator(`text=${email}`)).toBeVisible();
+    expect(await recordedSignupSource(email)).toBe('direct');
+  });
+
+  test('records a sign-up that started on a credential check', async ({ page }) => {
+    const email = getUniqueEmail();
+    await signup(page, email, TEST_USER.password, { path: '/signup?from=verify' });
+    expect(await recordedSignupSource(email)).toBe('verify');
+  });
+
+  test('ignores a sign-up source that is not on the list', async ({ page }) => {
+    const email = getUniqueEmail();
+    await signup(page, email, TEST_USER.password, { path: '/signup?from=newsletter' });
+    expect(await recordedSignupSource(email)).toBe('direct');
   });
 
   test('should prevent duplicate email registration', async ({ page }) => {

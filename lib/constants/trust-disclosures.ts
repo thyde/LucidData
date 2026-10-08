@@ -223,6 +223,22 @@ export const SUBPROCESSORS: Subprocessor[] = [
   },
 ]
 
+/** What the product measures about its own use, and how. Rendered on /trust. */
+export const PRODUCT_MEASUREMENT = [
+  {
+    measure: 'Page views',
+    how: 'Counted without cookies, on public pages only. Signed-in pages, share links, and invitations are never counted, and the address is cut to its path before it is sent.',
+  },
+  {
+    measure: 'Where you signed up from',
+    how: 'If you arrive from a credential check or from the browser extension, your account notes which one, once. Nothing else about how you found us is kept.',
+  },
+  {
+    measure: 'Weekly totals',
+    how: 'Counts such as how many people connected a source or shared a record, worked out from records the product already keeps and stored as totals. No total is kept per person.',
+  },
+]
+
 /** What revocation can and cannot do, stated plainly. */
 export const REVOCATION_LIMIT =
   'Revoking consent stops future access immediately. It cannot recall data that was already delivered. If you granted export access, the recipient holds a copy that no revocation can reach.'

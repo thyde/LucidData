@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { resolveShareToken } from '@/lib/services/share.service'
 import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
 import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
@@ -26,7 +27,7 @@ export default async function VerifyPage({
     <div className="min-h-screen bg-muted/20 flex items-center justify-center p-6">
       <div className="w-full max-w-lg space-y-6">
         <div className="text-center">
-          <span className="font-semibold text-lg">Lucid</span>
+          <span className="font-semibold text-lg">LucidData</span>
           <span className="text-muted-foreground text-sm"> · credential verification</span>
         </div>
 
@@ -95,6 +96,13 @@ export default async function VerifyPage({
             </div>
           </div>
         )}
+
+        <p className="text-center text-sm text-muted-foreground">
+          You can keep your own records in LucidData and share only the fields a check needs.{' '}
+          <Link href="/register?from=verify" className="text-primary underline">
+            Create an account
+          </Link>
+        </p>
       </div>
     </div>
   )

@@ -10,6 +10,7 @@ const rpcCalls: { name: string; args: unknown }[] = []
 const rpcResults = new Map<string, unknown[]>()
 const findPoolByOrg = vi.fn()
 const findActiveContributionsByPool = vi.fn()
+const insertEvaluation = vi.fn()
 
 vi.mock('@/lib/supabase/service', () => ({
   createServiceClient: () => ({
@@ -17,6 +18,9 @@ vi.mock('@/lib/supabase/service', () => ({
       rpcCalls.push({ name, args })
       return Promise.resolve({ data: rpcResults.get(name) ?? [], error: null })
     },
+    from: (table: string) => ({
+      insert: (row: unknown) => insertEvaluation(table, row),
+    }),
   }),
 }))
 
@@ -67,6 +71,7 @@ beforeEach(() => {
   rpcCalls.length = 0
   rpcResults.clear()
   vi.clearAllMocks()
+  insertEvaluation.mockResolvedValue({ error: null })
   findPoolByOrg.mockResolvedValue(POOL)
   findActiveContributionsByPool.mockResolvedValue(
     Array.from({ length: 6 }, (_, index) => contribution(index))
@@ -91,6 +96,21 @@ describe('evaluatePool', () => {
   it('refuses a pool that is not the caller\u2019s', async () => {
     findPoolByOrg.mockResolvedValue(null)
     await expect(evaluatePool('pool-1', 'other-org')).rejects.toThrow('Pool not found')
+    expect(insertEvaluation).not.toHaveBeenCalled()
+  })
+
+  it('records which organization evaluated which pool, and nothing else', async () => {
+    await evaluatePool('pool-1', 'org-1')
+    expect(insertEvaluation).toHaveBeenCalledWith('pool_evaluations', {
+      organization_id: 'org-1',
+      pool_id: 'pool-1',
+    })
+  })
+
+  it('still evaluates when the record cannot be written', async () => {
+    insertEvaluation.mockRejectedValue(new Error('database unreachable'))
+    const result = await evaluatePool('pool-1', 'org-1')
+    expect(result.pool.id).toBe('pool-1')
   })
 
   it('reads coverage, freshness, and schema mix through aggregates only', async () => {
