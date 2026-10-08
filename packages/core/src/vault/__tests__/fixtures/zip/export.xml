@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HealthData locale="en_US">
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-01 08:00:00 -0800" endDate="2026-01-01 08:10:00 -0800" value="100"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-02 08:00:00 -0800" endDate="2026-01-02 08:10:00 -0800" value="200"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-03 08:00:00 -0800" endDate="2026-01-03 08:10:00 -0800" value="300"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-04 08:00:00 -0800" endDate="2026-01-04 08:10:00 -0800" value="400"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-05 08:00:00 -0800" endDate="2026-01-05 08:10:00 -0800" value="500"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-06 08:00:00 -0800" endDate="2026-01-06 08:10:00 -0800" value="600"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-07 08:00:00 -0800" endDate="2026-01-07 08:10:00 -0800" value="700"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-08 08:00:00 -0800" endDate="2026-01-08 08:10:00 -0800" value="800"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-09 08:00:00 -0800" endDate="2026-01-09 08:10:00 -0800" value="900"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-10 08:00:00 -0800" endDate="2026-01-10 08:10:00 -0800" value="1000"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-11 08:00:00 -0800" endDate="2026-01-11 08:10:00 -0800" value="1100"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-12 08:00:00 -0800" endDate="2026-01-12 08:10:00 -0800" value="1200"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-13 08:00:00 -0800" endDate="2026-01-13 08:10:00 -0800" value="1300"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-14 08:00:00 -0800" endDate="2026-01-14 08:10:00 -0800" value="1400"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-15 08:00:00 -0800" endDate="2026-01-15 08:10:00 -0800" value="1500"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-16 08:00:00 -0800" endDate="2026-01-16 08:10:00 -0800" value="1600"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-17 08:00:00 -0800" endDate="2026-01-17 08:10:00 -0800" value="1700"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-18 08:00:00 -0800" endDate="2026-01-18 08:10:00 -0800" value="1800"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-19 08:00:00 -0800" endDate="2026-01-19 08:10:00 -0800" value="1900"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-20 08:00:00 -0800" endDate="2026-01-20 08:10:00 -0800" value="2000"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-21 08:00:00 -0800" endDate="2026-01-21 08:10:00 -0800" value="2100"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-22 08:00:00 -0800" endDate="2026-01-22 08:10:00 -0800" value="2200"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-23 08:00:00 -0800" endDate="2026-01-23 08:10:00 -0800" value="2300"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-24 08:00:00 -0800" endDate="2026-01-24 08:10:00 -0800" value="2400"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-25 08:00:00 -0800" endDate="2026-01-25 08:10:00 -0800" value="2500"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-26 08:00:00 -0800" endDate="2026-01-26 08:10:00 -0800" value="2600"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-27 08:00:00 -0800" endDate="2026-01-27 08:10:00 -0800" value="2700"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" startDate="2026-01-28 08:00:00 -0800" endDate="2026-01-28 08:10:00 -0800" value="2800"/>
+</HealthData>
