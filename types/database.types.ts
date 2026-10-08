@@ -2635,6 +2635,10 @@ export type Database = {
         Args: { entries: Json }
         Returns: undefined
       }
+      rewrap_vault_keys: {
+        Args: { p_entries: Json; p_ingest_key?: Json; p_user_id: string }
+        Returns: undefined
+      }
       rotate_organization_api_key: {
         Args: {
           p_key_hash: string
