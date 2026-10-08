@@ -2456,6 +2456,70 @@ export type Database = {
           },
         ]
       }
+      vault_rewrap_entries: {
+        Row: {
+          dek_salt: string
+          encrypted_dek: string
+          previous_encrypted_dek: string
+          rewrap_id: string
+          vault_data_id: string
+        }
+        Insert: {
+          dek_salt: string
+          encrypted_dek: string
+          previous_encrypted_dek: string
+          rewrap_id: string
+          vault_data_id: string
+        }
+        Update: {
+          dek_salt?: string
+          encrypted_dek?: string
+          previous_encrypted_dek?: string
+          rewrap_id?: string
+          vault_data_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_rewrap_entries_rewrap_id_fkey"
+            columns: ["rewrap_id"]
+            isOneToOne: false
+            referencedRelation: "vault_rewraps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vault_rewraps: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_rewraps_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_deliveries: {
         Row: {
           attempts: number
@@ -2511,6 +2575,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_vault_rewrap: {
+        Args: { p_ingest_key?: Json; p_rewrap_id: string; p_user_id: string }
+        Returns: number
+      }
       approve_consent_request_atomic: {
         Args: { request_id: string; response_note?: string }
         Returns: Json
