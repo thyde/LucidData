@@ -208,16 +208,24 @@ export async function disconnectSource(
   })
 
   // Pending sealed records go with the source. They were fetched under a grant
-  // that no longer exists.
-  await service.from('pending_ingest').delete().eq('data_source_id', sourceId)
-  await service.from('data_sources').delete().eq('id', sourceId).eq('user_id', userId)
+  // that no longer exists. Each delete is checked, so a failure surfaces
+  // instead of being recorded as done.
+  const pending = await service.from('pending_ingest').delete().eq('data_source_id', sourceId)
+  if (pending.error) throw pending.error
+  const removed = await service
+    .from('data_sources')
+    .delete()
+    .eq('id', sourceId)
+    .eq('user_id', userId)
+  if (removed.error) throw removed.error
 
   if (options.deleteImported) {
-    await service
+    const imported = await service
       .from('vault_data')
       .delete()
       .eq('user_id', userId)
       .eq('source_provider', source.provider as string)
+    if (imported.error) throw imported.error
   }
 
   await createAuditEntry({

@@ -54,6 +54,22 @@ export function isSaleRestrictedEntry(entry: {
   )
 }
 
+/**
+ * A contribution is judged by its own columns and by the vault entry it came
+ * from. Before 2026-10-08 a contribution recorded the pool's category rather
+ * than the entry's, so the entry is the only record of what the data was.
+ */
+export function isSaleRestrictedContribution(contribution: {
+  category?: string | null
+  schema_type?: string | null
+  vault_data?: { category?: string | null; schema_type?: string | null } | null
+}): boolean {
+  return (
+    isSaleRestrictedEntry(contribution) ||
+    (contribution.vault_data != null && isSaleRestrictedEntry(contribution.vault_data))
+  )
+}
+
 /** "Health, financial, location, and browsing data". */
 export function describeRestrictedCategories(): string {
   const [first, ...rest] = MARKETPLACE_RESTRICTED_CATEGORIES

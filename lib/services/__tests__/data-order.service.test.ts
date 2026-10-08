@@ -21,10 +21,11 @@ vi.mock('@/lib/stripe/client', () => ({
 }))
 
 import * as contributionRepo from '@/lib/repositories/contribution.repository'
+import type { PoolContributionWithEntry } from '@/lib/repositories/contribution.repository'
 import * as orderRepo from '@/lib/repositories/data-order.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
 import { getExport, startPoolPurchase } from '@/lib/services/data-order.service'
-import type { DataOrder, DataOrderRecord, DataPool, PoolContribution } from '@/types/database.types'
+import type { DataOrder, DataOrderRecord, DataPool } from '@/types/database.types'
 
 const pool = {
   id: 'pool-1',
@@ -67,11 +68,12 @@ const contributions = Array.from({ length: 5 }, (_, index) => ({
   declared_purpose: pool.purpose,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
+  vault_data: null,
   __index: index,
 })).map(({ __index, ...contribution }) => {
   void __index
   return contribution
-}) satisfies PoolContribution[]
+}) satisfies PoolContributionWithEntry[]
 
 const order = {
   id: 'order-1',
@@ -150,6 +152,26 @@ describe('data order snapshots', () => {
     vi.mocked(contributionRepo.findActiveContributionsByPool).mockResolvedValue([
       ...contributions.slice(0, 4),
       { ...contributions[4], category: 'health' },
+    ])
+
+    await expect(
+      startPoolPurchase(pool.buyer_org_id, 'buyer-1', {
+        pool_id: pool.id,
+        order_type: 'snapshot',
+      })
+    ).rejects.toThrow('needs at least 5 contributors')
+    expect(orderRepo.createOrder).not.toHaveBeenCalled()
+  })
+
+  it('judges a contribution by the vault entry it came from', async () => {
+    // Before 2026-10-08 a contribution recorded the pool's category, so an
+    // employment entry filed under financial looks like credentials data here.
+    vi.mocked(contributionRepo.findActiveContributionsByPool).mockResolvedValue([
+      ...contributions.slice(0, 4),
+      {
+        ...contributions[4],
+        vault_data: { category: 'financial', schema_type: 'employment' },
+      },
     ])
 
     await expect(

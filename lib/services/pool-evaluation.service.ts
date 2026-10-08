@@ -37,7 +37,10 @@ import { computeOrderTotal } from '@/lib/constants/marketplace-economics'
 import { vouchedShare, type AssuranceMix } from '@/lib/constants/marketplace-integrity'
 import { getPoolAssuranceMix } from '@/lib/services/marketplace-integrity.service'
 import { UserFacingError } from '@/lib/actions/action-result'
-import { isSaleRestrictedEntry } from '@/lib/validations/marketplace'
+import {
+  SALE_RESTRICTED_SCHEMA_TYPES,
+  isSaleRestrictedContribution,
+} from '@/lib/validations/marketplace'
 
 export interface FieldCoverage {
   field: string
@@ -169,14 +172,17 @@ export async function evaluatePool(poolId: string, orgId: string): Promise<PoolE
   if (freshnessResult.error) throw freshnessResult.error
   if (schemaMixResult.error) throw schemaMixResult.error
 
-  const contributions = (await contributionRepo.findActiveContributionsByPool(poolId)).filter(
-    // Matches the purchase path, so the evaluation never counts a record a
-    // purchase would leave out.
-    (contribution) => !isSaleRestrictedEntry(contribution)
-  )
+  // What the pool holds, which the coverage, freshness, and schema queries
+  // above also count, so their shares are taken over the same rows.
+  const contributions = await contributionRepo.findActiveContributionsByPool(poolId)
   const recordCount = contributions.length
   const contributors = new Set(contributions.map((entry) => entry.user_id)).size
   const assurance = await getPoolAssuranceMix(poolId)
+  // What a purchase would release. Restricted data never is, so it is priced
+  // and previewed the way the purchase path treats it: as if it were not there.
+  const releasable = contributions.filter(
+    (contribution) => !isSaleRestrictedContribution(contribution)
+  )
 
   const coverage: FieldCoverage[] = (
     (coverageResult.data ?? []) as { field: string; present: number }[]
@@ -198,7 +204,7 @@ export async function evaluatePool(poolId: string, orgId: string): Promise<PoolE
   const schemaMix = ((schemaMixResult.data ?? []) as { schema_type: string; records: number }[])
     .map((row) => ({ schemaType: row.schema_type, records: Number(row.records) }))
 
-  const privacy = previewRelease(pool.k_anonymity_target, contributions)
+  const privacy = previewRelease(pool.k_anonymity_target, releasable)
 
   const generalizationLevels = Object.fromEntries(
     privacy.releasable
@@ -210,6 +216,8 @@ export async function evaluatePool(poolId: string, orgId: string): Promise<PoolE
   const samples: Record<string, SyntheticSample[]> = {}
   for (const entry of schemaMix) {
     if (entry.schemaType === 'unclassified') continue
+    // Never describe or invent samples of data a purchase cannot deliver.
+    if (SALE_RESTRICTED_SCHEMA_TYPES.includes(entry.schemaType)) continue
     deliverableFields[entry.schemaType] = describeDeliverableFields(entry.schemaType)
     samples[entry.schemaType] = buildSyntheticSamples(entry.schemaType, {
       count: 3,

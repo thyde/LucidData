@@ -236,16 +236,19 @@ export async function getRequestFulfillment(
 
   const { data: reqRow } = await service
     .from('credential_requests')
-    .select('id')
+    .select('id, user_id')
     .eq('id', requestId)
     .eq('organization_id', organizationId)
     .maybeSingle()
   if (!reqRow) return []
 
+  // A share answers this request only if it came from the person the request
+  // was sent to. Anyone else's share is not an answer, whatever it links to.
   const { data: shares } = await service
     .from('credential_shares')
     .select('*')
     .eq('credential_request_id', requestId)
+    .eq('user_id', (reqRow as { user_id: string }).user_id)
     .order('created_at', { ascending: false })
 
   const result: FulfilledCredentialView[] = []

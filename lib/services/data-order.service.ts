@@ -16,7 +16,7 @@ import type { DataOrder, Json } from '@/types/database.types'
 import { UserFacingError } from '@/lib/actions/action-result'
 import {
   isMarketplaceCategoryAllowed,
-  isSaleRestrictedEntry,
+  isSaleRestrictedContribution,
   type PurchasePoolInput,
 } from '@/lib/validations/marketplace'
 
@@ -169,9 +169,9 @@ export async function startPoolPurchase(
   }
 
   const contributions = (await contributionRepo.findActiveContributionsByPool(pool.id)).filter(
-    // The database refuses restricted contributions now; this keeps any made
-    // before that rule out of every release.
-    (contribution) => !isSaleRestrictedEntry(contribution)
+    // The database withdraws and refuses restricted contributions; this keeps
+    // them out of a release even if one is ever found active.
+    (contribution) => !isSaleRestrictedContribution(contribution)
   )
   const contributorCount = new Set(contributions.map((contribution) => contribution.user_id)).size
   if (contributorCount < pool.minimum_contributors) {
