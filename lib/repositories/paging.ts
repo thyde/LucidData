@@ -45,6 +45,10 @@ export async function readAllPages<Row>(
  * The PostgREST filter for rows after a key, in ascending order of `column`
  * then `id`. Values are quoted, so a timestamp's `+` and `:` reach the
  * database intact.
+ *
+ * Postgres cannot bound an index scan with an OR, so pair this with
+ * `.gte(column, key.at)`. Without that bound every page scans from the first
+ * row, and reading a whole collection costs the square of its length.
  */
 export function afterKey(column: string, key: PageKey): string {
   return `${column}.gt."${key.at}",and(${column}.eq."${key.at}",id.gt."${key.id}")`

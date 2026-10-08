@@ -57,7 +57,7 @@ describe('verifyAuditChain', () => {
     expect(verifyAuditChain(chain(150).slice(50))).toBe(false)
   })
 
-  it('fails when the chain branches', () => {
+  it('accepts two entries after the same one, as two requests appending at once produce', () => {
     const links = chain(3)
     const branch = { ...links[2], action: 'A second entry after the same one' }
     branch.current_hash = createAuditHash(links[1].current_hash, {
@@ -66,7 +66,40 @@ describe('verifyAuditChain', () => {
       action: branch.action,
       timestamp: new Date(branch.timestamp),
     })
-    expect(verifyAuditChain([...links, branch])).toBe(false)
+    expect(verifyAuditChain([...links, branch])).toBe(true)
+  })
+
+  it('accepts a second chain begun by a writer that could not see the latest entry', () => {
+    // Before 2026-10-09 a scheduled job wrote without the person's session, saw
+    // no earlier entry, and started over. The entries themselves are intact.
+    const first = chain(3)
+    const second = chain(2, (index) => new Date(Date.UTC(2026, 9, 9, 3, 0, index))).map((link) => ({
+      ...link,
+      event_type: 'consent_expired',
+    }))
+    const rehashed = second.reduce<Link[]>((links, link) => {
+      const previous = links.length ? links[links.length - 1].current_hash : null
+      const current = createAuditHash(previous, {
+        userId: link.user_id,
+        eventType: link.event_type,
+        action: link.action,
+        timestamp: new Date(link.timestamp),
+      })
+      return [...links, { ...link, previous_hash: previous, current_hash: current }]
+    }, [])
+    expect(verifyAuditChain([...first, ...rehashed])).toBe(true)
+  })
+
+  it('fails when an entry points at one that was never recorded', () => {
+    const links = chain(4)
+    const forged = { ...links[3], previous_hash: 'f'.repeat(64) }
+    forged.current_hash = createAuditHash(forged.previous_hash, {
+      userId: forged.user_id,
+      eventType: forged.event_type,
+      action: forged.action,
+      timestamp: new Date(forged.timestamp),
+    })
+    expect(verifyAuditChain([...links.slice(0, 3), forged])).toBe(false)
   })
 
   it('fails when an entry is reordered by rewriting its link', () => {

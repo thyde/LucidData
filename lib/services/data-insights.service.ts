@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import * as contributionRepo from '@/lib/repositories/contribution.repository'
 import * as monetizationRepo from '@/lib/repositories/monetization.repository'
-import { findVaultByUserId } from '@/lib/repositories/vault.repository'
+import { countVaultByCategory } from '@/lib/repositories/vault.repository'
 
 /** Categories used to gauge profile completeness for the data score. */
 const SCORE_CATEGORIES = ['personal', 'health', 'financial', 'credentials', 'other']
@@ -32,11 +32,11 @@ function dayKey(d: Date): string {
 
 /** Profile completeness + monetization readiness, MyData-style "data score". */
 export async function getDataScore(userId: string): Promise<DataScore> {
-  const [vault, fields] = await Promise.all([
-    findVaultByUserId(userId),
+  const [categories, fields] = await Promise.all([
+    countVaultByCategory(userId),
     monetizationRepo.findFieldsByUser(userId),
   ])
-  const covered = new Set(vault.map((v) => v.category))
+  const covered = new Set(categories.keys())
   const categoriesCovered = SCORE_CATEGORIES.filter((c) => covered.has(c)).length
   const optedInFields = fields.filter((f) => f.opted_in).length
   const completeness = Math.round((categoriesCovered / SCORE_CATEGORIES.length) * 100)
@@ -48,7 +48,7 @@ export async function getDataScore(userId: string): Promise<DataScore> {
     completeness,
     categoriesCovered,
     totalCategories: SCORE_CATEGORIES.length,
-    vaultEntries: vault.length,
+    vaultEntries: [...categories.values()].reduce((total, count) => total + count, 0),
     optedInFields,
   }
 }
@@ -100,9 +100,9 @@ export async function getDataTracker(userId: string, days = 14): Promise<Tracker
 
 /** Data points by category — "Data Market" donut. */
 export async function getDataMarket(userId: string): Promise<CategoryCount[]> {
-  const [fields, vault] = await Promise.all([
+  const [fields, categories] = await Promise.all([
     monetizationRepo.findFieldsByUser(userId),
-    findVaultByUserId(userId),
+    countVaultByCategory(userId),
   ])
   const map = new Map<string, number>()
   const optedIn = fields.filter((f) => f.opted_in)
@@ -110,7 +110,7 @@ export async function getDataMarket(userId: string): Promise<CategoryCount[]> {
     for (const f of optedIn) map.set(f.category, (map.get(f.category) ?? 0) + 1)
   } else {
     // Fall back to vault entries by category so the chart is meaningful pre-opt-in.
-    for (const v of vault) map.set(v.category, (map.get(v.category) ?? 0) + 1)
+    for (const [category, count] of categories) map.set(category, count)
   }
   return Array.from(map.entries())
     .map(([category, count]) => ({ category, count }))
