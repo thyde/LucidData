@@ -1,7 +1,9 @@
 import { randomBytes, createHash } from 'crypto'
+import { STEP_UP_ACTIONS, type StepUpAction } from '@luciddata/core/validations/session-security'
 import { createServiceClient } from '@/lib/supabase/service'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, currentAccessToken } from '@/lib/supabase/server'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { assertRateLimit } from '@/lib/services/rate-limit.service'
 import { UserFacingError } from '@/lib/actions/action-result'
 
 /**
@@ -13,17 +15,8 @@ import { UserFacingError } from '@/lib/actions/action-result'
  * silently authorize deleting the account.
  */
 
-/** Actions that require fresh authentication, not just an active session. */
-export const STEP_UP_ACTIONS = [
-  'export_vault',
-  'revoke_consent',
-  'change_password',
-  'add_recovery_factor',
-  'delete_account',
-  'revoke_session',
-] as const
-
-export type StepUpAction = (typeof STEP_UP_ACTIONS)[number]
+export { STEP_UP_ACTIONS }
+export type { StepUpAction }
 
 /** How long a confirmation stays usable. Short: it authorizes one action now. */
 export const STEP_UP_TTL_SECONDS = 120
@@ -69,11 +62,8 @@ async function acceptPasswordProof(userId: string, proof: string): Promise<boole
   if (Date.now() / 1000 - signedInAt > PASSWORD_PROOF_MAX_AGE_SECONDS) return false
 
   const supabase = await createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
   // Never accept, and so never delete, the session this request is made with.
-  if (proofSessionId === decodeSessionId(session?.access_token ?? null)) return false
+  if (proofSessionId === decodeSessionId(await currentAccessToken())) return false
 
   const { data, error } = await supabase.auth.getUser(proof)
   if (error || data.user?.id !== userId) return false
@@ -109,6 +99,20 @@ export async function grantStepUp(userId: string, action: StepUpAction): Promise
   })
   if (error) throw error
   return token
+}
+
+/**
+ * Exchange a fresh password proof for a single-use grant for one action. Rate
+ * limited, because each attempt asks Supabase to check a sign-in.
+ */
+export async function requestStepUp(
+  userId: string,
+  action: StepUpAction,
+  proof: string
+): Promise<string> {
+  await assertRateLimit('verification', `stepup:${userId}`)
+  await verifyPasswordProof(userId, action, proof)
+  return grantStepUp(userId, action)
 }
 
 /**
@@ -161,10 +165,7 @@ export interface SessionSummary {
 export async function listSessions(userId: string): Promise<SessionSummary[]> {
   void userId
   const supabase = await createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  const currentSessionId = decodeSessionId(session?.access_token ?? null)
+  const currentSessionId = decodeSessionId(await currentAccessToken())
 
   const { data, error } = await supabase.rpc('list_my_sessions')
 

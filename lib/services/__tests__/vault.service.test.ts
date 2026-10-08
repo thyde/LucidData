@@ -32,6 +32,7 @@ const envelope = { client_ciphertext: 'c', encrypted_dek: 'd', dek_salt: 's' }
 describe('health data needs consent before it is stored (LD-110)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(vaultRepo.findVaultById).mockResolvedValue({ id: 'v1', label: 'x' } as VaultData)
     vi.mocked(vaultRepo.createVaultEntry).mockResolvedValue({ id: 'v1', label: 'x' } as VaultData)
     vi.mocked(vaultRepo.updateVaultEntry).mockResolvedValue({ id: 'v1', label: 'x' } as VaultData)
     vi.mocked(assertHealthDataConsent).mockRejectedValue(
@@ -107,8 +108,41 @@ describe('deleteVaultData', () => {
   it('does not delete or audit an entry the user cannot access', async () => {
     vi.mocked(vaultRepo.findVaultById).mockResolvedValue(null)
 
-    await expect(deleteVaultData('missing', entry.user_id)).rejects.toThrow('Vault entry not found')
+    await expect(deleteVaultData('missing', entry.user_id)).rejects.toMatchObject({
+      message: 'Vault entry not found',
+      code: 'not_found',
+    })
     expect(vaultRepo.deleteVaultEntry).not.toHaveBeenCalled()
+    expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+})
+
+describe('updateVaultData', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(vaultRepo.updateVaultEntry).mockResolvedValue(entry)
+  })
+
+  it('records the update and nothing else', async () => {
+    vi.mocked(vaultRepo.findVaultById).mockResolvedValue(entry)
+
+    await updateVaultData(entry.id, entry.user_id, { label: 'Private profile' })
+
+    expect(createAuditEntry).toHaveBeenCalledTimes(1)
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'data_updated', vaultDataId: entry.id })
+    )
+  })
+
+  it('refuses an entry the user cannot access before writing or auditing anything', async () => {
+    vi.mocked(vaultRepo.findVaultById).mockResolvedValue(null)
+
+    await expect(
+      updateVaultData('missing', entry.user_id, { category: 'health' })
+    ).rejects.toMatchObject({ code: 'not_found' })
+    expect(vaultRepo.findVaultById).toHaveBeenCalledWith('missing', entry.user_id)
+    expect(assertHealthDataConsent).not.toHaveBeenCalled()
+    expect(vaultRepo.updateVaultEntry).not.toHaveBeenCalled()
     expect(createAuditEntry).not.toHaveBeenCalled()
   })
 })

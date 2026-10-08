@@ -8,6 +8,10 @@ const notifySecurityEvent = vi.fn()
 const factorRows = vi.fn()
 const vaultCount = vi.fn()
 const inserted = vi.fn()
+const maybeSingleResult = vi.fn(() => ({
+  data: { id: 'factor-1', type: 'recovery_kit' } as unknown,
+  error: null,
+}))
 
 vi.mock('@/lib/repositories/user.repository', () => ({
   findUserById: (...a: unknown[]) => findUserById(...a),
@@ -46,7 +50,7 @@ vi.mock('@/lib/supabase/server', () => ({
         },
         eq: () => chain,
         order: () => Promise.resolve(factorRows()),
-        maybeSingle: () => Promise.resolve({ data: { id: 'factor-1', type: 'recovery_kit' }, error: null }),
+        maybeSingle: () => Promise.resolve(maybeSingleResult()),
         single: () =>
           Promise.resolve({
             data: {
@@ -213,6 +217,17 @@ describe('confirmRecoveryFactor', () => {
     expect(createAuditEntry).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'recovery_factor_confirmed' })
     )
+  })
+
+  it('never records recovery as confirmed for a factor that is not there', async () => {
+    maybeSingleResult.mockReturnValueOnce({ data: null, error: null })
+
+    await expect(confirmRecoveryFactor('user-1', 'missing')).rejects.toMatchObject({
+      message: 'Recovery factor not found',
+      code: 'not_found',
+    })
+    expect(updateUser).not.toHaveBeenCalled()
+    expect(createAuditEntry).not.toHaveBeenCalled()
   })
 })
 

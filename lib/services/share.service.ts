@@ -67,6 +67,28 @@ export async function createShare(
   return { share: data as CredentialShare, token }
 }
 
+/**
+ * A holder shares their own credential: at least one field, and an optional
+ * lifetime in days. The checks live here so every caller applies them.
+ */
+export async function createHolderShare(
+  userId: string,
+  credentialId: string,
+  disclosedClaims: string[],
+  options: { expiresInDays?: number; verifierEmail?: string } = {}
+): Promise<CreatedShare> {
+  if (disclosedClaims.length === 0) {
+    throw new UserFacingError('Select at least one field to share')
+  }
+  const expiresAt = options.expiresInDays
+    ? new Date(Date.now() + options.expiresInDays * 86_400_000).toISOString()
+    : null
+  return createShare(userId, credentialId, disclosedClaims, {
+    expiresAt,
+    verifierEmail: options.verifierEmail ?? null,
+  })
+}
+
 export async function listSharesForUser(userId: string): Promise<CredentialShare[]> {
   const service = createServiceClient()
   const { data, error } = await service
@@ -78,14 +100,17 @@ export async function listSharesForUser(userId: string): Promise<CredentialShare
   return (data ?? []) as CredentialShare[]
 }
 
-export async function revokeShare(userId: string, shareId: string): Promise<void> {
+/** Revoke one of the holder's own shares. Returns false when there is no such share. */
+export async function revokeShare(userId: string, shareId: string): Promise<boolean> {
   const service = createServiceClient()
-  const { error } = await service
+  const { data, error } = await service
     .from('credential_shares')
     .update({ revoked: true, revoked_at: new Date().toISOString() })
     .eq('id', shareId)
     .eq('user_id', userId)
+    .select('id')
   if (error) throw error
+  return (data ?? []).length > 0
 }
 
 export interface PublicShareView {

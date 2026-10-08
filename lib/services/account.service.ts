@@ -4,8 +4,10 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { notifySecurityEvent } from '@/lib/services/security-notification.service'
 import { flushOwedBalance } from '@/lib/services/payout.service'
 import { eraseUser, type DeletionOutcome } from '@/lib/services/deletion.service'
+import { consumeStepUp } from '@/lib/services/session-security.service'
 import { createClient } from '@/lib/supabase/server'
 import { UserFacingError } from '@/lib/actions/action-result'
+import { DELETE_CONFIRM_PHRASE } from '@luciddata/core/validations/account'
 
 export interface AccountSecurity {
   key_salt: string | null
@@ -168,4 +170,28 @@ export async function deleteAccount(userId: string): Promise<DeletionOutcome> {
   if (!user) throw new UserFacingError('Account not found')
 
   return eraseUser(userId, user.email)
+}
+
+/**
+ * Delete an account the way a person asks to: the confirmation phrase typed
+ * out, and a single-use step-up grant proving the password was entered just
+ * now. A warm session alone is never enough (LD-106).
+ */
+export async function deleteAccountConfirmed(
+  userId: string,
+  confirmPhrase: string,
+  stepUpToken: string
+): Promise<DeletionReceiptSummary> {
+  if (confirmPhrase !== DELETE_CONFIRM_PHRASE) {
+    throw new UserFacingError('Confirmation phrase does not match')
+  }
+  await consumeStepUp(userId, 'delete_account', stepUpToken)
+  const outcome = await deleteAccount(userId)
+  // LD-607: hand back the signed proof so the person can keep and check it.
+  return {
+    receipt: outcome.receipt,
+    signature: outcome.signature,
+    keyId: outcome.keyId,
+    verified: outcome.verified,
+  }
 }

@@ -55,6 +55,10 @@ vi.mock('@/lib/supabase/server', () => ({
     },
     rpc: (...a: unknown[]) => rpc(...a),
   }),
+  // The real helper reads the cookie session, so the stub does the same.
+  currentAccessToken: async () =>
+    ((await Promise.resolve(getSession())) as { data?: { session?: { access_token?: string } | null } })
+      ?.data?.session?.access_token ?? null,
 }))
 
 const {

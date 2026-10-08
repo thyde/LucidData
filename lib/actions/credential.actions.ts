@@ -2,20 +2,18 @@
 
 import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
-import { createServiceClient } from '@/lib/supabase/service'
 import { requireOrgMembership } from '@/lib/middleware/withOrgMember'
 import { assertIssuanceQuota } from '@/lib/services/billing.service'
 import {
   issueCredential,
   listIssuedCredentials,
   revokeCredential,
-  getCredentialsForUser,
+  listHeldCredentials,
   claimCredential,
   linkCredentialVaultEntry,
-  verifyIssuedCredential,
   exportCredentialVc,
   type IssueCredentialInput,
-  type CredentialVerification,
+  type HeldCredential,
 } from '@/lib/services/credential.service'
 import {
   exportCredentialAs,
@@ -73,36 +71,14 @@ export async function revokeCredentialAction(
     return revokeCredential(organizationId, credentialId, reason || 'Revoked by issuer')  })
 }
 
-export interface MyCredential {
-  credential: IssuedCredential
-  issuerName: string
-  issuerVerified: boolean
-  verification: CredentialVerification
-}
+export type MyCredential = HeldCredential
 
 /** The signed-in user's credentials (claimed + claimable), with verification. */
 export async function getMyCredentialsAction(): Promise<MyCredential[] | ActionFailure> {
   return guarded(async () => {
     const user = await getAuthUser()
-    const credentials = await getCredentialsForUser(user.id, user.email)
-    if (credentials.length === 0) return []
-
-    const service = createServiceClient()
-    const orgIds = [...new Set(credentials.map((c) => c.organization_id))]
-    const { data: orgs } = await service
-      .from('organizations')
-      .select('id, name, verified_at')
-      .in('id', orgIds)
-    const orgMap = new Map((orgs ?? []).map((o) => [o.id, o]))
-
-    return Promise.all(
-      credentials.map(async (credential) => ({
-        credential,
-        issuerName: orgMap.get(credential.organization_id)?.name ?? 'Unknown issuer',
-        issuerVerified: Boolean(orgMap.get(credential.organization_id)?.verified_at),
-        verification: await verifyIssuedCredential(credential),
-      }))
-    )  })
+    return listHeldCredentials(user.id, user.email)
+  })
 }
 
 export async function claimCredentialAction(credentialId: string): Promise<IssuedCredential | ActionFailure> {
