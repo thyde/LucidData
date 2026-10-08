@@ -440,6 +440,24 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
     strippedColumns: [],
     reason: 'Scheduler bookkeeping: job name, timings, and counts.',
   },
+  {
+    table: 'pool_evaluations',
+    personalData: false,
+    behaviour: 'no_personal_data',
+    userColumn: null,
+    strippedColumns: [],
+    reason:
+      'Which organization looked at one of its own pools, and when. No contributor and no individual member is recorded.',
+  },
+  {
+    table: 'metric_snapshots',
+    personalData: false,
+    behaviour: 'no_personal_data',
+    userColumn: null,
+    strippedColumns: [],
+    reason:
+      'Weekly totals across every account, such as how many people connected a source. No row describes one person.',
+  },
 ]
 
 /**
