@@ -127,4 +127,4 @@ export function isHealthEntry(entry: { category?: string | null; schema_type?: s
 }
 
 /** The failure code a service raises when health data arrives without consent. */
-export const HEALTH_CONSENT_REQUIRED = 'health_consent_required'
+export { HEALTH_CONSENT_REQUIRED } from '@luciddata/core/validations/refusals'
