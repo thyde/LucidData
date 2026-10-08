@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import {
   clearPendingExport,
   getPendingExport,
+  pendingExportFile,
   type PendingExport,
 } from '@/lib/extension/bridge-client'
 import { IMPORT_FILE_EVENT } from '@/components/vault/vault-import-dialog'
@@ -42,9 +43,7 @@ export function ExtensionImportBanner() {
     if (!pending) return
     setBusy(true)
     try {
-      const name = pending.filename.split(/[\\/]/).pop() ?? 'export.json'
-      const file = new File([pending.text], name, { type: 'application/octet-stream' })
-      window.dispatchEvent(new CustomEvent(IMPORT_FILE_EVENT, { detail: file }))
+      window.dispatchEvent(new CustomEvent(IMPORT_FILE_EVENT, { detail: pendingExportFile(pending) }))
       await clearPendingExport()
       setPending(null)
     } finally {
@@ -60,6 +59,26 @@ export function ExtensionImportBanner() {
   if (!pending) return null
 
   const name = pending.filename.split(/[\\/]/).pop()
+
+  if (pending.tooLarge) {
+    return (
+      <div
+        role="status"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/40 bg-primary/5 p-4"
+      >
+        <div>
+          <p className="font-medium">A {pending.providerLabel} export is too large to pass along</p>
+          <p className="text-sm text-muted-foreground">
+            Choose Import file and pick {name} yourself. It is still read in this browser and encrypted
+            with your key before anything is stored.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={dismiss}>
+          Dismiss
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div

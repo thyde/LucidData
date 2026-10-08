@@ -73,18 +73,31 @@ async function readPendingExport() {
 
   if (item.fileSize > MAX_EXPORT_BYTES) {
     return {
-      error: 'That export is larger than the import assistant can hand over. Import it from the vault page instead.',
+      filename: pending.filename,
+      provider: pending.provider,
+      providerLabel: pending.providerLabel,
+      tooLarge: true,
     }
   }
 
+  // Bytes, not text: an export is often a zip, and decoding one as text
+  // corrupts it. Extension messages are JSON, so the bytes travel as base64.
   const response = await fetch(`file://${item.filename}`)
-  const text = await response.text()
+  const bytes = new Uint8Array(await response.arrayBuffer())
   return {
     filename: pending.filename,
     provider: pending.provider,
     providerLabel: pending.providerLabel,
-    text,
+    base64: toBase64(bytes),
   }
+}
+
+function toBase64(bytes) {
+  let binary = ''
+  for (let start = 0; start < bytes.length; start += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(start, start + 0x8000))
+  }
+  return btoa(binary)
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
