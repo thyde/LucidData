@@ -23,6 +23,9 @@ const EVENTS: SecurityNotificationEvent[] = [
   'password_changed',
   'vault_recovered',
   'recovery_code_generated',
+  'recovery_kit_added',
+  'recovery_factor_removed',
+  'recovery_kits_retired',
 ]
 
 describe('describeSecurityEvent', () => {

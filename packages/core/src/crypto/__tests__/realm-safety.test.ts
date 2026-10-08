@@ -3,6 +3,13 @@ import { webcrypto } from 'node:crypto'
 import { deriveMasterKey, deriveMasterKeyExtractable, importMasterKey } from '../key-derivation'
 import { encryptVaultEntry, decryptVaultEntry, rewrapDek } from '../client-crypto'
 import { generateIngestionKeypair, sealToPublicKey, openSealed } from '../ingestion-keys'
+import {
+  deriveRecoveryKey,
+  generateRecoveryCode,
+  generateRecoverySalt,
+  openMasterKeyWithRecoverySecret,
+  wrapMasterKeyForRecovery,
+} from '../recovery'
 import { asBytes } from '../runtime'
 
 if (!globalThis.crypto?.subtle) {
@@ -162,6 +169,20 @@ describe('crypto works when buffers and the implementation are in different real
     const sealed = await sealToPublicKey(pair.publicKeyB64, 'a provider record')
 
     expect(await openSealed(pair.privateKeyB64, sealed)).toBe('a provider record')
+  })
+
+  it('wraps the master key under a recovery code and opens the vault with it', async () => {
+    const extractable = await deriveMasterKeyExtractable(PASSWORD, SALT)
+    const raw = await realSubtle.exportKey('raw', extractable)
+    const entry = await encryptVaultEntry(extractable, 'payload')
+    useStrictSubtle()
+
+    const code = generateRecoveryCode()
+    const salt = generateRecoverySalt()
+    const wrapped = await wrapMasterKeyForRecovery(raw, await deriveRecoveryKey(code, salt))
+    const opened = await openMasterKeyWithRecoverySecret(code, [{ wrapped, salt }], entry)
+
+    expect(new Uint8Array(opened!)).toEqual(new Uint8Array(raw))
   })
 })
 

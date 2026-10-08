@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import * as userRepo from '@/lib/repositories/user.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { notifySecurityEvent } from '@/lib/services/security-notification.service'
+import { consumeStepUp, STEP_UP_REQUIRED } from '@/lib/services/session-security.service'
 import { UserFacingError } from '@/lib/actions/action-result'
 
 /**
@@ -11,9 +13,11 @@ import { UserFacingError } from '@/lib/actions/action-result'
  * server stores wrapped bytes and a salt; the secret that unwraps them exists
  * only where the user put it. Nothing here can produce a usable key.
  *
- * Reads and writes run through the session client so RLS scopes them to the
- * owner. That is deliberate: a service-role path would be a way to enumerate
- * whose vaults are unrecoverable.
+ * Reads run through the session client, so RLS scopes them to the owner and a
+ * bug here cannot list anyone else's factors. Writes use the service role,
+ * filtered to the caller's id, so that the API roles need no write access to
+ * this table or to the escrow columns: a change made straight through PostgREST
+ * would skip the audit entry, the notification, and the step-up check below.
  */
 
 export type RecoveryFactorType = 'recovery_code' | 'recovery_kit'
@@ -44,6 +48,8 @@ export interface AddRecoveryFactorInput {
   label: string
   wrappedMasterKey: string
   salt: string
+  /** A step-up grant for add_recovery_factor. Needed for a kit, and to replace a recovery code. */
+  stepUpToken?: string
 }
 
 export async function listRecoveryFactors(): Promise<RecoveryFactorSummary[]> {
@@ -114,24 +120,134 @@ export async function assertRecoveryReadyForFirstWrite(userId: string): Promise<
   )
 }
 
+const SUMMARY_COLUMNS = 'id, type, label, created_at, last_confirmed_at'
+
+function toSummary(row: {
+  id: string
+  type: string
+  label: string
+  created_at: string
+  last_confirmed_at: string | null
+}): RecoveryFactorSummary {
+  return {
+    id: row.id,
+    type: row.type as RecoveryFactorType,
+    label: row.label,
+    createdAt: row.created_at,
+    lastConfirmedAt: row.last_confirmed_at,
+  }
+}
+
+/** Refuse without a grant for the action, and consume the grant when there is one. */
+async function requireStepUp(
+  userId: string,
+  action: 'add_recovery_factor' | 'remove_recovery_factor',
+  stepUpToken: string | undefined
+): Promise<void> {
+  if (!stepUpToken) {
+    throw new UserFacingError('Confirm your password to continue', STEP_UP_REQUIRED)
+  }
+  await consumeStepUp(userId, action, stepUpToken)
+}
+
+/** Whether the account has a recovery code, as escrow or as a factor. */
+async function hasRecoveryCode(userId: string): Promise<boolean> {
+  const service = createServiceClient()
+  const [user, codes] = await Promise.all([
+    service.from('users').select('wrapped_master_key').eq('id', userId).maybeSingle(),
+    service
+      .from('recovery_factors')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('type', 'recovery_code'),
+  ])
+  if (user.error) throw user.error
+  if (codes.error) throw codes.error
+  return Boolean(user.data?.wrapped_master_key) || (codes.count ?? 0) > 0
+}
+
+/** The escrow columns cleared together, so a code that was removed or retired stops working. */
+const NO_ESCROW = {
+  wrapped_master_key: null,
+  recovery_code_salt: null,
+  recovery_codes_generated_at: null,
+}
+
+/**
+ * Store a new recovery code. It lives in two places with the same wrapped
+ * bytes: the escrow on the account, which password-reset recovery has always
+ * read, and a factor row, which settings lists and asks the person to confirm.
+ * There is one code at a time, so the previous one stops working.
+ */
+export async function storeRecoveryCode(
+  userId: string,
+  input: { wrappedMasterKey: string; salt: string },
+  stepUpToken?: string
+): Promise<RecoveryFactorSummary> {
+  const service = createServiceClient()
+  // LD-106: replacing a code takes away the one the person saved, so it needs a
+  // fresh password proof. The first code needs none: there is nothing to replace.
+  if (await hasRecoveryCode(userId)) {
+    await requireStepUp(userId, 'add_recovery_factor', stepUpToken)
+  }
+  const now = new Date().toISOString()
+
+  const { error: escrowError } = await service
+    .from('users')
+    .update({
+      wrapped_master_key: input.wrappedMasterKey,
+      recovery_code_salt: input.salt,
+      recovery_codes_generated_at: now,
+      // Setting up a factor clears an earlier decline: the person changed their mind.
+      recovery_setup_declined_at: null,
+      recovery_last_confirmed_at: now,
+      updated_at: now,
+    })
+    .eq('id', userId)
+  if (escrowError) throw escrowError
+
+  const { error: clearError } = await service
+    .from('recovery_factors')
+    .delete()
+    .eq('user_id', userId)
+    .eq('type', 'recovery_code')
+  if (clearError) throw clearError
+
+  const { data, error } = await service
+    .from('recovery_factors')
+    .insert({
+      user_id: userId,
+      type: 'recovery_code',
+      label: 'Recovery code',
+      wrapped_master_key: input.wrappedMasterKey,
+      salt: input.salt,
+      last_confirmed_at: now,
+    })
+    .select(SUMMARY_COLUMNS)
+    .single()
+  if (error) throw error
+
+  await createAuditEntry({
+    userId,
+    eventType: 'recovery_codes_generated',
+    action: 'Generated a vault recovery code',
+    metadata: { factor_id: data.id },
+  })
+  await notifySecurityEvent(userId, 'recovery_code_generated')
+  return toSummary(data)
+}
+
 export async function addRecoveryFactor(
   userId: string,
   input: AddRecoveryFactorInput
 ): Promise<RecoveryFactorSummary> {
-  const supabase = await createClient()
+  if (input.type === 'recovery_code') return storeRecoveryCode(userId, input, input.stepUpToken)
+
+  // A kit is a new way into the vault, so it needs a fresh password proof.
+  await requireStepUp(userId, 'add_recovery_factor', input.stepUpToken)
+  const service = createServiceClient()
   const now = new Date().toISOString()
-
-  // One recovery code at a time: a new one replaces the old.
-  if (input.type === 'recovery_code') {
-    const { error: clearError } = await supabase
-      .from('recovery_factors')
-      .delete()
-      .eq('user_id', userId)
-      .eq('type', 'recovery_code')
-    if (clearError) throw clearError
-  }
-
-  const { data, error } = await supabase
+  const { data, error } = await service
     .from('recovery_factors')
     .insert({
       user_id: userId,
@@ -141,7 +257,7 @@ export async function addRecoveryFactor(
       salt: input.salt,
       last_confirmed_at: now,
     })
-    .select('id, type, label, created_at, last_confirmed_at')
+    .select(SUMMARY_COLUMNS)
     .single()
   if (error) throw error
 
@@ -154,26 +270,28 @@ export async function addRecoveryFactor(
   await createAuditEntry({
     userId,
     eventType: 'recovery_factor_added',
-    action:
-      input.type === 'recovery_code'
-        ? 'Added a vault recovery code'
-        : 'Added a vault recovery kit',
+    action: 'Added a vault recovery kit',
     metadata: { factor_id: data.id, type: input.type },
   })
-  await notifySecurityEvent(userId, 'recovery_code_generated')
-
-  return {
-    id: data.id,
-    type: data.type as RecoveryFactorType,
-    label: data.label,
-    createdAt: data.created_at,
-    lastConfirmedAt: data.last_confirmed_at,
-  }
+  await notifySecurityEvent(userId, 'recovery_kit_added')
+  return toSummary(data)
 }
 
-export async function removeRecoveryFactor(userId: string, factorId: string): Promise<void> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
+/**
+ * LD-106: removing a way back into the vault needs a fresh password proof, so
+ * someone holding an unlocked device or a stolen session cannot quietly take
+ * the person's recovery away. Removing the recovery code also clears the escrow
+ * that holds the same code, or the code would keep working after it was removed.
+ */
+export async function removeRecoveryFactor(
+  userId: string,
+  factorId: string,
+  stepUpToken: string
+): Promise<void> {
+  await requireStepUp(userId, 'remove_recovery_factor', stepUpToken)
+
+  const service = createServiceClient()
+  const { data, error } = await service
     .from('recovery_factors')
     .delete()
     .eq('id', factorId)
@@ -183,19 +301,31 @@ export async function removeRecoveryFactor(userId: string, factorId: string): Pr
   if (error) throw error
   if (!data) throw new UserFacingError('Recovery factor not found', 'not_found')
 
+  if (data.type === 'recovery_code') {
+    const { error: escrowError } = await service
+      .from('users')
+      .update({ ...NO_ESCROW, updated_at: new Date().toISOString() })
+      .eq('id', userId)
+    if (escrowError) throw escrowError
+  }
+
   await createAuditEntry({
     userId,
     eventType: 'recovery_factor_removed',
-    action: 'Removed a vault recovery factor',
+    action:
+      data.type === 'recovery_code'
+        ? 'Removed the vault recovery code'
+        : 'Removed a vault recovery kit',
     metadata: { factor_id: factorId, type: data.type },
   })
+  await notifySecurityEvent(userId, 'recovery_factor_removed')
 }
 
 /** The user confirms they still hold a working factor. */
 export async function confirmRecoveryFactor(userId: string, factorId: string): Promise<void> {
-  const supabase = await createClient()
+  const service = createServiceClient()
   const now = new Date().toISOString()
-  const { data, error } = await supabase
+  const { data, error } = await service
     .from('recovery_factors')
     .update({ last_confirmed_at: now })
     .eq('id', factorId)
@@ -213,6 +343,100 @@ export async function confirmRecoveryFactor(userId: string, factorId: string): P
     action: 'Confirmed a vault recovery factor is still held',
     metadata: { factor_id: factorId },
   })
+}
+
+/**
+ * A password change or a recovery gives the vault a new master key, and every
+ * recovery factor wraps the old one, so each stops working at that moment.
+ * They are removed rather than left listed as if they still worked, and the
+ * caller makes a new recovery code straight afterwards. Returns how many kits
+ * went, so the person can be told to make new ones.
+ */
+export async function retireRecoveryFactors(userId: string): Promise<{ kits: number }> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('recovery_factors')
+    .delete()
+    .eq('user_id', userId)
+    .select('id, type')
+  if (error) throw error
+
+  const { error: escrowError } = await service
+    .from('users')
+    .update({ ...NO_ESCROW, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+  if (escrowError) throw escrowError
+
+  const retired = data ?? []
+  if (retired.length > 0) {
+    await createAuditEntry({
+      userId,
+      eventType: 'recovery_factor_removed',
+      action: `Retired ${retired.length} recovery ${retired.length === 1 ? 'factor' : 'factors'} because the vault key changed`,
+      metadata: { reason: 'vault_key_changed', factor_ids: retired.map((factor) => factor.id) },
+    })
+  }
+  return { kits: retired.filter((factor) => factor.type === 'recovery_kit').length }
+}
+
+export interface RecoveryMaterial {
+  key_salt: string | null
+  /** The recovery-code escrow that password-reset recovery reads. */
+  escrow: { wrapped_master_key: string; salt: string } | null
+  factors: { id: string; type: RecoveryFactorType; wrapped_master_key: string; salt: string }[]
+  /** One entry's wrapped data key, to check a recovered key against the vault. Null when it is empty. */
+  probe: { encrypted_dek: string; dek_salt: string } | null
+  /**
+   * The connector ingestion private key, which LD-201 wraps under the master key
+   * itself. It is vault content too: it checks a recovered key when there are no
+   * entries, and it must move when the master key does.
+   */
+  ingest_key: { wrapped: string } | null
+}
+
+/**
+ * Everything the device needs to open the vault with a recovery code or kit:
+ * the wrapped copies of the master key and one entry to test a copy against.
+ * Only wrapped bytes leave the server. Each copy is sealed under a secret of
+ * at least 125 bits that the server never sees, behind 600,000 rounds of PBKDF2.
+ */
+export async function getRecoveryMaterial(userId: string): Promise<RecoveryMaterial> {
+  const supabase = await createClient()
+  const [user, factors, probe] = await Promise.all([
+    userRepo.findUserById(userId),
+    supabase
+      .from('recovery_factors')
+      .select('id, type, wrapped_master_key, salt')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }),
+    // The oldest entry: if a reset without recovery left newer entries under the
+    // new password, the oldest is still under the key a recovery factor opens.
+    supabase
+      .from('vault_data')
+      .select('encrypted_dek, dek_salt')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ])
+  if (factors.error) throw factors.error
+  if (probe.error) throw probe.error
+
+  return {
+    key_salt: user?.key_salt ?? null,
+    escrow:
+      user?.wrapped_master_key && user.recovery_code_salt
+        ? { wrapped_master_key: user.wrapped_master_key, salt: user.recovery_code_salt }
+        : null,
+    factors: (factors.data ?? []).map((row) => ({
+      id: row.id,
+      type: row.type as RecoveryFactorType,
+      wrapped_master_key: row.wrapped_master_key,
+      salt: row.salt,
+    })),
+    probe: probe.data ?? null,
+    ingest_key: user?.wrapped_ingest_private_key ? { wrapped: user.wrapped_ingest_private_key } : null,
+  }
 }
 
 /**

@@ -322,6 +322,11 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
             "minLength": 1,
             "type": "string",
           },
+          "step_up_token": {
+            "description": "A step-up grant for add_recovery_factor. Needed to replace an existing recovery code.",
+            "minLength": 1,
+            "type": "string",
+          },
           "wrapped_master_key": {
             "minLength": 1,
             "type": "string",
@@ -345,6 +350,11 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
             "minLength": 1,
             "type": "string",
           },
+          "step_up_token": {
+            "description": "A step-up grant for add_recovery_factor. Needed for a kit, and to replace a recovery code.",
+            "minLength": 1,
+            "type": "string",
+          },
           "type": {
             "enum": [
               "recovery_code",
@@ -362,6 +372,20 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
           "label",
           "wrapped_master_key",
           "salt",
+        ],
+        "type": "object",
+      },
+      "RecoveryFactorRemove": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "step_up_token": {
+            "description": "A step-up grant for remove_recovery_factor.",
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "step_up_token",
         ],
         "type": "object",
       },
@@ -405,9 +429,9 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
           "action": {
             "enum": [
               "export_vault",
-              "revoke_consent",
               "change_password",
               "add_recovery_factor",
+              "remove_recovery_factor",
               "delete_account",
               "revoke_session",
             ],
@@ -676,6 +700,77 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
             "type": "array",
           },
         },
+        "type": "object",
+      },
+      "VaultRewrap": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "entries": {
+            "items": {
+              "properties": {
+                "dek_salt": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "encrypted_dek": {
+                  "maxLength": 4000,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "id",
+                "encrypted_dek",
+                "dek_salt",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "ingest_key": {
+            "description": "The connector ingestion private key re-wrapped under the new master key, with the wrap it replaces. Send it whenever the account has one, or synced records stop opening.",
+            "properties": {
+              "previous": {
+                "maxLength": 8000,
+                "minLength": 1,
+                "type": "string",
+              },
+              "wrapped": {
+                "maxLength": 8000,
+                "minLength": 1,
+                "type": "string",
+              },
+            },
+            "required": [
+              "previous",
+              "wrapped",
+            ],
+            "type": "object",
+          },
+          "reason": {
+            "enum": [
+              "password_change",
+              "recovery",
+            ],
+            "type": "string",
+          },
+          "step_up_token": {
+            "description": "A step-up grant for change_password.",
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "reason",
+          "entries",
+          "step_up_token",
+        ],
         "type": "object",
       },
     },
@@ -2092,7 +2187,7 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
     },
     "/api/v1/me/recovery-escrow": {
       "put": {
-        "description": "The master key wrapped on the device under a key derived from a recovery code. Password-reset recovery opens it. The code never reaches the server.",
+        "description": "The master key wrapped on the device under a key derived from a recovery code, stored as the escrow and as the recovery code factor. The code never reaches the server. Replacing an existing code needs a step-up grant for add_recovery_factor.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2118,7 +2213,7 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
                 },
               },
             },
-            "description": "Confirmation that the escrow is stored.",
+            "description": "Confirmation that the code is stored.",
           },
           "400": {
             "content": {
@@ -2151,7 +2246,7 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
             "description": "Too many requests. Try again shortly.",
           },
         },
-        "summary": "Store the recovery-code escrow",
+        "summary": "Store the recovery code",
       },
     },
     "/api/v1/notifications": {
@@ -2444,6 +2539,7 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
     },
     "/api/v1/recovery/factors": {
       "post": {
+        "description": "A kit, or a code that replaces an existing one, needs a step-up grant for add_recovery_factor.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2507,6 +2603,7 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
     },
     "/api/v1/recovery/factors/{id}": {
       "delete": {
+        "description": "Needs a step-up grant for remove_recovery_factor. Removing the recovery code also clears the escrow that holds it.",
         "parameters": [
           {
             "in": "path",
@@ -2518,6 +2615,16 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
             },
           },
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryFactorRemove",
+              },
+            },
+          },
+          "required": true,
+        },
         "responses": {
           "200": {
             "content": {
@@ -2651,6 +2758,60 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
           },
         },
         "summary": "Confirm a recovery factor is still held",
+      },
+    },
+    "/api/v1/recovery/material": {
+      "get": {
+        "description": "After a password reset, the device opens the vault with a recovery code or kit. This returns the key salt, every wrapped copy of the master key, the oldest entry's wrapped data key, and the wrapped connector key, so the device can check that a copy still opens the vault. Only wrapped bytes are returned.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The key salt, the escrow, the factors with their wrapped keys, and a probe entry.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Read what recovery needs",
       },
     },
     "/api/v1/requests/consent": {
@@ -3579,6 +3740,70 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
           },
         },
         "summary": "Store up to 100 encrypted entries",
+      },
+    },
+    "/api/v1/vault/rewrap": {
+      "post": {
+        "description": "After a password change or a recovery, the device re-wraps every data key under the new master key and sends all of them at once; the server stores them in one transaction. Needs a step-up grant for change_password. Every recovery factor wraps the old key, so all are retired; store a new recovery code straight after.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultRewrap",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "How many entries were re-wrapped, and how many recovery kits stopped working.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Re-wrap every entry under a new master key",
       },
     },
     "/api/v1/vault/{id}": {

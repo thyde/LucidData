@@ -8,6 +8,11 @@ import { consumeStepUp } from '@/lib/services/session-security.service'
 import { createClient } from '@/lib/supabase/server'
 import { UserFacingError } from '@/lib/actions/action-result'
 import { DELETE_CONFIRM_PHRASE } from '@luciddata/core/validations/account'
+import { retireRecoveryFactors, storeRecoveryCode } from '@/lib/services/recovery-factor.service'
+import { getUserVaultData } from '@/lib/services/vault.service'
+import { rewrapIngestionKey } from '@/lib/services/ingestion.service'
+import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
+import type { VaultData } from '@/types/database.types'
 
 export interface AccountSecurity {
   key_salt: string | null
@@ -40,22 +45,22 @@ export async function getAccountSecurity(userId: string): Promise<AccountSecurit
 }
 
 // Store the recovery-code escrow (wrapped master key + PBKDF2 salt). The plaintext
-// recovery code never reaches the server.
+// recovery code never reaches the server. The same call records the code as a
+// recovery factor, so settings lists the code that recovery will accept.
 export async function setRecoveryEscrow(
   userId: string,
-  input: { wrapped_master_key: string; recovery_code_salt: string }
+  input: { wrapped_master_key: string; recovery_code_salt: string; step_up_token?: string }
 ): Promise<void> {
-  await userRepo.updateUser(userId, {
-    wrapped_master_key: input.wrapped_master_key,
-    recovery_code_salt: input.recovery_code_salt,
-    recovery_codes_generated_at: new Date().toISOString(),
-  })
-  await createAuditEntry({
+  await storeRecoveryCode(
     userId,
-    eventType: 'recovery_codes_generated',
-    action: 'Generated a vault recovery code',
-  })
-  await notifySecurityEvent(userId, 'recovery_code_generated')
+    { wrappedMasterKey: input.wrapped_master_key, salt: input.recovery_code_salt },
+    input.step_up_token
+  )
+}
+
+export interface RewrapOutcome {
+  /** Recovery kits that stopped working because the master key changed. */
+  retiredKits: number
 }
 
 // Persist re-wrapped DEK envelopes for every entry, then write a single summary
@@ -63,25 +68,69 @@ export async function setRecoveryEscrow(
 export async function rewrapVaultEntries(
   userId: string,
   reason: 'password_change' | 'recovery',
-  entries: { id: string; encrypted_dek: string; dek_salt: string }[]
-): Promise<void> {
+  entries: { id: string; encrypted_dek: string; dek_salt: string }[],
+  stepUpToken: string,
+  ingestKey?: { previous: string; wrapped: string }
+): Promise<RewrapOutcome> {
+  // LD-106: re-wrapping replaces every entry's key envelope and retires every
+  // recovery factor, so a warm session alone is not enough.
+  await consumeStepUp(userId, 'change_password', stepUpToken)
   const supabase = await createClient()
   const { error } = await supabase.rpc('rewrap_vault_entries_atomic', { entries })
   if (error) throw error
-  const noun = entries.length === 1 ? 'entry' : 'entries'
-  const action =
-    reason === 'password_change'
-      ? `Changed password and re-encrypted ${entries.length} vault ${noun}`
-      : `Recovered vault and re-encrypted ${entries.length} vault ${noun}`
-  await createAuditEntry({
-    userId,
-    eventType: reason === 'password_change' ? 'password_changed' : 'vault_recovered',
-    action,
-  })
+
+  // The new wrapping is stored. Nothing after this line may throw: a failure
+  // reported now would make the browser roll the password back, leaving every
+  // entry wrapped under a key that no password derives.
+  if (ingestKey) {
+    try {
+      if (!(await rewrapIngestionKey(userId, ingestKey))) {
+        errorLogger.log(new Error('The ingestion key changed during a re-wrap'), ErrorSeverity.HIGH, {
+          userId,
+          action: 'INGEST_KEY_REWRAP_SKIPPED',
+        })
+      }
+    } catch (ingestError) {
+      errorLogger.log(ingestError, ErrorSeverity.HIGH, { userId, action: 'INGEST_KEY_REWRAP_FAILED' })
+    }
+  }
+  try {
+    const noun = entries.length === 1 ? 'entry' : 'entries'
+    await createAuditEntry({
+      userId,
+      eventType: reason === 'password_change' ? 'password_changed' : 'vault_recovered',
+      action:
+        reason === 'password_change'
+          ? `Changed password and re-encrypted ${entries.length} vault ${noun}`
+          : `Recovered vault and re-encrypted ${entries.length} vault ${noun}`,
+    })
+  } catch (auditError) {
+    errorLogger.log(auditError, ErrorSeverity.HIGH, { userId, action: 'REWRAP_AUDIT_FAILED' })
+  }
   await notifySecurityEvent(
     userId,
     reason === 'password_change' ? 'password_changed' : 'vault_recovered'
   )
+
+  try {
+    const { kits } = await retireRecoveryFactors(userId)
+    if (kits > 0) await notifySecurityEvent(userId, 'recovery_kits_retired')
+    return { retiredKits: kits }
+  } catch (retireError) {
+    errorLogger.log(retireError, ErrorSeverity.HIGH, { userId, action: 'RECOVERY_RETIRE_FAILED' })
+    return { retiredKits: 0 }
+  }
+}
+
+/**
+ * LD-106: the entries for a full export, once the person has confirmed their
+ * password for it. The browser decrypts them. The vault page still shows each
+ * entry to whoever holds the unlocked device; this stops a one-click copy of
+ * everything.
+ */
+export async function getEntriesForExport(userId: string, stepUpToken: string): Promise<VaultData[]> {
+  await consumeStepUp(userId, 'export_vault', stepUpToken)
+  return getUserVaultData(userId)
 }
 
 export async function recordDataExport(userId: string, count: number): Promise<void> {

@@ -2,18 +2,22 @@
 // Pure crypto runs in the browser; persistence goes through server actions.
 
 import { deriveMasterKey, deriveMasterKeyExtractable, generateKeySalt, importMasterKey } from '@luciddata/core/crypto/key-derivation'
-import { rewrapDek } from '@luciddata/core/crypto/client-crypto'
+import { decryptWithKey, encryptWithKey, rewrapDek } from '@luciddata/core/crypto/client-crypto'
 import {
   generateRecoveryCode,
   generateRecoverySalt,
   generateRecoveryKitSecret,
   deriveRecoveryKey,
   wrapMasterKeyForRecovery,
-  unwrapMasterKeyForRecovery,
+  findMasterKeyWithRecoverySecret,
+  opensDataKey,
+  recoverySecretKind,
 } from '@luciddata/core/crypto/recovery'
 import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
 import { setRecoveryEscrowAction, rewrapVaultEntriesAction, claimKeySaltAction } from '@/lib/actions/account.actions'
 import { addRecoveryFactorAction } from '@/lib/actions/recovery.actions'
+import { getIngestionKeyAction } from '@/lib/actions/connector.actions'
+import type { RecoveryMaterial } from '@/lib/services/recovery-factor.service'
 import { recordRegistrationChoicesAction } from '@/lib/actions/legal.actions'
 import { unwrap } from '@/lib/actions/unwrap'
 
@@ -49,30 +53,36 @@ export async function setUpVault(password: string): Promise<VaultSetup> {
 
 // Generate a fresh recovery code, escrow the (extractable) master key under it,
 // persist the wrapped bytes + salt, and return the code to show the user once.
-export async function escrowMasterKeyWithNewCode(extractableMasterKey: CryptoKey): Promise<string> {
+// Replacing an existing code needs a step-up grant for add_recovery_factor.
+export async function escrowMasterKeyWithNewCode(
+  extractableMasterKey: CryptoKey,
+  stepUpToken?: string
+): Promise<string> {
   const raw = await crypto.subtle.exportKey('raw', extractableMasterKey)
   const code = generateRecoveryCode()
   const salt = generateRecoverySalt()
   const recoveryKey = await deriveRecoveryKey(code, salt)
   const wrapped = await wrapMasterKeyForRecovery(raw, recoveryKey)
-  // The legacy escrow columns still back the password-reset recovery flow.
-  await unwrap(setRecoveryEscrowAction({ wrapped_master_key: wrapped, recovery_code_salt: salt }))
-  // LD-105: also record it as a managed factor so the user can see and confirm
-  // it. Best-effort: the escrow above is already durable, and failing here would
-  // throw away the code before it was ever shown to the user.
-  await unwrap(addRecoveryFactorAction({
-    type: 'recovery_code',
-    label: 'Recovery code',
-    wrappedMasterKey: wrapped,
-    salt,
-  })).catch(() => undefined)
+  // One call stores the escrow that password-reset recovery reads and the factor
+  // that settings lists, so the two can never disagree about which code works.
+  await unwrap(
+    setRecoveryEscrowAction({
+      wrapped_master_key: wrapped,
+      recovery_code_salt: salt,
+      ...(stepUpToken ? { step_up_token: stepUpToken } : {}),
+    })
+  )
   return code
 }
 
 // Derive an extractable master key from the password and escrow it under a new code.
-export async function setupRecoveryFromPassword(password: string, keySalt: string): Promise<string> {
+export async function setupRecoveryFromPassword(
+  password: string,
+  keySalt: string,
+  stepUpToken?: string
+): Promise<string> {
   const extractable = await deriveMasterKeyExtractable(password, keySalt)
-  return escrowMasterKeyWithNewCode(extractable)
+  return escrowMasterKeyWithNewCode(extractable, stepUpToken)
 }
 
 /**
@@ -85,7 +95,8 @@ export async function setupRecoveryFromPassword(password: string, keySalt: strin
 export async function createRecoveryKitFromPassword(
   password: string,
   keySalt: string,
-  label: string
+  label: string,
+  stepUpToken: string
 ): Promise<string> {
   const extractable = await deriveMasterKeyExtractable(password, keySalt)
   const raw = await crypto.subtle.exportKey('raw', extractable)
@@ -98,32 +109,221 @@ export async function createRecoveryKitFromPassword(
     label,
     wrappedMasterKey: wrapped,
     salt,
+    stepUpToken,
   }))
   return secret
 }
 
-// Re-wrap every vault entry's DEK from oldMasterKey to newMasterKey and persist.
+export interface RewrapResult {
+  count: number
+  /** Recovery kits that stopped working because the master key changed. */
+  retiredKits: number
+}
+
+/** One entry's data key wrapped under the new master key, ready to store. */
+export interface RewrapEnvelope {
+  id: string
+  encrypted_dek: string
+  dek_salt: string
+}
+
+/**
+ * Some entries open with neither key. They were saved under a password the
+ * person used for a while after an earlier reset without recovery.
+ */
+export class EntriesUnderAnotherKeyError extends Error {
+  constructor(readonly count: number) {
+    super(`${count} ${count === 1 ? 'entry is' : 'entries are'} locked with a different password`)
+    this.name = 'EntriesUnderAnotherKeyError'
+  }
+}
+
+/** Everything a key change moves, computed in the browser and not yet sent. */
+export interface PreparedRewrap {
+  entries: RewrapEnvelope[]
+  /** The connector ingestion private key under the new key, when there is one to move. */
+  ingestKey: { previous: string; wrapped: string } | null
+}
+
+/**
+ * Re-wrap every entry's data key from oldMasterKey to newMasterKey in the
+ * browser, without sending anything, so a flow can find out whether the whole
+ * vault will move before it changes the password. The connector ingestion key
+ * moves with the entries.
+ *
+ * An entry already under the new key comes back unchanged. That happens when
+ * someone reset their password without recovering, kept using the vault under
+ * the new password, and later recovers the older entries with a code or kit.
+ * An entry under neither key throws EntriesUnderAnotherKeyError.
+ */
+export async function prepareRewrap(
+  oldMasterKey: CryptoKey,
+  newMasterKey: CryptoKey
+): Promise<PreparedRewrap> {
+  const [entries, ingestion] = await Promise.all([
+    unwrap(getVaultEntriesAction()),
+    unwrap(getIngestionKeyAction()),
+  ])
+  const rewrapped = await Promise.all(
+    entries.map(async (entry): Promise<RewrapEnvelope | null> => {
+      try {
+        const fields = await rewrapDek(oldMasterKey, newMasterKey, entry.encrypted_dek, entry.dek_salt)
+        return { id: entry.id, ...fields }
+      } catch {
+        return (await opensDataKey(newMasterKey, entry))
+          ? { id: entry.id, encrypted_dek: entry.encrypted_dek, dek_salt: entry.dek_salt }
+          : null
+      }
+    })
+  )
+  const locked = rewrapped.filter((entry) => entry === null).length
+  if (locked > 0) throw new EntriesUnderAnotherKeyError(locked)
+  return {
+    entries: rewrapped as RewrapEnvelope[],
+    ingestKey: await rewrapIngestionKey(oldMasterKey, newMasterKey, ingestion.wrappedPrivateKey),
+  }
+}
+
+/**
+ * LD-201 wraps the connector ingestion private key under the master key itself,
+ * so it has to move whenever the master key does. Null when there is nothing to
+ * move: no key, a key already under the new master key, or one an earlier
+ * password change left under a key that nothing derives any more.
+ */
+async function rewrapIngestionKey(
+  oldMasterKey: CryptoKey,
+  newMasterKey: CryptoKey,
+  wrapped: string | null
+): Promise<PreparedRewrap['ingestKey']> {
+  if (!wrapped) return null
+  try {
+    const privateKey = await decryptWithKey(oldMasterKey, wrapped)
+    return { previous: wrapped, wrapped: await encryptWithKey(newMasterKey, privateKey) }
+  } catch {
+    return null
+  }
+}
+
+// Store a prepared re-wrap with a step-up grant for change_password. The server
+// then retires every recovery factor, since each one wraps the old key.
+export async function storeRewrap(
+  prepared: PreparedRewrap,
+  reason: 'password_change' | 'recovery',
+  stepUpToken: string
+): Promise<RewrapResult> {
+  const { retiredKits } = await unwrap(
+    rewrapVaultEntriesAction({
+      reason,
+      entries: prepared.entries,
+      stepUpToken,
+      ...(prepared.ingestKey ? { ingestKey: prepared.ingestKey } : {}),
+    })
+  )
+  return { count: prepared.entries.length, retiredKits }
+}
+
 export async function rewrapAllEntries(
   oldMasterKey: CryptoKey,
   newMasterKey: CryptoKey,
-  reason: 'password_change' | 'recovery'
-): Promise<number> {
-  const entries = await unwrap(getVaultEntriesAction())
-  const rewrapped = await Promise.all(
-    entries.map(async (entry) => {
-      const fields = await rewrapDek(oldMasterKey, newMasterKey, entry.encrypted_dek, entry.dek_salt)
-      return { id: entry.id, ...fields }
-    })
-  )
-  await unwrap(rewrapVaultEntriesAction({ reason, entries: rewrapped }))
-  return rewrapped.length
+  reason: 'password_change' | 'recovery',
+  stepUpToken: string
+): Promise<RewrapResult> {
+  return storeRewrap(await prepareRewrap(oldMasterKey, newMasterKey), reason, stepUpToken)
 }
 
-// Recover the old (pre-reset) master key from a recovery code + escrow blob.
-export async function recoverOldMasterKey(code: string, wrappedB64: string, saltB64: string): Promise<CryptoKey> {
-  const recoveryKey = await deriveRecoveryKey(code, saltB64)
-  const raw = await unwrapMasterKeyForRecovery(wrappedB64, recoveryKey)
-  return importMasterKey(raw)
+/** Whether a key, as a CryptoKey or raw bytes, opens text wrapped with encryptWithKey. */
+async function opensWrappedText(masterKey: CryptoKey | ArrayBuffer, wrapped: string): Promise<boolean> {
+  try {
+    // A structural check rather than instanceof, which fails across realms.
+    const isKey = typeof masterKey === 'object' && 'algorithm' in masterKey && 'usages' in masterKey
+    const key = isKey ? (masterKey as CryptoKey) : await importMasterKey(masterKey as ArrayBuffer)
+    await decryptWithKey(key, wrapped)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * How to tell whether a key is the vault's current one: the oldest entry's data
+ * key, or, when there are no entries, the connector ingestion key, which is
+ * wrapped under the master key too. Null when the vault holds neither.
+ */
+function vaultCheck(
+  material: Pick<RecoveryMaterial, 'probe' | 'ingest_key'>
+): ((masterKey: CryptoKey | ArrayBuffer) => Promise<boolean>) | null {
+  const { probe, ingest_key: ingestKey } = material
+  if (probe) return (masterKey) => opensDataKey(masterKey, probe)
+  if (ingestKey) return (masterKey) => opensWrappedText(masterKey, ingestKey.wrapped)
+  return null
+}
+
+/** Whether the vault holds anything a lost master key would strand. */
+export function vaultHasContent(material: Pick<RecoveryMaterial, 'probe' | 'ingest_key'>): boolean {
+  return vaultCheck(material) !== null
+}
+
+/**
+ * Whether the vault's content is wrapped under this key. False for a vault that
+ * holds nothing, where nothing can confirm it, so a caller never mistakes
+ * "nothing to check" for "already done".
+ */
+export async function vaultOpensWith(
+  masterKey: CryptoKey,
+  material: Pick<RecoveryMaterial, 'probe' | 'ingest_key'>
+): Promise<boolean> {
+  const check = vaultCheck(material)
+  return check ? check(masterKey) : false
+}
+
+export type RecoveryAttempt =
+  | {
+      status: 'opened'
+      masterKey: CryptoKey
+      /** The connector key was stranded by an earlier password change and cannot be opened. */
+      connectorKeyLost: boolean
+    }
+  | { status: 'not_a_secret' }
+  | { status: 'no_match' }
+
+/**
+ * LD-105: open the vault's master key with a recovery code or a recovery kit
+ * secret. A code is tried against the escrow and the code factor, a kit against
+ * the kits, and a copy only counts if its key opens the vault's entries, so a
+ * kit made before the last password change is refused rather than accepted
+ * and then failing halfway through the re-wrap.
+ */
+export async function openVaultWithRecoverySecret(
+  secret: string,
+  material: RecoveryMaterial
+): Promise<RecoveryAttempt> {
+  const kind = recoverySecretKind(secret)
+  if (!kind) return { status: 'not_a_secret' }
+
+  const copies =
+    kind === 'recovery_code'
+      ? [
+          ...(material.escrow ? [material.escrow] : []),
+          ...material.factors.filter((factor) => factor.type === 'recovery_code'),
+        ]
+      : material.factors.filter((factor) => factor.type === 'recovery_kit')
+  const wrappedCopies = copies.map((copy) => ({ wrapped: copy.wrapped_master_key, salt: copy.salt }))
+  const check = vaultCheck(material)
+  let raw = await findMasterKeyWithRecoverySecret(secret, wrappedCopies, check ?? undefined)
+  let connectorKeyLost = false
+
+  // The recovery code is replaced at every key change, so it wraps the current
+  // key. On a vault with no entries, a code that opens a copy but not the
+  // connector key means a password change before 2026-10-08 stranded that key,
+  // not that the code is stale. Kits get no such allowance: a stale kit and a
+  // stranded connector key look the same from here.
+  if (!raw && kind === 'recovery_code' && !material.probe && material.ingest_key) {
+    raw = await findMasterKeyWithRecoverySecret(secret, wrappedCopies)
+    connectorKeyLost = raw !== null
+  }
+  return raw
+    ? { status: 'opened', masterKey: await importMasterKey(raw), connectorKeyLost }
+    : { status: 'no_match' }
 }
 
 export { deriveMasterKey }

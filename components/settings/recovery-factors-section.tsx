@@ -13,10 +13,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
+import { StepUpDialog } from '@/components/auth/step-up-dialog'
 import { createClient } from '@/lib/supabase/client'
-import { verifyPassword } from '@/lib/supabase/verify-password'
 import { useTurnstile } from '@/lib/hooks/use-turnstile'
 import { createRecoveryKitFromPassword } from '@/lib/account/account-crypto'
+import { stepUpWithPassword } from '@/lib/account/step-up'
 import {
   confirmRecoveryFactorAction,
   declineRecoverySetupAction,
@@ -24,12 +25,18 @@ import {
   removeRecoveryFactorAction,
 } from '@/lib/actions/recovery.actions'
 import { formatDate } from '@/lib/utils/date-formatter'
-import type { RecoveryStatus } from '@/lib/services/recovery-factor.service'
+import type { RecoveryFactorSummary, RecoveryStatus } from '@/lib/services/recovery-factor.service'
 import { unwrap } from '@/lib/actions/unwrap'
 
 const TYPE_LABEL: Record<string, string> = {
   recovery_code: 'Recovery code',
   recovery_kit: 'Recovery kit',
+}
+
+/** How a factor is named on screen and to screen readers, for example "recovery kit Backup kit". */
+function factorName(factor: Pick<RecoveryFactorSummary, 'type' | 'label'>): string {
+  const type = (TYPE_LABEL[factor.type] ?? factor.type).toLowerCase()
+  return factor.label && factor.label !== TYPE_LABEL[factor.type] ? `${type} ${factor.label}` : `the ${type}`
 }
 
 /**
@@ -54,6 +61,7 @@ export function RecoveryFactorsSection({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [pending, startTransition] = useTransition()
+  const [removing, setRemoving] = useState<RecoveryFactorSummary | null>(null)
   const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('reauthenticate')
 
   function reset() {
@@ -88,12 +96,19 @@ export function RecoveryFactorsSection({
       } = await supabase.auth.getUser()
       if (!user?.email) throw new Error('Not signed in')
 
-      if (!(await verifyPassword(user.email, password, await getCaptchaToken()))) {
+      // A kit is a new way into the vault, so the server needs a fresh password proof.
+      const stepUpToken = await stepUpWithPassword(
+        'add_recovery_factor',
+        user.email,
+        password,
+        await getCaptchaToken()
+      )
+      if (!stepUpToken) {
         setError('Incorrect password')
         return
       }
 
-      setSecret(await createRecoveryKitFromPassword(password, keySalt, label))
+      setSecret(await createRecoveryKitFromPassword(password, keySalt, label, stepUpToken))
       refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'The recovery kit could not be created.')
@@ -178,10 +193,15 @@ export function RecoveryFactorsSection({
                   variant="outline"
                   size="sm"
                   disabled={pending}
+                  aria-label={`I still have ${factorName(factor)}`}
                   onClick={() =>
                     startTransition(async () => {
-                      await unwrap(confirmRecoveryFactorAction({ factorId: factor.id }))
-                      refresh()
+                      try {
+                        await unwrap(confirmRecoveryFactorAction({ factorId: factor.id }))
+                        refresh()
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : 'That did not work. Try again.')
+                      }
                     })
                   }
                 >
@@ -191,12 +211,11 @@ export function RecoveryFactorsSection({
                   variant="outline"
                   size="sm"
                   disabled={pending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      await unwrap(removeRecoveryFactorAction({ factorId: factor.id }))
-                      refresh()
-                    })
-                  }
+                  aria-label={`Remove ${factorName(factor)}`}
+                  onClick={() => {
+                    setError(null)
+                    setRemoving(factor)
+                  }}
                 >
                   Remove
                 </Button>
@@ -239,7 +258,28 @@ export function RecoveryFactorsSection({
         </p>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && !open && <p className="text-sm text-destructive">{error}</p>}
+
+      <StepUpDialog
+        action="remove_recovery_factor"
+        title={removing ? `Remove ${factorName(removing)}?` : 'Remove this recovery factor?'}
+        description="Confirm your password to remove it. If it is your only way back into your vault, forgetting your password will lock you out for good."
+        open={removing !== null}
+        onOpenChange={(next) => {
+          if (!next) setRemoving(null)
+        }}
+        onConfirmed={async (stepUpToken) => {
+          const factor = removing
+          setRemoving(null)
+          if (!factor) return
+          try {
+            await unwrap(removeRecoveryFactorAction({ factorId: factor.id, stepUpToken }))
+            refresh()
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'The recovery factor could not be removed.')
+          }
+        }}
+      />
 
       <Dialog
         open={open}

@@ -156,6 +156,13 @@ Encryption (client-side):
 - Treat those three fields as required and non-empty for any write. Validate them in the action (Zod schema in `packages/core/src/validations/`) before calling the service. Never write a partial or plaintext row. Note: the current vault path accepts a typed payload without a Zod `parse`; new and refactored writes should add the schema check.
 - Server-held keys exist only for issuer signing: Ed25519 private keys are AES-256-GCM-wrapped with `ISSUER_KEY_SECRET` (`lib/crypto/credential-signing.ts`).
 
+Keys and recovery:
+
+- Any change to how the vault's keys are wrapped or recovered needs a step-up grant, consumed in the service, never only checked in the browser. Re-wrapping entries after a password change or a recovery uses `change_password`, adding a kit or replacing the recovery code uses `add_recovery_factor`, and removing a factor uses `remove_recovery_factor`. Setting up the first recovery code needs none. `lib/services/__tests__/session-security.service.test.ts` fails if a listed action is consumed nowhere.
+- Do not add step-up to consent withdrawal. Withdrawing consent must stay as easy as giving it (GDPR Article 7(3)).
+- The key salt, the recovery escrow columns, and `recovery_factors` are written only by the services that guard them, through the service role and filtered to the caller. Never write them from the person's session client.
+- A new master key retires every recovery factor, because each one wraps the old key. Recovery checks a factor against one of the vault's own entries before it changes anything.
+
 Audit logging:
 
 - Write an audit log for every sensitive operation (create, read, update, delete, grant, revoke).

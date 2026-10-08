@@ -203,6 +203,7 @@ describe('errors', () => {
   it.each([
     ['not_found', 404],
     ['health_consent_required', 403],
+    ['step_up_required', 403],
     ['recovery_required', 409],
     [undefined, 400],
   ])('maps the %s code to %i', async (code, status) => {

@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const stepUpUpdate = vi.fn()
 const stepUpInsert = vi.fn()
@@ -107,16 +109,22 @@ beforeEach(() => {
 })
 
 describe('step-up actions', () => {
-  it('covers every action the roadmap requires fresh authentication for', () => {
-    for (const action of [
-      'export_vault',
-      'revoke_consent',
-      'change_password',
-      'add_recovery_factor',
-      'delete_account',
-    ]) {
-      expect(STEP_UP_ACTIONS).toContain(action)
+  it('lists only actions that something actually checks', () => {
+    // A listed action that nothing consumes would promise a protection that does not exist.
+    const source = ['lib/services', 'lib/actions']
+      .flatMap((dir) =>
+        readdirSync(join(process.cwd(), dir))
+          .filter((name) => name.endsWith('.ts'))
+          .map((name) => readFileSync(join(process.cwd(), dir, name), 'utf8'))
+      )
+      .join('\n')
+    for (const action of STEP_UP_ACTIONS) {
+      expect(source).toMatch(new RegExp(`(consumeStepUp|requireStepUp)\\([^)]*'${action}'`))
     }
+  })
+
+  it('keeps withdrawing consent as easy as giving it', () => {
+    expect(STEP_UP_ACTIONS).not.toContain('revoke_consent')
   })
 
   it('rejects an unknown action name', () => {

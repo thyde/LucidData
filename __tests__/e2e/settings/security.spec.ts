@@ -79,8 +79,12 @@ test.describe('Account security settings', () => {
         .single()
       expect(notificationProfile?.email_notifications_enabled).toBe(false)
 
-      const exportPromise = page.waitForEvent('download')
+      // LD-106: a full decrypted copy needs the password again.
       await page.getByRole('button', { name: 'Export vault (JSON-LD)' }).click()
+      const exportDialog = page.getByRole('dialog', { name: 'Export your vault' })
+      await exportDialog.getByLabel('Password').fill(oldPassword)
+      const exportPromise = page.waitForEvent('download')
+      await exportDialog.getByRole('button', { name: 'Confirm' }).click()
       const exportDownload = await exportPromise
       const exportPath = await exportDownload.path()
       if (!exportPath) throw new Error('Vault export path was not available')

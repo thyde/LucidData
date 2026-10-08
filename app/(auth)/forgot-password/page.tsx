@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
         <CardContent className="space-y-4">
           <div role="status" className="bg-muted text-sm p-3 rounded-md">
             If an account exists for {email}, a reset link is on its way. Open it on this device,
-            then enter your recovery code to restore your encrypted vault.
+            then enter your recovery code or kit to restore your encrypted vault.
           </div>
           <Link href="/login" className="text-sm text-primary underline">
             Back to sign in

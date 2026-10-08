@@ -6,14 +6,17 @@ import {
   addRecoveryFactor,
   confirmRecoveryFactor,
   declineRecoverySetup,
+  getRecoveryMaterial,
   getRecoveryStatus,
   removeRecoveryFactor,
   type RecoveryFactorSummary,
+  type RecoveryMaterial,
   type RecoveryStatus,
 } from '@/lib/services/recovery-factor.service'
 import {
   addRecoveryFactorSchema,
   recoveryFactorIdSchema as factorIdSchema,
+  removeRecoveryFactorSchema,
 } from '@luciddata/core/validations/recovery'
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -29,7 +32,8 @@ async function getAuthenticatedUserId(): Promise<string> {
 export async function getRecoveryStatusAction(): Promise<RecoveryStatus | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return getRecoveryStatus(userId)  })
+    return getRecoveryStatus(userId)
+  })
 }
 
 export async function addRecoveryFactorAction(
@@ -37,25 +41,37 @@ export async function addRecoveryFactorAction(
 ): Promise<RecoveryFactorSummary | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return addRecoveryFactor(userId, addRecoveryFactorSchema.parse(input))  })
+    return addRecoveryFactor(userId, addRecoveryFactorSchema.parse(input))
+  })
 }
 
 export async function removeRecoveryFactorAction(input: unknown): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    const { factorId } = factorIdSchema.parse(input)
-    await removeRecoveryFactor(userId, factorId)  })
+    const { factorId, stepUpToken } = removeRecoveryFactorSchema.parse(input)
+    await removeRecoveryFactor(userId, factorId, stepUpToken)
+  })
+}
+
+/** The wrapped copies of the master key, for opening the vault with a recovery code or kit. */
+export async function getRecoveryMaterialAction(): Promise<RecoveryMaterial | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return getRecoveryMaterial(userId)
+  })
 }
 
 export async function confirmRecoveryFactorAction(input: unknown): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     const { factorId } = factorIdSchema.parse(input)
-    await confirmRecoveryFactor(userId, factorId)  })
+    await confirmRecoveryFactor(userId, factorId)
+  })
 }
 
 export async function declineRecoverySetupAction(): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    await declineRecoverySetup(userId)  })
+    await declineRecoverySetup(userId)
+  })
 }

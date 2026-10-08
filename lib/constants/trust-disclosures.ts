@@ -54,10 +54,10 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
     material: 'Recovery escrow key',
     module: 'packages/core/src/crypto/recovery.ts',
     derivedOrGenerated:
-      'Derived in your browser from your one-time recovery code with PBKDF2-SHA256, 600,000 iterations',
+      'Derived in your browser from your recovery code or recovery kit secret with PBKDF2-SHA256, 600,000 iterations',
     heldBy: 'user_browser',
-    protects: 'An escrowed copy of your master key, used after a password reset',
-    note: 'The server stores the wrapped copy and the salt. It never sees the recovery code.',
+    protects: 'A wrapped copy of your master key for each recovery factor, used after a password reset',
+    note: 'The server stores each wrapped copy and its salt. It never sees the code or the kit secret. A password change retires every copy, because each one wraps the old master key.',
   },
   {
     material: 'Vault export key',
@@ -309,12 +309,12 @@ export const THREAT_MODEL: ThreatModelRow[] = [
     mitigation:
       'Second-factor authentication with an authenticator app, one-time backup codes, and passkeys are supported.',
     residual:
-      'A password plus a live session on an unlocked device gives full vault access. Idle locking and per-action re-authentication are limited today.',
+      'A password plus a live session on an unlocked device gives full vault access. Exporting everything, changing recovery factors or the password, ending other sessions, and deleting the account each ask for the password again, but any single entry can still be read, changed, or deleted.',
   },
   {
     threat: 'You lose your password and your recovery code',
     mitigation:
-      'A recovery code escrows a wrapped copy of your master key, and you can hold more than one recovery factor.',
+      'A recovery code or a recovery kit opens a wrapped copy of your master key, and you can hold more than one.',
     residual:
       'If every factor is lost, the vault cannot be decrypted by anyone, including us. This is the cost of us not holding a key.',
   },

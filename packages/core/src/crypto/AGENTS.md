@@ -7,7 +7,7 @@ Scoped guidance for vault encryption. This is the most security-sensitive code i
 - `runtime.ts` - finds Web Crypto, random bytes, UTF-8, and base64 on whatever runtime is present: a browser, React Native's Hermes, or an extension worker. Every other module goes through it.
 - `key-derivation.ts` - PBKDF2 master-key derivation from the user's password and `key_salt` (600k iterations).
 - `client-crypto.ts` - AES-GCM encrypt/decrypt and DEK wrapping for the envelope scheme.
-- `recovery.ts` - the recovery-code factor that escrows a wrapped copy of the master key.
+- `recovery.ts` - recovery codes and kits: wrapping a copy of the master key under each, and opening the vault again with whichever one the person kept, checked against one of the vault's entries.
 - `ingestion-keys.ts` - the ECDH P-256 keypair that lets a connector seal records it cannot read.
 - `anonymize.ts` - strips direct identifiers before a marketplace contribution leaves the device.
 - `vault-export.ts` - builds the JSON-LD export document. Saving it is the app's job.

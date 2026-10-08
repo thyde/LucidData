@@ -17,17 +17,21 @@ export async function findUserById(id: string): Promise<User | null> {
  * Store a key salt only if the account has none, then return whichever salt is
  * stored. Two tabs finishing setup at once both get the same answer, and the
  * database refuses to replace a salt that is already set.
+ *
+ * Uses the service role, filtered to the caller's id, because the API roles may
+ * not write the salt: changing it would leave every entry wrapped under a key
+ * that the person's password no longer derives.
  */
 export async function setKeySaltIfUnset(id: string, keySalt: string): Promise<string | null> {
-  const supabase = await createClient()
-  const { error } = await supabase
+  const service = createServiceClient()
+  const { error } = await service
     .from('users')
     .update({ key_salt: keySalt, updated_at: new Date().toISOString() })
     .eq('id', id)
     .is('key_salt', null)
   if (error) throw error
 
-  const { data, error: readError } = await supabase
+  const { data, error: readError } = await service
     .from('users')
     .select('key_salt')
     .eq('id', id)
@@ -36,12 +40,13 @@ export async function setKeySaltIfUnset(id: string, keySalt: string): Promise<st
   return data.key_salt
 }
 
+/**
+ * Columns the person's own session may change. The key salt and the recovery
+ * escrow are written only by the services that guard them, through the service role.
+ */
 export async function updateUser(id: string, updates: {
   display_name?: string
   key_hint?: string
-  wrapped_master_key?: string | null
-  recovery_code_salt?: string | null
-  recovery_codes_generated_at?: string | null
   recovery_setup_declined_at?: string | null
   recovery_last_confirmed_at?: string | null
   onboarding_completed?: boolean

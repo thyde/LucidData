@@ -71,6 +71,28 @@ export async function publishIngestionKey(
   return (data ?? []).length > 0
 }
 
+/**
+ * Store the ingestion private key re-wrapped under a new master key, after a
+ * password change or a recovery. The private half is wrapped under the master
+ * key itself, so without this every record a sync seals would become
+ * unreadable. Compare-and-swap: the write only lands while the stored wrap is
+ * still the one the device re-wrapped. Returns whether it landed.
+ */
+export async function rewrapIngestionKey(
+  userId: string,
+  key: { previous: string; wrapped: string }
+): Promise<boolean> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('users')
+    .update({ wrapped_ingest_private_key: key.wrapped })
+    .eq('id', userId)
+    .eq('wrapped_ingest_private_key', key.previous)
+    .select('id')
+  if (error) throw error
+  return (data ?? []).length > 0
+}
+
 /** Sealed records waiting for this person to open them, oldest first. */
 export async function listPendingIngest(userId: string): Promise<PendingIngestRecord[]> {
   const supabase = await createClient()

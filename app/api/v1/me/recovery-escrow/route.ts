@@ -7,6 +7,8 @@ export const dynamic = 'force-dynamic'
 /**
  * Store the recovery-code escrow: the master key wrapped on the device under a
  * key derived from a recovery code. The code itself never reaches the server.
+ * The same code is recorded as a recovery factor. Replacing an existing code
+ * needs a step-up grant for add_recovery_factor.
  */
 export const PUT = v1(async (req, { userId }) => {
   await setRecoveryEscrow(userId, recoveryEscrowSchema.parse(await readJson(req)))
