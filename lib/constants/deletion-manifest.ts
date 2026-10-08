@@ -190,6 +190,23 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
     reason: 'Short-lived re-authentication grants belong to the session holder.',
   },
   {
+    table: 'vault_rewraps',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: 'user_id',
+    strippedColumns: [],
+    reason: 'A password change or recovery in progress belongs to the person, and expires within half an hour anyway.',
+  },
+  {
+    table: 'vault_rewrap_entries',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: null,
+    cascadesVia: 'vault_rewraps',
+    strippedColumns: [],
+    reason: 'Wrapped data keys waiting to be applied. They cascade with the re-wrap they belong to.',
+  },
+  {
     table: 'revoked_sessions',
     personalData: true,
     behaviour: 'cascade',
