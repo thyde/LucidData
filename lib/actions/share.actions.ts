@@ -36,11 +36,13 @@ export async function createShareAction(
 export async function getMySharesAction(): Promise<CredentialShare[] | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return listSharesForUser(userId)  })
+    return listSharesForUser(userId)
+  })
 }
 
 export async function revokeShareAction(shareId: string): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    await revokeShare(userId, shareId)  })
+    await revokeShare(userId, shareId)
+  })
 }

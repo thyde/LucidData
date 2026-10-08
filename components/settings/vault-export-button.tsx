@@ -6,25 +6,27 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { createClient } from '@/lib/supabase/client'
-import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
-import { recordDataExportAction } from '@/lib/actions/account.actions'
+import { getVaultExportEntriesAction, recordDataExportAction } from '@/lib/actions/account.actions'
+import { StepUpDialog } from '@/components/auth/step-up-dialog'
 import { buildVaultExportDocument, type DecryptedExportEntry } from '@luciddata/core/crypto/vault-export'
 import { downloadJson } from '@/lib/utils/download'
 import { unwrap } from '@/lib/actions/unwrap'
 
 // Exports the vault as a portable JSON-LD document. Entries are decrypted in the
 // browser with the in-memory master key; the server never sees plaintext.
+// LD-106: a full copy of everything needs the password again first.
 export function VaultExportButton() {
   const { toast } = useToast()
   const { isLocked, decrypt } = useEncryption()
   const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
-  async function handleExport() {
+  async function handleExport(stepUpToken: string) {
     setBusy(true)
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      const entries = await unwrap(getVaultEntriesAction())
+      const entries = await unwrap(getVaultExportEntriesAction({ stepUpToken }))
 
       const decrypted: DecryptedExportEntry[] = await Promise.all(
         entries.map(async (entry) => {
@@ -81,9 +83,19 @@ export function VaultExportButton() {
   }
 
   return (
-    <Button variant="outline" onClick={handleExport} disabled={busy}>
-      <Download className="h-4 w-4" />
-      {busy ? 'Preparing…' : 'Export vault (JSON-LD)'}
-    </Button>
+    <>
+      <Button variant="outline" onClick={() => setConfirming(true)} disabled={busy}>
+        <Download className="h-4 w-4" />
+        {busy ? 'Preparing…' : 'Export vault (JSON-LD)'}
+      </Button>
+      <StepUpDialog
+        action="export_vault"
+        title="Export your vault"
+        description="Confirm your password to download a decrypted copy of every entry. Anyone who gets the file can read it."
+        open={confirming}
+        onOpenChange={setConfirming}
+        onConfirmed={handleExport}
+      />
+    </>
   )
 }

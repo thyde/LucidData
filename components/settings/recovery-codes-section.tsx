@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
-import { verifyPassword } from '@/lib/supabase/verify-password'
 import { useTurnstile } from '@/lib/hooks/use-turnstile'
 import { setupRecoveryFromPassword } from '@/lib/account/account-crypto'
+import { stepUpWithPassword } from '@/lib/account/step-up'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
 
 interface RecoveryCodesSectionProps {
@@ -45,13 +45,20 @@ export function RecoveryCodesSection({ keySalt, generatedAt }: RecoveryCodesSect
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.email) throw new Error('Not signed in')
 
-      // Verify the password before escrowing a key derived from it.
-      if (!(await verifyPassword(user.email, password, await getCaptchaToken()))) {
+      // Supabase checks the password before a key derived from it is escrowed.
+      // The grant lets the server replace the current code, which needs one.
+      const stepUpToken = await stepUpWithPassword(
+        'add_recovery_factor',
+        user.email,
+        password,
+        await getCaptchaToken()
+      )
+      if (!stepUpToken) {
         setError('Incorrect password')
         return
       }
 
-      const newCode = await setupRecoveryFromPassword(password, keySalt)
+      const newCode = await setupRecoveryFromPassword(password, keySalt, stepUpToken)
       setCode(newCode)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not generate a recovery code')

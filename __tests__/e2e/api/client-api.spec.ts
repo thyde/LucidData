@@ -47,6 +47,16 @@ async function signedInPerson(prefix: string): Promise<Person> {
   return { id: data.user.id, email, token: signedIn.session.access_token }
 }
 
+/** The access token of a password sign-in made just now, which step-up accepts once. */
+async function freshProof(person: Person): Promise<string> {
+  const { data, error } = await anonClient().auth.signInWithPassword({
+    email: person.email,
+    password: TEST_USER.password,
+  })
+  if (error || !data.session) throw error ?? new Error('No session')
+  return data.session.access_token
+}
+
 const as = (person: Person) => ({ authorization: `Bearer ${person.token}` })
 
 const ENTRY = {
@@ -285,6 +295,84 @@ test.describe('Client API v1', () => {
     expect((await pending.json()).data).toEqual([])
   })
 
+  test('guards every change to recovery with a fresh password proof', async ({ request }) => {
+    const grant = async (action: string) => {
+      const response = await request.post('/api/v1/step-up', {
+        headers: as(owner),
+        data: { action, proof: await freshProof(owner) },
+      })
+      expect(response.status()).toBe(200)
+      return (await response.json()).data.token as string
+    }
+    const kit = {
+      type: 'recovery_kit',
+      label: 'Spare kit',
+      wrapped_master_key: 'd3JhcHBlZCBvbiB0aGUgZGV2aWNl',
+      salt: 'a2l0LXNhbHQ',
+    }
+
+    const refused = await request.post('/api/v1/recovery/factors', { headers: as(owner), data: kit })
+    expect(refused.status()).toBe(403)
+    expect((await refused.json()).code).toBe('step_up_required')
+
+    const added = await request.post('/api/v1/recovery/factors', {
+      headers: as(owner),
+      data: { ...kit, step_up_token: await grant('add_recovery_factor') },
+    })
+    expect(added.status()).toBe(201)
+    const id = (await added.json()).data.id as string
+
+    // The device reads back only wrapped bytes, and only its own.
+    const material = (await (await request.get('/api/v1/recovery/material', { headers: as(owner) })).json()).data
+    expect(material.factors).toEqual([
+      expect.objectContaining({ id, type: 'recovery_kit', wrapped_master_key: kit.wrapped_master_key }),
+    ])
+    expect(material.probe).toEqual(
+      expect.objectContaining({ encrypted_dek: expect.any(String), dek_salt: expect.any(String) })
+    )
+    const theirs = (await (await request.get('/api/v1/recovery/material', { headers: as(stranger) })).json()).data
+    expect(theirs.factors).toEqual([])
+
+    const unconfirmed = await request.delete(`/api/v1/recovery/factors/${id}`, {
+      headers: as(owner),
+      data: { step_up_token: 'made-up-grant' },
+    })
+    expect(unconfirmed.status()).toBe(403)
+    const removed = await request.delete(`/api/v1/recovery/factors/${id}`, {
+      headers: as(owner),
+      data: { step_up_token: await grant('remove_recovery_factor') },
+    })
+    expect(removed.status()).toBe(200)
+
+    // Re-wrapping every key needs a grant as well. Sending the envelopes back
+    // unchanged would otherwise retire every factor without the password.
+    const vault = (await (await request.get('/api/v1/vault', { headers: as(owner) })).json()).data as {
+      id: string
+      encrypted_dek: string
+      dek_salt: string
+    }[]
+    const entries = vault.map(({ id, encrypted_dek, dek_salt }) => ({ id, encrypted_dek, dek_salt }))
+    const ungranted = await request.post('/api/v1/vault/rewrap', {
+      headers: as(owner),
+      data: { reason: 'password_change', entries, step_up_token: 'made-up-grant' },
+    })
+    expect(ungranted.status()).toBe(403)
+    const rewrapped = await request.post('/api/v1/vault/rewrap', {
+      headers: as(owner),
+      data: {
+        reason: 'password_change',
+        entries,
+        step_up_token: await grant('change_password'),
+        // The connector key published earlier in this file moves with the entries.
+        ingest_key: { previous: 'd3JhcHBlZCBwcml2YXRlIGhhbGY', wrapped: 'bW92ZWQgdG8gdGhlIG5ldyBrZXk' },
+      },
+    })
+    expect(rewrapped.status()).toBe(200)
+    expect((await rewrapped.json()).data).toEqual({ rewrapped: entries.length, retired_kits: 0 })
+    const ingestKey = (await (await request.get('/api/v1/ingest/key', { headers: as(owner) })).json()).data
+    expect(ingestKey.wrapped_private_key).toBe('bW92ZWQgdG8gdGhlIG5ldyBrZXk')
+  })
+
   test('deletes an account only with a fresh password proof', async ({ request }) => {
     const leaver = await signedInPerson('api-leaver')
     const remove = (stepUpToken: string) =>
@@ -293,20 +381,18 @@ test.describe('Client API v1', () => {
         data: { confirm_phrase: 'DELETE MY ACCOUNT', step_up_token: stepUpToken },
       })
 
-    expect((await remove('made-up-grant')).status()).toBe(400)
+    const unconfirmed = await remove('made-up-grant')
+    expect(unconfirmed.status()).toBe(403)
+    expect((await unconfirmed.json()).code).toBe('step_up_required')
 
     // The session making the request never counts as its own proof.
     const self = await request.post('/api/v1/step-up', {
       headers: as(leaver),
       data: { action: 'delete_account', proof: leaver.token },
     })
-    expect(self.status()).toBe(400)
+    expect(self.status()).toBe(403)
 
-    const { data: fresh } = await anonClient().auth.signInWithPassword({
-      email: leaver.email,
-      password: TEST_USER.password,
-    })
-    const proof = fresh.session!.access_token
+    const proof = await freshProof(leaver)
     const granted = await request.post('/api/v1/step-up', {
       headers: as(leaver),
       data: { action: 'delete_account', proof },
@@ -319,7 +405,7 @@ test.describe('Client API v1', () => {
       headers: as(leaver),
       data: { action: 'delete_account', proof },
     })
-    expect(replay.status()).toBe(400)
+    expect(replay.status()).toBe(403)
 
     const deleted = await remove(stepUpToken)
     expect(deleted.status()).toBe(200)

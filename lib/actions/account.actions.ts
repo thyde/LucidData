@@ -6,11 +6,13 @@ import * as account from '@/lib/services/account.service'
 import {
   setRecoveryEscrowSchema,
   rewrapEntriesSchema,
+  exportVaultSchema,
   deleteAccountSchema,
   emailNotificationPreferenceSchema,
   claimKeySaltSchema,
 } from '@luciddata/core/validations/account'
 import { z } from 'zod'
+import type { VaultData } from '@/types/database.types'
 
 async function getAuthenticatedUserId(): Promise<string> {
   const supabase = await createClient()
@@ -22,33 +24,57 @@ async function getAuthenticatedUserId(): Promise<string> {
 export async function getAccountSecurityAction(): Promise<account.AccountSecurity | null | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return account.getAccountSecurity(userId)  })
+    return account.getAccountSecurity(userId)
+  })
 }
 
 export async function setRecoveryEscrowAction(input: unknown): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     const payload = setRecoveryEscrowSchema.parse(input)
-    return account.setRecoveryEscrow(userId, payload)  })
+    return account.setRecoveryEscrow(userId, payload)
+  })
 }
 
-export async function rewrapVaultEntriesAction(input: unknown): Promise<void | ActionFailure> {
+export async function rewrapVaultEntriesAction(
+  input: unknown
+): Promise<account.RewrapOutcome | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     const payload = rewrapEntriesSchema.parse(input)
-    return account.rewrapVaultEntries(userId, payload.reason, payload.entries)  })
+    return account.rewrapVaultEntries(
+      userId,
+      payload.reason,
+      payload.entries,
+      payload.stepUpToken,
+      payload.ingestKey
+    )
+  })
+}
+
+/** LD-106: every entry for a full export, after the person confirmed their password for it. */
+export async function getVaultExportEntriesAction(
+  input: unknown
+): Promise<VaultData[] | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { stepUpToken } = exportVaultSchema.parse(input)
+    return account.getEntriesForExport(userId, stepUpToken)
+  })
 }
 
 export async function recordDataExportAction(count: number): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return account.recordDataExport(userId, count)  })
+    return account.recordDataExport(userId, count)
+  })
 }
 
 export async function completeOnboardingAction(): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return account.completeOnboarding(userId)  })
+    return account.completeOnboarding(userId)
+  })
 }
 
 /**
@@ -67,14 +93,16 @@ export async function setEmailNotificationPreferenceAction(input: unknown): Prom
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     const { enabled } = emailNotificationPreferenceSchema.parse(input)
-    return account.setEmailNotificationPreference(userId, enabled)  })
+    return account.setEmailNotificationPreference(userId, enabled)
+  })
 }
 
 export async function removePasskeyAction(input: unknown): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     const { passkeyId } = z.object({ passkeyId: z.string().uuid() }).parse(input)
-    return account.removePasskey(userId, passkeyId)  })
+    return account.removePasskey(userId, passkeyId)
+  })
 }
 
 export async function deleteAccountAction(

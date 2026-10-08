@@ -97,6 +97,32 @@ export const vaultEntryUpdateSchema = z
     { message: 'client_ciphertext, encrypted_dek, and dek_salt must be sent together' }
   )
 
+/**
+ * Every entry's data key, re-wrapped on the device under a new master key after
+ * a password change or a recovery. All entries at once: the server stores them
+ * in one transaction, so a vault is never left half under each key.
+ */
+export const vaultRewrapSchema = z.object({
+  reason: z.enum(['password_change', 'recovery']),
+  entries: z.array(
+    z.object({
+      id: z.string().uuid(),
+      encrypted_dek: wrappedKey,
+      dek_salt: dekSalt,
+    })
+  ),
+  step_up_token: z
+    .string()
+    .min(1, 'Confirm your password to continue')
+    .describe('A step-up grant for change_password.'),
+  ingest_key: z
+    .object({ previous: z.string().min(1).max(8000), wrapped: z.string().min(1).max(8000) })
+    .describe(
+      'The connector ingestion private key re-wrapped under the new master key, with the wrap it replaces. Send it whenever the account has one, or synced records stop opening.'
+    )
+    .optional(),
+})
+
 export const consentCreateSchema = z.object({
   vault_data_id: z.string().uuid().optional(),
   granted_to: z.string().trim().min(1).max(200),
@@ -184,4 +210,16 @@ export const recoveryFactorAddSchema = z.object({
   label: addRecoveryFactorSchema.shape.label,
   wrapped_master_key: addRecoveryFactorSchema.shape.wrappedMasterKey,
   salt: addRecoveryFactorSchema.shape.salt,
+  step_up_token: z
+    .string()
+    .min(1)
+    .describe('A step-up grant for add_recovery_factor. Needed for a kit, and to replace a recovery code.')
+    .optional(),
+})
+
+export const recoveryFactorRemoveSchema = z.object({
+  step_up_token: z
+    .string()
+    .min(1, 'Confirm your password to continue')
+    .describe('A step-up grant for remove_recovery_factor.'),
 })

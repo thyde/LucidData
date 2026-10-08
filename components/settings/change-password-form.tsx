@@ -9,9 +9,18 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { createClient } from '@/lib/supabase/client'
-import { verifyPassword } from '@/lib/supabase/verify-password'
 import { useTurnstile } from '@/lib/hooks/use-turnstile'
-import { deriveMasterKey, rewrapAllEntries, setupRecoveryFromPassword } from '@/lib/account/account-crypto'
+import {
+  deriveMasterKey,
+  EntriesUnderAnotherKeyError,
+  prepareRewrap,
+  setupRecoveryFromPassword,
+  storeRewrap,
+  vaultOpensWith,
+} from '@/lib/account/account-crypto'
+import { stepUpWithPassword } from '@/lib/account/step-up'
+import { getRecoveryMaterialAction } from '@/lib/actions/recovery.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display'
 
 interface ChangePasswordFormProps {
@@ -28,6 +37,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [newCode, setNewCode] = useState<string | null>(null)
+  const [retiredKits, setRetiredKits] = useState(0)
   const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('reauthenticate')
 
   function reset() {
@@ -37,6 +47,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
     setError(null)
     setBusy(false)
     setNewCode(null)
+    setRetiredKits(0)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -62,8 +73,15 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.email) throw new Error('Not signed in')
 
-      // Verify the current password.
-      if (!(await verifyPassword(user.email, currentPassword, await getCaptchaToken()))) {
+      // Supabase checks the current password in the browser. The server gets a
+      // single-use grant to re-wrap the vault's keys, never the password.
+      const stepUpToken = await stepUpWithPassword(
+        'change_password',
+        user.email,
+        currentPassword,
+        await getCaptchaToken()
+      )
+      if (!stepUpToken) {
         setError('Current password is incorrect')
         return
       }
@@ -71,25 +89,51 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       const oldMasterKey = await deriveMasterKey(currentPassword, keySalt)
       const newMasterKey = await deriveMasterKey(newPassword, keySalt)
 
-      // Update the Supabase password, then re-wrap every entry's DEK with the new key.
+      // Work out every entry's new envelope before the password changes, so an
+      // entry that cannot move stops the change instead of being stranded by it.
+      try {
+        await prepareRewrap(oldMasterKey, newMasterKey)
+      } catch (prepareError) {
+        if (prepareError instanceof EntriesUnderAnotherKeyError) {
+          setError(
+            'Some entries are locked with a password you used before. Restore them with your recovery code or kit first, then change your password.'
+          )
+          return
+        }
+        throw prepareError
+      }
+
+      // Update the Supabase password, then store the new envelopes.
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
       if (updateError) {
         setError(updateError.message)
         return
       }
 
+      let kitsRetired = 0
       try {
-        await rewrapAllEntries(oldMasterKey, newMasterKey, 'password_change')
+        // Prepare again from what is stored now, so an entry edited elsewhere
+        // since the check above is not overwritten with its old data key.
+        const prepared = await prepareRewrap(oldMasterKey, newMasterKey)
+        ;({ retiredKits: kitsRetired } = await storeRewrap(prepared, 'password_change', stepUpToken))
       } catch (rewrapError) {
-        const { error: rollbackError } = await supabase.auth.updateUser({
-          password: currentPassword,
-        })
-        if (rollbackError) {
-          throw new Error(
-            'Your password changed, but the vault could not be re-encrypted. Use your recovery code before signing out.'
-          )
+        // The server may have stored the new wrapping before the error reached
+        // the browser. Rolling the password back then would leave every entry
+        // under a key that no password derives, so check before undoing anything.
+        const stored = await unwrap(getRecoveryMaterialAction())
+          .then((material) => vaultOpensWith(newMasterKey, material))
+          .catch(() => false)
+        if (!stored) {
+          const { error: rollbackError } = await supabase.auth.updateUser({
+            password: currentPassword,
+          })
+          if (rollbackError) {
+            throw new Error(
+              'Your password changed, but the vault could not be re-encrypted. Use your recovery code before signing out.'
+            )
+          }
+          throw rewrapError
         }
-        throw rewrapError
       }
 
       let code: string | null = null
@@ -98,15 +142,23 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       } catch {
         toast({
           title: 'Password changed',
-          description: 'Your vault was re-encrypted, but a new recovery code could not be generated.',
+          description:
+            'Your vault was re-encrypted, but a new recovery code could not be made. Make one under Recovery code.',
           variant: 'destructive',
         })
       }
       await unlock(newPassword, keySalt)
 
+      setRetiredKits(kitsRetired)
       if (code) setNewCode(code)
       else setOpen(false)
-      toast({ title: 'Password changed', description: 'Your vault was re-encrypted with the new password.' })
+      toast({
+        title: 'Password changed',
+        description:
+          kitsRetired > 0
+            ? 'Your vault was re-encrypted with the new password. Your recovery kits stopped working, so make a new one.'
+            : 'Your vault was re-encrypted with the new password.',
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not change your password')
     } finally {
@@ -122,6 +174,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       </div>
       <p className="text-sm text-muted-foreground">
         Changing your password re-encrypts your vault in the browser and issues a new recovery code.
+        Recovery kits you made before stop working, so make a new one afterwards.
       </p>
       <Button
         variant="outline"
@@ -145,7 +198,9 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
             <DialogTitle>{newCode ? 'Save your new recovery code' : 'Change password'}</DialogTitle>
             <DialogDescription>
               {newCode
-                ? 'Your password changed and your vault was re-encrypted. Save this new recovery code.'
+                ? retiredKits > 0
+                  ? 'Your password changed and your vault was re-encrypted. Save this new recovery code. Your recovery kits stopped working, so make a new one under Recovery factors.'
+                  : 'Your password changed and your vault was re-encrypted. Save this new recovery code.'
                 : 'Enter your current password and a new password.'}
             </DialogDescription>
           </DialogHeader>

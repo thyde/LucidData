@@ -20,6 +20,9 @@ export type SecurityNotificationEvent =
   | 'password_changed'
   | 'vault_recovered'
   | 'recovery_code_generated'
+  | 'recovery_kit_added'
+  | 'recovery_factor_removed'
+  | 'recovery_kits_retired'
 
 interface SecurityCopy {
   title: string
@@ -54,12 +57,27 @@ const SECURITY_COPY: Record<SecurityNotificationEvent, SecurityCopy> = {
   vault_recovered: {
     title: 'Vault recovered',
     message:
-      'Your vault was recovered with a recovery code and re-encrypted. If this was not you, reset your password right away.',
+      'Your vault was recovered with a recovery code or kit and re-encrypted. If this was not you, reset your password right away.',
   },
   recovery_code_generated: {
     title: 'Recovery code generated',
     message:
       'A new vault recovery code was generated. Your previous recovery code no longer works.',
+  },
+  recovery_kit_added: {
+    title: 'Recovery kit added',
+    message:
+      'A recovery kit was added to your vault. Anyone who has it can open your vault after a password reset. If this was not you, change your password and remove the kit in Settings.',
+  },
+  recovery_factor_removed: {
+    title: 'Recovery factor removed',
+    message:
+      'A way to recover your vault was removed. If this was not you, change your password and set up recovery again in Settings.',
+  },
+  recovery_kits_retired: {
+    title: 'Recovery kits no longer work',
+    message:
+      'Your vault key changed, so the recovery kits you made before stopped working. Make a new kit in Settings.',
   },
 }
 

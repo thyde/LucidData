@@ -50,7 +50,8 @@ export async function issueCredentialAction(
     return issueCredential(
       { id: organization.id, name: organization.name, domain: organization.domain },
       input
-    )  })
+    )
+  })
 }
 
 export async function listIssuedCredentialsAction(
@@ -58,7 +59,8 @@ export async function listIssuedCredentialsAction(
 ): Promise<IssuedCredential[] | ActionFailure> {
   return guarded(async () => {
     await requireOrgMembership(organizationId, ['owner', 'issuer_admin'])
-    return listIssuedCredentials(organizationId)  })
+    return listIssuedCredentials(organizationId)
+  })
 }
 
 export async function revokeCredentialAction(
@@ -68,7 +70,8 @@ export async function revokeCredentialAction(
 ): Promise<IssuedCredential | ActionFailure> {
   return guarded(async () => {
     await requireOrgMembership(organizationId, ['owner', 'issuer_admin'])
-    return revokeCredential(organizationId, credentialId, reason || 'Revoked by issuer')  })
+    return revokeCredential(organizationId, credentialId, reason || 'Revoked by issuer')
+  })
 }
 
 export type MyCredential = HeldCredential
@@ -86,7 +89,8 @@ export async function claimCredentialAction(credentialId: string): Promise<Issue
     const user = await getAuthUser()
     const claimed = await claimCredential(credentialId, user.id, user.email)
     if (!claimed) throw new UserFacingError('Credential not found or already claimed')
-    return claimed  })
+    return claimed
+  })
 }
 
 export async function linkCredentialVaultEntryAction(
@@ -95,7 +99,8 @@ export async function linkCredentialVaultEntryAction(
 ): Promise<void | ActionFailure> {
   return guarded(async () => {
     const user = await getAuthUser()
-    await linkCredentialVaultEntry(credentialId, user.id, vaultDataId)  })
+    await linkCredentialVaultEntry(credentialId, user.id, vaultDataId)
+  })
 }
 
 /** Export an owned credential as a portable W3C Verifiable Credential document. */
@@ -104,7 +109,8 @@ export async function exportCredentialVcAction(
 ): Promise<Record<string, unknown> | ActionFailure> {
   return guarded(async () => {
     const user = await getAuthUser()
-    return exportCredentialVc(user.id, credentialId)  })
+    return exportCredentialVc(user.id, credentialId)
+  })
 }
 
 /**
@@ -120,7 +126,8 @@ export async function exportCredentialAsAction(
 ): Promise<FormatExport | ActionFailure> {
   return guarded(async () => {
     const user = await getAuthUser()
-    return exportCredentialAs(user.id, credentialId, format, version)  })
+    return exportCredentialAs(user.id, credentialId, format, version)
+  })
 }
 
 /** The formats a holder can export into, for the export UI. */
@@ -129,5 +136,6 @@ export async function listCredentialFormatsAction(): Promise<
  | ActionFailure> {
   return guarded(async () => {
     await getAuthUser()
-    return describeFormats()  })
+    return describeFormats()
+  })
 }

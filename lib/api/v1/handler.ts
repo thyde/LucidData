@@ -39,6 +39,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   conflict: 409,
   recovery_required: 409,
   health_consent_required: 403,
+  step_up_required: 403,
   rate_limited: 429,
 }
 

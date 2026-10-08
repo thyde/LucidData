@@ -17,11 +17,13 @@ import {
   profileUpdateSchema,
   recoveryEscrowSchema,
   recoveryFactorAddSchema,
+  recoveryFactorRemoveSchema,
   shareCreateSchema,
   stepUpRequestSchema,
   vaultEntryBatchCreateSchema,
   vaultEntryCreateSchema,
   vaultEntryUpdateSchema,
+  vaultRewrapSchema,
 } from '@luciddata/core/validations/client-api'
 
 /**
@@ -42,6 +44,7 @@ export const REQUEST_SCHEMAS = {
   VaultEntryCreate: vaultEntryCreateSchema,
   VaultEntryBatchCreate: vaultEntryBatchCreateSchema,
   VaultEntryUpdate: vaultEntryUpdateSchema,
+  VaultRewrap: vaultRewrapSchema,
   ConsentCreate: consentCreateSchema,
   ConsentRevoke: consentRevokeSchema,
   ConsentExtend: consentExtendSchema,
@@ -57,6 +60,7 @@ export const REQUEST_SCHEMAS = {
   AccountDelete: accountDeleteSchema,
   RecoveryEscrow: recoveryEscrowSchema,
   RecoveryFactorAdd: recoveryFactorAddSchema,
+  RecoveryFactorRemove: recoveryFactorRemoveSchema,
 } as const
 
 export type RequestSchemaName = keyof typeof REQUEST_SCHEMAS
@@ -82,15 +86,17 @@ export const ROUTES: RouteDoc[] = [
   { path: '/api/v1/me', method: 'get', summary: 'Read the profile', returns: 'The profile, including the key salt the master key is derived with. No wrapped keys.' },
   { path: '/api/v1/me', method: 'patch', summary: 'Change the profile', body: 'ProfileUpdate', returns: 'The updated profile.' },
   { path: '/api/v1/me/key-salt', method: 'post', summary: 'Claim the key salt for a new vault', description: 'Stores the salt only if the account has none. The stored salt is returned, and it differs from the one sent only if another device claimed first.', body: 'KeySaltClaim', returns: 'The stored key salt.' },
-  { path: '/api/v1/me/recovery-escrow', method: 'put', summary: 'Store the recovery-code escrow', description: 'The master key wrapped on the device under a key derived from a recovery code. Password-reset recovery opens it. The code never reaches the server.', body: 'RecoveryEscrow', returns: 'Confirmation that the escrow is stored.' },
+  { path: '/api/v1/me/recovery-escrow', method: 'put', summary: 'Store the recovery code', description: 'The master key wrapped on the device under a key derived from a recovery code, stored as the escrow and as the recovery code factor. The code never reaches the server. Replacing an existing code needs a step-up grant for add_recovery_factor.', body: 'RecoveryEscrow', returns: 'Confirmation that the code is stored.' },
   { path: '/api/v1/recovery', method: 'get', summary: 'Read recovery status', description: 'A new vault refuses its first entry, with code recovery_required, until it has a recovery factor or the person has declined one.', returns: 'The recovery factors, and whether the vault may be written.' },
-  { path: '/api/v1/recovery/factors', method: 'post', summary: 'Add a recovery factor', body: 'RecoveryFactorAdd', status: 201, returns: 'The new factor, without its wrapped key.' },
-  { path: '/api/v1/recovery/factors/{id}', method: 'delete', summary: 'Remove a recovery factor', returns: 'Confirmation of the removal.' },
+  { path: '/api/v1/recovery/material', method: 'get', summary: 'Read what recovery needs', description: 'After a password reset, the device opens the vault with a recovery code or kit. This returns the key salt, every wrapped copy of the master key, the oldest entry\'s wrapped data key, and the wrapped connector key, so the device can check that a copy still opens the vault. Only wrapped bytes are returned.', returns: 'The key salt, the escrow, the factors with their wrapped keys, and a probe entry.' },
+  { path: '/api/v1/recovery/factors', method: 'post', summary: 'Add a recovery factor', description: 'A kit, or a code that replaces an existing one, needs a step-up grant for add_recovery_factor.', body: 'RecoveryFactorAdd', status: 201, returns: 'The new factor, without its wrapped key.' },
+  { path: '/api/v1/recovery/factors/{id}', method: 'delete', summary: 'Remove a recovery factor', description: 'Needs a step-up grant for remove_recovery_factor. Removing the recovery code also clears the escrow that holds it.', body: 'RecoveryFactorRemove', returns: 'Confirmation of the removal.' },
   { path: '/api/v1/recovery/factors/{id}/confirm', method: 'post', summary: 'Confirm a recovery factor is still held', returns: 'Confirmation.' },
   { path: '/api/v1/recovery/decline', method: 'post', summary: 'Decline recovery', description: 'Accept that a forgotten password makes the vault permanently unreadable. Allows the first write without a factor.', returns: 'Confirmation.' },
   { path: '/api/v1/vault', method: 'get', summary: 'List vault entries', returns: 'Every entry, encrypted. Labels, categories, tags, and dates are readable; the contents are not.' },
   { path: '/api/v1/vault', method: 'post', summary: 'Store an encrypted entry', description: 'The device encrypts the entry with a fresh data key and wraps that key with the master key. Health entries need consent to store health data first.', body: 'VaultEntryCreate', status: 201, returns: 'The stored entry.' },
   { path: '/api/v1/vault/batch', method: 'post', summary: 'Store up to 100 encrypted entries', description: 'For imports. Each entry succeeds or fails on its own.', body: 'VaultEntryBatchCreate', returns: 'How many were stored, and a result for each entry by index.' },
+  { path: '/api/v1/vault/rewrap', method: 'post', summary: 'Re-wrap every entry under a new master key', description: 'After a password change or a recovery, the device re-wraps every data key under the new master key and sends all of them at once; the server stores them in one transaction. Needs a step-up grant for change_password. Every recovery factor wraps the old key, so all are retired; store a new recovery code straight after.', body: 'VaultRewrap', returns: 'How many entries were re-wrapped, and how many recovery kits stopped working.' },
   { path: '/api/v1/vault/{id}', method: 'get', summary: 'Read one vault entry', returns: 'The entry, encrypted.' },
   { path: '/api/v1/vault/{id}', method: 'patch', summary: 'Change a vault entry', description: 'To change the contents, send client_ciphertext, encrypted_dek, and dek_salt together.', body: 'VaultEntryUpdate', returns: 'The updated entry.' },
   { path: '/api/v1/vault/{id}', method: 'delete', summary: 'Delete a vault entry', returns: 'Confirmation of the deletion.' },

@@ -18,6 +18,9 @@ import { UserFacingError } from '@/lib/actions/action-result'
 export { STEP_UP_ACTIONS }
 export type { StepUpAction }
 
+/** The error code for an action refused because it needs a fresh password confirmation. */
+export const STEP_UP_REQUIRED = 'step_up_required'
+
 /** How long a confirmation stays usable. Short: it authorizes one action now. */
 export const STEP_UP_TTL_SECONDS = 120
 
@@ -51,7 +54,7 @@ export async function verifyPasswordProof(
     success: false,
     metadata: { step_up_action: action },
   }).catch(() => undefined)
-  throw new UserFacingError('Confirm your password again to continue')
+  throw new UserFacingError('Confirm your password again to continue', STEP_UP_REQUIRED)
 }
 
 async function acceptPasswordProof(userId: string, proof: string): Promise<boolean> {
@@ -144,7 +147,7 @@ export async function consumeStepUp(
       success: false,
       metadata: { step_up_action: action },
     }).catch(() => undefined)
-    throw new UserFacingError('Confirm your password again to continue')
+    throw new UserFacingError('Confirm your password again to continue', STEP_UP_REQUIRED)
   }
 }
 
