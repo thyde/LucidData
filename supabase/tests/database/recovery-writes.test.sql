@@ -137,7 +137,7 @@ SELECT throws_ok(
        {"id": "00000000-0000-4000-8000-0000000001f1", "encrypted_dek": "new-dek-1", "dek_salt": "n1", "previous_encrypted_dek": "old-dek-1"},
        {"id": "00000000-0000-4000-8000-0000000001f2", "encrypted_dek": "new-dek-2", "dek_salt": "n2", "previous_encrypted_dek": "edited-elsewhere"}
      ]'::jsonb) $$,
-  '40001',
+  'PT409',
   'A vault entry changed after it was read',
   'An entry edited since it was read stops the whole re-wrap'
 );
@@ -162,7 +162,7 @@ SELECT throws_ok(
        {"id": "00000000-0000-4000-8000-0000000001f1", "encrypted_dek": "new-dek-1", "dek_salt": "n1", "previous_encrypted_dek": "old-dek-1"},
        {"id": "00000000-0000-4000-8000-0000000001f2", "encrypted_dek": "new-dek-2", "dek_salt": "n2", "previous_encrypted_dek": "old-dek-2"}
      ]'::jsonb, '{"previous": "not-the-stored-key", "wrapped": "new-ingest"}'::jsonb) $$,
-  '40001',
+  'PT409',
   'The ingestion key changed after it was read',
   'An ingestion key that changed since it was read stops the whole re-wrap'
 );
