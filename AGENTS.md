@@ -76,6 +76,8 @@ Environment variables (never commit `.env.local`):
 
 There is no `ENCRYPTION_KEY`. Vault keys are derived in the browser from the user's password, so the server cannot decrypt vault data.
 
+Vercel variables are set by hand, per environment: production holds production keys, and preview holds the staging project's. Do not reconnect the Supabase Vercel integration. It rewrites the Supabase Auth redirect allowlist on every deployment with `*.vercel.app` patterns that a stranger's Vercel project can match, which turns a password-reset email into an account takeover. Production's allowlist must stay at exactly `https://luciddatabank.com/recover-vault`.
+
 ## Architecture
 
 Mutations flow through four layers. Never touch the database directly from components or route handlers.
