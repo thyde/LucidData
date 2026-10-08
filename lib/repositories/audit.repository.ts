@@ -19,7 +19,7 @@ async function readWholeLog<Row extends { id: string; timestamp: string }>(
   return readAllPages<Row>(
     (after, limit) => {
       let query = supabase.from('audit_logs').select(columns).eq('user_id', userId)
-      if (after) query = query.or(afterKey('timestamp', after))
+      if (after) query = query.gte('timestamp', after.at).or(afterKey('timestamp', after))
       return query
         .order('timestamp', { ascending: true })
         .order('id', { ascending: true })
@@ -51,8 +51,14 @@ export async function findAuditLogsByUserId(userId: string, limit = 100): Promis
   return data
 }
 
+/**
+ * The entry a new one links to. Read with the service role, scoped to the
+ * person: some entries are written without their session, by a scheduled job
+ * or the public verify page, and through row level security those writers
+ * would see no entry at all and start a second chain.
+ */
 export async function findLatestAuditLog(userId: string): Promise<AuditLog | null> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('audit_logs')
     .select('current_hash')

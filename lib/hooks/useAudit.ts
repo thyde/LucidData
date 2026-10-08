@@ -14,9 +14,11 @@ export function useAuditLogs() {
     staleTime: 30_000,
   })
 
-  // Realtime subscription — invalidate cache on new audit log
+  // Realtime subscription. Each refresh checks the whole chain, so a burst of
+  // new entries, such as an import, refreshes once after it settles.
   useEffect(() => {
     const supabase = createClient()
+    let pending: ReturnType<typeof setTimeout> | null = null
 
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -33,7 +35,11 @@ export function useAuditLogs() {
             filter: `user_id=eq.${user.id}`,
           },
           () => {
-            queryClient.invalidateQueries({ queryKey: ['audit'] })
+            if (pending) clearTimeout(pending)
+            pending = setTimeout(() => {
+              pending = null
+              queryClient.invalidateQueries({ queryKey: ['audit'] })
+            }, 2000)
           }
         )
         .subscribe()
@@ -44,6 +50,7 @@ export function useAuditLogs() {
     const channelPromise = getUser()
 
     return () => {
+      if (pending) clearTimeout(pending)
       channelPromise.then(channel => {
         if (channel) createClient().removeChannel(channel)
       })

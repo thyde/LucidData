@@ -64,13 +64,19 @@ export async function getAllAuditLogs(userId: string): Promise<AuditLog[]> {
 }
 
 /**
- * Check a whole chain, from its first entry.
+ * Check a whole log.
  *
- * Entries are taken in the order their hashes link them, not by timestamp,
- * because two events in the same millisecond tie. The chain must start once,
- * never branch, reach every entry, and every hash must match what it covers.
- * Given only part of a chain this fails, because the oldest entry it holds
- * points at one it does not: verify the whole thing, with verifyUserAuditChain.
+ * Every entry's hash must match what it covers, including the hash of the
+ * entry before it, and every entry must point at an entry that exists. So a
+ * changed entry fails its own hash, a reordered one fails because its link is
+ * part of its hash, and a removed one leaves the next entry pointing at
+ * nothing. Given only part of a log this fails for the same reason: verify the
+ * whole thing, with verifyUserAuditChain.
+ *
+ * Two entries may point at the same predecessor. Two requests can append at
+ * once, and entries written before 2026-10-09 by scheduled jobs could not see
+ * the latest entry and started a second chain. Neither alters a recorded
+ * event, so neither is reported as tampering.
  */
 export function verifyAuditChain(
   logs: readonly Pick<
@@ -78,29 +84,19 @@ export function verifyAuditChain(
     'user_id' | 'event_type' | 'action' | 'timestamp' | 'previous_hash' | 'current_hash'
   >[]
 ): boolean {
-  if (logs.length === 0) return true
-  const next = new Map<string | null, (typeof logs)[number]>()
-  for (const log of logs) {
-    const link = log.previous_hash ?? null
-    // Two entries after the same one is a branch, which an append-only chain never has.
-    if (next.has(link)) return false
-    next.set(link, log)
-  }
-
-  let previous: string | null = null
-  let reached = 0
-  for (let log = next.get(null); log; log = next.get(previous)) {
-    const expected = createAuditHash(previous, {
-      userId: log.user_id,
-      eventType: log.event_type,
-      action: log.action,
-      timestamp: new Date(log.timestamp),
-    })
-    if (expected !== log.current_hash) return false
-    previous = log.current_hash
-    reached++
-  }
-  return reached === logs.length
+  const recorded = new Set(logs.map((log) => log.current_hash))
+  return logs.every((log) => {
+    const previous = log.previous_hash ?? null
+    if (previous !== null && !recorded.has(previous)) return false
+    return (
+      createAuditHash(previous, {
+        userId: log.user_id,
+        eventType: log.event_type,
+        action: log.action,
+        timestamp: new Date(log.timestamp),
+      }) === log.current_hash
+    )
+  })
 }
 
 /** Read the person's whole audit chain and check it. */

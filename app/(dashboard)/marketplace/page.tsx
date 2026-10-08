@@ -10,7 +10,7 @@ import { MyContributions } from '@/components/marketplace/my-contributions'
 import { PayoutsPanel } from '@/components/marketplace/payouts-panel'
 import { SalePreferencesForm } from '@/components/marketplace/sale-preferences-form'
 import { DataValueGuide } from '@/components/marketplace/data-value-guide'
-import { findVaultByUserId } from '@/lib/repositories/vault.repository'
+import { countVaultByCategory } from '@/lib/repositories/vault.repository'
 import { formatCents } from '@/components/dashboard/chart-theme'
 
 export default async function MarketplacePage() {
@@ -25,10 +25,10 @@ export default async function MarketplacePage() {
     listMyContributions(user.id),
     getEarnings(user.id),
     getSalePreferences(user.id),
-    findVaultByUserId(user.id),
+    countVaultByCategory(user.id),
     getPayoutOverview(user.id),
   ])
-  const yourCategories = Array.from(new Set(vault.map((v) => v.category)))
+  const yourCategories = Array.from(vault.keys())
 
   return (
     <div className="space-y-8">
