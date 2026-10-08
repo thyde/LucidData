@@ -4,6 +4,8 @@ import { assertRecoveryReadyForFirstWrite } from '@/lib/services/recovery-factor
 import { parseProvenance } from '@/lib/validations/provenance'
 import type { VaultData, InsertVaultData, UpdateVaultData } from '@/types/database.types'
 import { UserFacingError } from '@/lib/actions/action-result'
+import { assertHealthDataConsent } from '@/lib/services/legal.service'
+import { isHealthEntry } from '@/lib/constants/legal'
 
 export interface CreateVaultPayload {
   label: string
@@ -35,6 +37,9 @@ export interface UpdateVaultPayload {
 }
 
 export async function createVaultData(userId: string, payload: CreateVaultPayload): Promise<VaultData> {
+  // LD-110: health data needs its own consent before we store any of it.
+  if (isHealthEntry(payload)) await assertHealthDataConsent(userId)
+
   // LD-105: refuse the first write until the user has a recovery factor or has
   // explicitly accepted that their data will be unrecoverable. Existing vaults
   // are unaffected.
@@ -79,6 +84,10 @@ export async function getVaultDataById(id: string, userId: string): Promise<Vaul
 }
 
 export async function updateVaultData(id: string, userId: string, payload: UpdateVaultPayload): Promise<VaultData> {
+  // LD-110: filing an entry under health, or changing a health entry, is
+  // storing health data, so it needs the same consent as creating one.
+  if (isHealthEntry(payload)) await assertHealthDataConsent(userId)
+
   const updated = await vaultRepo.updateVaultEntry(id, userId, payload as UpdateVaultData)
   await createAuditEntry({
     userId,

@@ -22,6 +22,11 @@ export const organizationRegisterSchema = z.object({
   website: z.string().url().optional(),
   org_type: z.enum(['issuer', 'verifier', 'both']).optional(),
   data_buyer: z.boolean().optional(),
+  // LD-110: the person registering accepts the organization terms and data
+  // processing agreement for the organization. There is no default.
+  accept_terms: z.literal(true, {
+    error: 'Accept the Organization Terms and Data Processing Agreement to register',
+  }),
 })
 export type OrganizationRegisterInput = z.infer<typeof organizationRegisterSchema>
 

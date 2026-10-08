@@ -27,6 +27,12 @@ export const NOTIFICATION_RETENTION_DAYS = 180
  */
 export const EXPORT_GRACE_DAYS = 1
 
+/**
+ * How long deleted data can survive in database backups. Supabase Pro keeps
+ * seven days of daily backups, so a plan change changes this published promise.
+ */
+export const BACKUP_RETENTION_DAYS = 7
+
 export const DAY_MS = 24 * 60 * 60 * 1000
 
 export function cutoffIso(days: number, now: Date = new Date()): string {

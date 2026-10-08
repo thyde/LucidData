@@ -34,7 +34,8 @@ async function createEntry(page: Page, input: VaultInput): Promise<Locator> {
 test.describe('Vault', () => {
   test.beforeEach(async ({ page }) => {
     await clearSession(page)
-    await signup(page, getUniqueEmail('vault'), TEST_USER.password)
+    // Health entries need the separate consent, given here at sign-up.
+    await signup(page, getUniqueEmail('vault'), TEST_USER.password, { healthConsent: true })
     await Promise.all([
       page.waitForURL('/vault', { timeout: 20000, waitUntil: 'commit' }),
       page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Vault' }).click(),

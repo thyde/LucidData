@@ -7,6 +7,7 @@
 import { test, expect } from '@playwright/test';
 import { clearSession, getUniqueEmail, fillFormField, signup, TEST_USER } from '../helpers/auth';
 import { createAdminClient } from '../helpers/supabase-admin';
+import { LEGAL_DOCUMENTS } from '@/lib/constants/legal';
 
 async function recordedSignupSource(email: string): Promise<string | null> {
   const { data, error } = await createAdminClient()
@@ -120,6 +121,7 @@ test.describe('Signup Flow', () => {
     await fillFormField(page, 'input[name="email"]', email);
     await fillFormField(page, 'input[name="password"]', TEST_USER.password);
     await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
+    await page.locator('input[name="acceptTerms"]').check();
     await page.click('button[type="submit"]');
 
     // Should show error about existing account
@@ -138,27 +140,39 @@ test.describe('Signup Flow', () => {
     await expect(page).toHaveURL('/login');
   });
 
-  test('should accept terms and conditions if required', async ({ page }) => {
+  test('requires the terms, and records the versions accepted (LD-110)', async ({ page }) => {
+    const email = getUniqueEmail();
     await page.goto('/signup');
+    await fillFormField(page, 'input[name="email"]', email);
+    await fillFormField(page, 'input[name="password"]', TEST_USER.password);
+    await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
 
-    // Check if terms checkbox exists
-    const termsCheckbox = page.locator('input[name="acceptTerms"]');
-    if (await termsCheckbox.count() > 0) {
-      const email = getUniqueEmail();
-      await fillFormField(page, 'input[name="email"]', email);
-      await fillFormField(page, 'input[name="password"]', TEST_USER.password);
-      await fillFormField(page, 'input[name="confirmPassword"]', TEST_USER.password);
+    // Without the terms, nothing is created.
+    await page.click('button[type="submit"]');
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Accept the Terms of Service and Privacy Policy' })
+    ).toBeVisible();
 
-      // Try without accepting terms
-      await page.click('button[type="submit"]');
-      await expect(page.locator('text=/accept|terms/i')).toBeVisible();
+    // Health data consent is a separate box, and it is optional.
+    await expect(page.locator('input[name="healthDataConsent"]')).not.toBeChecked();
+    await page.locator('input[name="acceptTerms"]').check();
+    await page.click('button[type="submit"]');
 
-      // Accept terms
-      await termsCheckbox.check();
-      await page.click('button[type="submit"]');
+    // Local Supabase confirms at once, so the vault is set up straight away.
+    await expect(page.getByRole('dialog', { name: 'Save your recovery code' })).toBeVisible({
+      timeout: 60000,
+    });
 
-      // Should succeed
-      await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
-    }
+    const admin = createAdminClient();
+    const { data: user } = await admin.from('users').select('id').eq('email', email).single();
+    const { data: rows } = await admin
+      .from('legal_acceptances')
+      .select('document, version, source')
+      .eq('user_id', user!.id)
+      .order('document');
+    expect(rows).toEqual([
+      { document: 'privacy', version: LEGAL_DOCUMENTS.privacy.version, source: 'registration' },
+      { document: 'terms', version: LEGAL_DOCUMENTS.terms.version, source: 'registration' },
+    ]);
   });
 });

@@ -15,6 +15,7 @@ import { CheckEmail } from '@/components/auth/check-email';
 import { RecoveryCodeDialog } from '@/components/auth/recovery-code-dialog';
 import { setUpVault } from '@/lib/account/account-crypto';
 import { signupSourceFrom } from '@/lib/utils/signup-source';
+import { HEALTH_DATA_CONSENT_VERSION, LEGAL_DOCUMENTS } from '@/lib/constants/legal';
 
 /** The account exists and is signed in; only the vault setup is missing. */
 const SETUP_UNFINISHED_MESSAGE =
@@ -30,10 +31,13 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState<string | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [healthConsent, setHealthConsent] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
     confirmPassword?: string;
+    acceptTerms?: string;
     general?: string;
   }>({});
 
@@ -61,6 +65,10 @@ export default function RegisterPage() {
       validationErrors.confirmPassword = 'Passwords do not match';
     }
 
+    if (!acceptTerms) {
+      validationErrors.acceptTerms = 'Accept the Terms of Service and Privacy Policy to create an account';
+    }
+
     if (Object.keys(validationErrors).length) {
       setErrors(validationErrors);
       return;
@@ -76,12 +84,19 @@ export default function RegisterPage() {
       const signupSource = signupSourceFrom(
         new URLSearchParams(window.location.search).get('from')
       );
+      // LD-110: the versions shown here, recorded on the first signed-in
+      // request, because with email confirmation there is no session yet.
+      const legal = {
+        terms: LEGAL_DOCUMENTS.terms.version,
+        privacy: LEGAL_DOCUMENTS.privacy.version,
+        ...(healthConsent ? { health_data: HEALTH_DATA_CONSENT_VERSION } : {}),
+      };
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           captchaToken: await getCaptchaToken(),
-          ...(signupSource ? { data: { signup_source: signupSource } } : {}),
+          data: { legal, ...(signupSource ? { signup_source: signupSource } : {}) },
         },
       });
 
@@ -201,6 +216,51 @@ export default function RegisterPage() {
               </p>
             )}
           </div>
+          <div className="space-y-1">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="acceptTerms"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                aria-describedby={errors.acceptTerms ? 'accept-terms-error' : undefined}
+                className="mt-1"
+              />
+              <span>
+                I agree to the{' '}
+                <Link href={LEGAL_DOCUMENTS.terms.path} target="_blank" className="text-primary underline">
+                  Terms of Service
+                </Link>{' '}
+                and the{' '}
+                <Link href={LEGAL_DOCUMENTS.privacy.path} target="_blank" className="text-primary underline">
+                  Privacy Policy
+                </Link>
+                , and that LucidData may email me about my account, including any security notice.
+              </span>
+            </label>
+            {errors.acceptTerms && (
+              <p id="accept-terms-error" role="alert" className="text-sm text-destructive">
+                {errors.acceptTerms}
+              </p>
+            )}
+          </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="healthDataConsent"
+              checked={healthConsent}
+              onChange={(e) => setHealthConsent(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              Optional: I consent to LucidData storing health and fitness data that I add, as
+              described in the{' '}
+              <Link href={LEGAL_DOCUMENTS['health-privacy'].path} target="_blank" className="text-primary underline">
+                Consumer Health Data Privacy Policy
+              </Link>
+              . You can decide later, and withdraw at any time in settings.
+            </span>
+          </label>
           <div ref={turnstileRef} />
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { recordGpcFromBrowserAction } from '@/lib/actions/privacy-signal.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 
 /**
  * LD-302: some browsers expose navigator.globalPrivacyControl even when the
@@ -16,7 +17,7 @@ export function GpcDetector() {
     const signal = (navigator as Navigator & { globalPrivacyControl?: boolean })
       .globalPrivacyControl
     if (signal !== true) return
-    void recordGpcFromBrowserAction().catch(() => {
+    void unwrap(recordGpcFromBrowserAction()).catch(() => {
       // Best-effort: the header path also records the signal.
     })
   }, [])

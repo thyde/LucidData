@@ -14,15 +14,21 @@ import { getAccountSecurity } from '@/lib/services/account.service'
 import { getRecoveryStatus } from '@/lib/services/recovery-factor.service'
 import { listSessions } from '@/lib/services/session-security.service'
 import { getUniversalOptOut } from '@/lib/services/privacy-signal.service'
+import { getLegalStatus } from '@/lib/services/legal.service'
+import { LegalConsentSection } from '@/components/settings/legal-consent-section'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ health_consent?: string }>
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: passkeys }, security, optOut, recovery, sessions] = await Promise.all([
+  const [{ data: passkeys }, security, optOut, recovery, sessions, legal, params] = await Promise.all([
     supabase
       .from('passkeys')
       .select('id, device_name, created_at, last_used_at')
@@ -32,6 +38,8 @@ export default async function SettingsPage() {
     getUniversalOptOut(user.id),
     getRecoveryStatus(user.id),
     listSessions(user.id),
+    getLegalStatus(user.id).catch(() => null),
+    searchParams,
   ])
 
   return (
@@ -57,6 +65,8 @@ export default async function SettingsPage() {
       />
 
       <PrivacySignalSection initial={optOut} />
+
+      <LegalConsentSection status={legal} consentRequired={params.health_consent === 'required'} />
 
       <ConnectedSources />
 

@@ -77,6 +77,7 @@ test.describe('Organization credentials and consent', () => {
       await issuerPage.getByLabel('Organization name').fill('Synthetic Credential Lab')
       await issuerPage.getByLabel('Contact email').fill(organizationEmail)
       await issuerPage.getByLabel('Organization type').selectOption('both')
+      await issuerPage.getByRole('checkbox', { name: /Organization Terms/ }).check()
       await issuerPage.getByRole('button', { name: 'Register organization' }).click()
       await expect(
         issuerPage.getByRole('heading', { name: 'Organization created' })

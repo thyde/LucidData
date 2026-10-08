@@ -71,6 +71,12 @@ test.describe('Accessibility, public surfaces', () => {
     '/register',
     '/forgot-password',
     '/confirm-email?token_hash=scan-only&type=email',
+    '/legal',
+    '/legal/terms',
+    '/legal/privacy',
+    '/legal/health-privacy',
+    '/legal/organization-terms',
+    '/legal/account-deletion',
   ]
 
   for (const route of publicRoutes) {

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LEGAL_DOCUMENTS } from '@/lib/constants/legal'
 
 interface OrgRegistration {
   organization: { id: string; name: string; email: string }
@@ -13,19 +14,24 @@ interface OrgRegistration {
 
 export default function OrgRegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', website: '', org_type: 'verifier', data_buyer: false })
+  const [acceptTerms, setAcceptTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<OrgRegistration | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!acceptTerms) {
+      setError('Accept the Organization Terms and Data Processing Agreement to register.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/org/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, website: form.website || undefined }),
+        body: JSON.stringify({ ...form, website: form.website || undefined, accept_terms: true }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -121,7 +127,23 @@ export default function OrgRegisterPage() {
             </span>
           </span>
         </label>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+          <input
+            type="checkbox"
+            name="acceptOrganizationTerms"
+            checked={acceptTerms}
+            onChange={e => setAcceptTerms(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            I accept the{' '}
+            <Link href={LEGAL_DOCUMENTS['organization-terms'].path} target="_blank" className="text-primary underline">
+              Organization Terms and Data Processing Agreement
+            </Link>{' '}
+            on behalf of this organization, and I am authorized to do so.
+          </span>
+        </label>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? 'Registering...' : 'Register organization'}
         </Button>

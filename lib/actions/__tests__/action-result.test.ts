@@ -5,7 +5,7 @@ import {
   guarded,
   isActionFailure,
 } from '../action-result'
-import { unwrap } from '../unwrap'
+import { failureCode, unwrap } from '../unwrap'
 
 describe('what crosses the action boundary', () => {
   it('returns a user-facing error rather than throwing it', async () => {
@@ -105,6 +105,15 @@ describe('unwrap', () => {
 
   it('returns the value when there is no failure', async () => {
     expect(await unwrap(Promise.resolve({ ok: 1 }))).toEqual({ ok: 1 })
+  })
+
+  it('carries the failure code, so a caller can branch without matching on prose', async () => {
+    const coded = unwrap(Promise.resolve(actionFailure('Consent needed', 'health_consent_required')))
+    await expect(coded).rejects.toMatchObject({ code: 'health_consent_required' })
+
+    const uncoded = await unwrap(Promise.resolve(actionFailure('No code'))).catch((error) => error)
+    expect(failureCode(uncoded)).toBeUndefined()
+    expect(failureCode('not an error')).toBeUndefined()
   })
 
   it('lets a genuinely thrown error through unchanged', async () => {

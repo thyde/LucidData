@@ -7,6 +7,8 @@ import {
   honourSignalAgainAction,
 } from '@/lib/actions/privacy-signal.actions'
 import type { UniversalOptOutState } from '@/lib/services/privacy-signal.service'
+import type { ActionFailure } from '@/lib/actions/action-result'
+import { unwrap } from '@/lib/actions/unwrap'
 
 const SOURCE_LABEL: Record<string, string> = {
   gpc_header: 'the Sec-GPC request header',
@@ -24,11 +26,11 @@ export function PrivacySignalSection({ initial }: { initial: UniversalOptOutStat
 
   const signalSeen = Boolean(state.detectedAt)
 
-  function run(action: () => Promise<UniversalOptOutState>) {
+  function run(action: () => Promise<UniversalOptOutState | ActionFailure>) {
     setError(null)
     startTransition(async () => {
       try {
-        setState(await action())
+        setState(await unwrap(action()))
       } catch {
         setError('That change could not be saved. Try again.')
       }

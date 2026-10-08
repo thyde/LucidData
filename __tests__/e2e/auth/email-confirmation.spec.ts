@@ -149,6 +149,7 @@ test.describe('Email confirmation', () => {
     await typeInto(page, 'input[name="email"]', email);
     await typeInto(page, 'input[name="password"]', TEST_USER.password);
     await typeInto(page, 'input[name="confirmPassword"]', TEST_USER.password);
+    await page.locator('input[name="acceptTerms"]').check();
     await page.getByRole('button', { name: 'Sign up' }).click();
 
     await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();

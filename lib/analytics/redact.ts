@@ -9,7 +9,7 @@ const PUBLIC_PATHS = new Set([
   '/signup',
   '/forgot-password',
 ])
-const PUBLIC_PREFIXES = ['/trust']
+const PUBLIC_PREFIXES = ['/trust', '/legal']
 
 export interface AnalyticsEvent {
   type: 'pageview' | 'event'

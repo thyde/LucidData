@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { addOrgMember } from '@/lib/middleware/withOrgMember'
 import { assertRateLimit, RateLimitError } from '@/lib/services/rate-limit.service'
+import { acceptOrganizationTerms } from '@/lib/services/legal.service'
 // LD-602: the OpenAPI document is generated from this exact schema, so the
 // specification cannot drift from what the handler accepts.
 import { organizationRegisterSchema as RegisterSchema } from '@/lib/validations/org-api'
@@ -74,6 +75,10 @@ export async function POST(req: NextRequest) {
   }
 
   await addOrgMember(org.id, user.id, 'owner')
+
+  // LD-110: recorded as the new owner, which is the only role the database lets
+  // accept organization terms.
+  await acceptOrganizationTerms(user.id, org.id)
 
   return NextResponse.json(
     {

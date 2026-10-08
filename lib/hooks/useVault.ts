@@ -7,6 +7,7 @@ import { getVaultEntriesAction, getVaultEntryAction, createVaultEntryAction, upd
 import type { DecryptedVaultData } from '@/types';
 import type { VaultData } from '@/types/database.types';
 import { unwrap } from '@/lib/actions/unwrap'
+import { useHealthConsent, withHealthConsent } from '@/lib/hooks/use-health-consent'
 
 /**
  * React Query hooks for vault operations with client-side encryption.
@@ -124,19 +125,25 @@ export function useCreateVault() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { encrypt } = useEncryption();
+  const { requestHealthConsent } = useHealthConsent();
 
   return useMutation<DecryptedVaultData, Error, CreateVaultPayload>({
     mutationFn: async (payload) => {
       const encryptedFields = await encrypt(JSON.stringify(payload.data));
-      const entry = await unwrap(createVaultEntryAction({
-        label: payload.label,
-        category: payload.category,
-        description: payload.description,
-        tags: payload.tags,
-        schema_type: payload.schemaType,
-        expires_at: payload.expiresAt?.toISOString(),
-        ...encryptedFields,
-      }));
+      // LD-110: a health entry needs consent first; ask and retry once if so.
+      const entry = await withHealthConsent(
+        () =>
+          unwrap(createVaultEntryAction({
+            label: payload.label,
+            category: payload.category,
+            description: payload.description,
+            tags: payload.tags,
+            schema_type: payload.schemaType,
+            expires_at: payload.expiresAt?.toISOString(),
+            ...encryptedFields,
+          })),
+        requestHealthConsent
+      );
       return { ...entry, data: payload.data, client_ciphertext: undefined as unknown as string, encrypted_dek: undefined as unknown as string, dek_salt: undefined as unknown as string } as unknown as DecryptedVaultData;
     },
     onSuccess: () => {
@@ -157,6 +164,7 @@ export function useUpdateVault() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { encrypt } = useEncryption();
+  const { requestHealthConsent } = useHealthConsent();
 
   return useMutation<DecryptedVaultData, Error, { id: string; data: UpdateVaultPayload }>({
     mutationFn: async ({ id, data: payload }) => {
@@ -184,7 +192,10 @@ export function useUpdateVault() {
         Object.assign(body, encryptedFields);
       }
 
-      const entry = await unwrap(updateVaultEntryAction(id, body));
+      const entry = await withHealthConsent(
+        () => unwrap(updateVaultEntryAction(id, body)),
+        requestHealthConsent
+      );
       const decryptedData = payload.data ?? null;
       const { client_ciphertext: _c, encrypted_dek: _d, dek_salt: _s, ...rest } = entry;
       void _c; void _d; void _s;

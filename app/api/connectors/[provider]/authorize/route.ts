@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { buildAuthorizeUrl, FITNESS_CONNECTORS } from '@/lib/connectors/fitness'
 import { isConnectorProvider } from '@/lib/services/connector.service'
 import { signState } from '@/lib/services/connector-tokens'
+import { hasHealthDataConsent } from '@/lib/services/legal.service'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,6 +37,17 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin
+
+  // LD-110: every connector brings in health data, so no grant starts before
+  // the person has consented to us storing it.
+  if (!(await hasHealthDataConsent(user.id))) {
+    const settings = new URL('/settings', appUrl)
+    settings.searchParams.set('health_consent', 'required')
+    settings.hash = 'health-data-consent'
+    return NextResponse.redirect(settings)
+  }
+
   const clientId = process.env[def.clientIdEnv]
   if (!clientId) {
     return NextResponse.json(
@@ -44,7 +56,6 @@ export async function GET(
     )
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin
   const redirectUri = `${appUrl}/api/connectors/${provider}/callback`
 
   const url = buildAuthorizeUrl(provider, {

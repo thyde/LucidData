@@ -11,6 +11,9 @@ import { GpcDetector } from '@/components/settings/gpc-detector';
 import { recordUniversalOptOut } from '@/lib/services/privacy-signal.service';
 import { decodeSessionId, isSessionRevoked } from '@/lib/services/session-security.service';
 import { GPC_FORWARD_HEADER } from '@/lib/supabase/middleware';
+import { getLegalStatus } from '@/lib/services/legal.service';
+import { HealthConsentProvider } from '@/components/legal/health-consent-provider';
+import { LegalGateBoundary } from '@/components/legal/legal-gate-boundary';
 import { Building2, Settings } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -50,6 +53,13 @@ export default async function DashboardLayout({
     await recordUniversalOptOut(user.id, 'gpc_header').catch(() => undefined);
   }
 
+  // LD-110: the current terms and privacy policy must be accepted before the
+  // dashboard is usable. A failed read does not lock anyone out; they are
+  // asked on the next request instead.
+  const legal = await getLegalStatus(user.id).catch(() => null);
+  const outstanding = legal?.outstanding ?? [];
+  const returning = outstanding.some((document) => legal?.accepted[document] !== null);
+
   return (
     <div className="min-h-screen bg-background">
       <GpcDetector />
@@ -88,7 +98,11 @@ export default async function DashboardLayout({
           </div>
         </div>
       </header>
-      <main id="main" className="container mx-auto px-4 py-8">{children}</main>
+      <main id="main" className="container mx-auto px-4 py-8">
+        <LegalGateBoundary outstanding={outstanding} returning={returning}>
+          <HealthConsentProvider>{children}</HealthConsentProvider>
+        </LegalGateBoundary>
+      </main>
     </div>
   );
 }

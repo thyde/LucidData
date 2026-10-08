@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 const claimKeySaltAction = vi.fn()
 const setRecoveryEscrowAction = vi.fn()
 const addRecoveryFactorAction = vi.fn()
+const recordRegistrationChoices = vi.fn()
 
 vi.mock('@/lib/actions/account.actions', () => ({
   claimKeySaltAction: (...args: unknown[]) => claimKeySaltAction(...args),
@@ -13,6 +14,9 @@ vi.mock('@/lib/actions/recovery.actions', () => ({
   addRecoveryFactorAction: (...args: unknown[]) => addRecoveryFactorAction(...args),
 }))
 vi.mock('@/lib/actions/vault.actions', () => ({ getVaultEntriesAction: vi.fn() }))
+vi.mock('@/lib/actions/legal.actions', () => ({
+  recordRegistrationChoicesAction: (...args: unknown[]) => recordRegistrationChoices(...args),
+}))
 
 const { setUpVault } = await import('@/lib/account/account-crypto')
 
@@ -23,9 +27,25 @@ beforeEach(() => {
   claimKeySaltAction.mockImplementation(async ({ keySalt }: { keySalt: string }) => keySalt)
   setRecoveryEscrowAction.mockResolvedValue(undefined)
   addRecoveryFactorAction.mockResolvedValue(undefined)
+  recordRegistrationChoices.mockResolvedValue([])
 })
 
 describe('setUpVault', () => {
+  it('records what the person agreed to at sign-up once a session exists', async () => {
+    claimKeySaltAction.mockResolvedValue(STORED_ELSEWHERE)
+    await setUpVault('correct horse battery staple')
+    expect(recordRegistrationChoices).toHaveBeenCalledTimes(1)
+  })
+
+  it('carries on if recording the sign-up choices fails', async () => {
+    claimKeySaltAction.mockResolvedValue(STORED_ELSEWHERE)
+    recordRegistrationChoices.mockRejectedValue(new Error('network'))
+    await expect(setUpVault('correct horse battery staple')).resolves.toEqual({
+      keySalt: STORED_ELSEWHERE,
+      recoveryCode: null,
+    })
+  })
+
   it('claims a fresh 32-byte salt and returns a recovery code for it', async () => {
     const setup = await setUpVault('correct horse battery staple')
     const sent = claimKeySaltAction.mock.calls[0][0].keySalt as string

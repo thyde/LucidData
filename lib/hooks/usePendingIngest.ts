@@ -14,6 +14,11 @@ import {
 } from '@/lib/actions/connector.actions'
 import { createVaultEntryAction } from '@/lib/actions/vault.actions'
 import { VAULT_KEYS } from '@/lib/hooks/useVault'
+import {
+  HEALTH_CONSENT_DECLINED_MESSAGE,
+  useHealthConsent,
+  withHealthConsent,
+} from '@/lib/hooks/use-health-consent'
 
 /**
  * LD-201: open what the sync worker sealed, and write it into the vault.
@@ -35,6 +40,7 @@ export interface DrainState {
 
 export function usePendingIngest(): DrainState & { drain: () => Promise<void> } {
   const { masterKey, isLocked, encrypt } = useEncryption()
+  const { requestHealthConsent } = useHealthConsent()
   const queryClient = useQueryClient()
   const [state, setState] = useState<DrainState>({
     status: 'idle',
@@ -95,20 +101,27 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
           // so an imported entry is indistinguishable from one typed by hand
           // and nothing reaches the server without its wrapped key.
           const encrypted = await encrypt(JSON.stringify(payload))
-          await unwrap(createVaultEntryAction({
-            label: sealedLabel ?? record.label,
-            category: record.category,
-            schema_type: record.schema_type,
-            // LD-202 provenance. Identifiers only, so it can sit outside the
-            // envelope and still answer "where did this come from".
-            ...(record.provider ? { source_provider: record.provider } : {}),
-            ...(record.provider ? { source_record_id: record.provider_record_id } : {}),
-            ...(record.captured_at ? { source_captured_at: record.captured_at } : {}),
-            ...encrypted,
-          }))
+          // LD-110: connecting a source already required consent. If it has
+          // since been withdrawn, ask once; a "no" leaves everything queued.
+          await withHealthConsent(
+            () =>
+              unwrap(createVaultEntryAction({
+                label: sealedLabel ?? record.label,
+                category: record.category,
+                schema_type: record.schema_type,
+                // LD-202 provenance. Identifiers only, so it can sit outside the
+                // envelope and still answer "where did this come from".
+                ...(record.provider ? { source_provider: record.provider } : {}),
+                ...(record.provider ? { source_record_id: record.provider_record_id } : {}),
+                ...(record.captured_at ? { source_captured_at: record.captured_at } : {}),
+                ...encrypted,
+              })),
+            requestHealthConsent
+          )
           drained.push(record.id)
           imported += 1
-        } catch {
+        } catch (error) {
+          if (error instanceof Error && error.message === HEALTH_CONSENT_DECLINED_MESSAGE) break
           // A record we cannot open is left queued rather than dropped. It is
           // the person's data, and a failure here is ours to investigate.
         }
@@ -129,7 +142,7 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
     } finally {
       running.current = false
     }
-  }, [masterKey, encrypt, queryClient])
+  }, [masterKey, encrypt, queryClient, requestHealthConsent])
 
   useEffect(() => {
     if (isLocked) return

@@ -29,6 +29,7 @@ import { VAULT_SCHEMA_TYPES, type VaultSchemaType } from '@/lib/schemas/vault-sc
 import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields';
 import { SchemaForm } from './schema-form';
 import { KeyValueBuilder } from './key-value-builder';
+import { READABLE_FIELD_HINT } from '@/lib/constants/trust-disclosures';
 
 // Form schema for the non-data fields (label, category, description, tags, expiresAt)
 const metaFormSchema = vaultDataSchema.omit({ data: true, expiresAt: true }).extend({
@@ -190,6 +191,7 @@ export function VaultCreateDialog() {
               name="label"
               label="Label"
               placeholder="Enter a label for this entry"
+              description={READABLE_FIELD_HINT}
             />
 
             <FormSelectField
@@ -211,6 +213,7 @@ export function VaultCreateDialog() {
               name="description"
               label="Description"
               placeholder="Optional description"
+              description={READABLE_FIELD_HINT}
             />
 
             <FormTagsField

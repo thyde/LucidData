@@ -134,6 +134,35 @@ describe('the pack answers what procurement asks', () => {
     expect(notify?.deadline).toContain('Article 33')
   })
 
+  it('covers the FTC Health Breach Notification Rule, including the media notice', () => {
+    const people = INCIDENT_STEPS.find((entry) => entry.step === 'Notify affected people in the US')
+    expect(people?.deadline).toContain('60 calendar days')
+    expect(people?.deadline).toContain('16 CFR 318')
+    // An unauthorized disclosure is a breach under the 2024 rule, not only an intrusion.
+    expect(people?.detail).toMatch(/unauthorized disclosure/i)
+
+    const ftc = INCIDENT_STEPS.find((entry) => entry.step === 'Notify the FTC')
+    expect(ftc?.detail).toContain('500')
+
+    const media = INCIDENT_STEPS.find((entry) => entry.step === 'Notify the media')
+    expect(media?.detail).toContain('500 or more residents')
+  })
+
+  it('gives the user notice every element the FTC rule requires', () => {
+    for (const element of [
+      'What happened',
+      'date of the breach',
+      'date we discovered it',
+      'What information was involved',
+      'What we are doing',
+      'What you should do',
+    ]) {
+      expect(BREACH_NOTIFICATION_TEMPLATE.user).toContain(element)
+    }
+    // At least two ways to reach us.
+    expect(BREACH_NOTIFICATION_TEMPLATE.user).toMatch(/security@luciddatabank\.com[\s\S]*luciddatabank\.com\/trust/)
+  })
+
   it('ships both notification templates', () => {
     expect(BREACH_NOTIFICATION_TEMPLATE.regulator).toContain('Article 33')
     expect(BREACH_NOTIFICATION_TEMPLATE.user).toContain('security@luciddatabank.com')
