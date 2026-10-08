@@ -1297,6 +1297,7 @@ Implementation.
 - Add a small, audited zip reader that streams entries rather than loading the archive into memory.
 - Extend [packages/core/src/vault/adapters/index.ts](../packages/core/src/vault/adapters/index.ts) with one module per export, each with `detect` and `parse`, as LD-203 established.
 - Write in batches through the vault path, deduplicating on `source_record_id` so a re-import adds nothing.
+- Keep the vault able to change its password. A password change re-wraps every entry's data key in one request of about 300 bytes an entry. Server actions accept 4 MB, under Vercel's 4.5 MB limit, which is about 13,900 entries. Before an import can take a vault past that, stage the re-wrap across requests and apply it in one transaction.
 - Add a walkthrough per source to [extension/src/sources.js](../extension/src/sources.js). The existing test checks that each one names its adapter.
 
 Security. Parsing stays in the browser. Treat archive paths as untrusted: reject absolute paths and `..`
@@ -1308,6 +1309,7 @@ Acceptance criteria.
 - [ ] Re-importing the same archive creates no duplicates.
 - [ ] Each new adapter parses a fixture into typed entries.
 - [ ] A zip bomb and a path-traversal entry are refused.
+- [ ] A vault an import has taken past 13,900 entries can still change its password.
 
 Tests. A fixture archive per adapter, a duplicate import, an oversized archive, and a traversal entry.
 
@@ -3463,28 +3465,35 @@ These were live defects in the codebase rather than missing features. Status upd
 | A claimed credential could be saved only from the web app | Claiming a credential saves a copy with schema type `verifiable_credential`, which the registry did not list, so the client API refused it. The web action never checked the type | LD-608 | **Fixed** 2026-10-08. The type is registered as one the app writes itself, so any client can store it, and it is never offered for manual entry, import, issuance, or requests. Tracker summaries, which the organization portal offered as a credential type, are treated the same way |
 | An emptied description was never cleared | The edit dialog sent nothing when the description was empty, so text a person removed from a readable column stayed on the server | LD-110 | **Fixed** 2026-10-08. An emptied description is sent and cleared |
 | Saving a tracker summary could report success when nothing was saved | The dashboard panel ignored a refusal from the vault, such as a new vault's request to set up recovery first, then said the summary was saved and deleted it from the extension | LD-206 | **Fixed** 2026-10-08. The summary is cleared only once the vault holds it, and a refusal is shown |
+| A vault over 1,000 entries listed, exported, and re-wrapped only part of itself | PostgREST returns at most 1,000 rows a request and says nothing when it stops, and `findVaultByUserId` read one request. The list and the export were cut short, and a password change or a recovery always failed, because the database refuses a re-wrap that leaves an entry out | LD-105 | **Fixed** 2026-10-08. Whole collections are read a page at a time with `readAllPages`, following a key so a row added or removed meanwhile cannot shift another out of view. An end-to-end test stores 1,001 entries, then lists, verifies, and re-wraps them all |
+| An audit log over 100 events reported tampering | The audit page and `GET /api/v1/audit` checked only the latest 100 entries, treating the oldest of them as the start of the chain. Once a person passed 100 events, an untouched log showed "Tampering detected", and the export held only the 100 on screen | LD-610 | **Fixed** 2026-10-08. The whole chain is read and checked in the order its hashes link, not by timestamp, so events in the same millisecond cannot be misordered. The export holds every entry |
 
 Every defect found during validation is fixed. The two GDPR Article 17 defects, where a deleted
 account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
 Deletion no longer relies on foreign key behaviour: what does not cascade is handled explicitly, the
 result is verified rather than assumed, and the person receives a signed receipt.
 
-The last seven rows were found on 2026-10-08 while checking that health data could not be sold, and
-the six after the first share one cause. A row level security policy also governs direct API access:
-PostgREST exposes every public table, so whatever a policy allowed, a signed-in person could do with
-their own session and the public key, skipping every check in the server. Policies written as "the
-owner may write their own rows" handed people columns the server was meant to set. Each was reproduced
-against a local stack before it was fixed, and `supabase/tests/database/direct-write-guards.test.sql`
-now holds every one closed. The rule for new tables is in AGENTS.md.
+The seven rows that begin with health data reaching a sale through another category's pool were found on
+2026-10-08 while checking that health data could not be sold, and the six after that one share one
+cause. A row level security policy also governs direct API access: PostgREST exposes every public table,
+so whatever a policy allowed, a signed-in person could do with their own session and the public key,
+skipping every check in the server. Policies written as "the owner may write their own rows" handed
+people columns the server was meant to set. Each was reproduced against a local stack before it was
+fixed, and `supabase/tests/database/direct-write-guards.test.sql` now holds every one closed. The rule
+for new tables is in AGENTS.md.
 
 The nine recovery rows were found on 2026-10-08 while adding recovery to the client API. The
 recovery module had no tests at all, so a kit that opened nothing looked like working code. It now
 has known-answer vectors produced outside this codebase, and an end-to-end test resets a password and
 restores a vault with a kit.
 
-The last six rows were found on 2026-10-08 while checking the vault's write path after LD-209. Moving
-the vault actions onto the client API's schemas is what exposed them, because the same requests that the
-API refused had been passing through the web app.
+The six rows that begin with a vault write storing any column were found on 2026-10-08 while checking
+the vault's write path after LD-209. Moving the vault actions onto the client API's schemas is what
+exposed them, because the same requests that the API refused had been passing through the web app.
+
+The rows on large vaults and on the audit log were found the same day while planning LD-210, which makes
+vaults of thousands of entries routine. Both had been latent: no production vault had yet passed 1,000
+entries, but every active account passes 100 audit events.
 
 ### Before this spec is considered final
 

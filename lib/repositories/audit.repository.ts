@@ -1,6 +1,43 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { AuditLog, InsertAuditLog } from '@/types/database.types'
+import { afterKey, readAllPages } from '@/lib/repositories/paging'
+
+/** The columns an audit entry's hash covers, plus its id for paging. */
+export type AuditChainLink = Pick<
+  AuditLog,
+  'id' | 'user_id' | 'event_type' | 'action' | 'timestamp' | 'previous_hash' | 'current_hash'
+>
+
+const CHAIN_COLUMNS = 'id, user_id, event_type, action, timestamp, previous_hash, current_hash'
+
+async function readWholeLog<Row extends { id: string; timestamp: string }>(
+  userId: string,
+  columns: string
+): Promise<Row[]> {
+  const supabase = await createClient()
+  return readAllPages<Row>(
+    (after, limit) => {
+      let query = supabase.from('audit_logs').select(columns).eq('user_id', userId)
+      if (after) query = query.or(afterKey('timestamp', after))
+      return query
+        .order('timestamp', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(limit) as unknown as PromiseLike<{ data: Row[] | null; error: unknown }>
+    },
+    (row) => ({ at: row.timestamp, id: row.id })
+  )
+}
+
+/** The whole chain, oldest first, with only the columns verification needs. */
+export async function findAuditChain(userId: string): Promise<AuditChainLink[]> {
+  return readWholeLog<AuditChainLink>(userId, CHAIN_COLUMNS)
+}
+
+/** Every entry, oldest first, for an export. */
+export async function findAllAuditLogs(userId: string): Promise<AuditLog[]> {
+  return readWholeLog<AuditLog>(userId, '*')
+}
 
 export async function findAuditLogsByUserId(userId: string, limit = 100): Promise<AuditLog[]> {
   const supabase = await createClient()

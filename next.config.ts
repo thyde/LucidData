@@ -13,6 +13,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // LD-609: shared code lives in packages/core and ships as TypeScript source.
   transpilePackages: ["@luciddata/core"],
+  experimental: {
+    serverActions: {
+      // A password change re-wraps every entry's data key in one request, about
+      // 300 bytes an entry. The default 1 MB stops near 3,400 entries; 4 MB,
+      // under Vercel's 4.5 MB request limit, reaches about 13,900.
+      bodySizeLimit: "4mb",
+    },
+  },
   async headers() {
     const headers = [
       {
