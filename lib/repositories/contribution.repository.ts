@@ -42,11 +42,17 @@ export async function countActiveContributions(poolId: string): Promise<number> 
   return count ?? 0
 }
 
+/**
+ * Contributions are written with the service role because API roles cannot
+ * write this table. The payout, the payload, and the schema type all have to
+ * come from the contribution service's checks, and a direct PostgREST write
+ * would skip every one of them. The caller supplies the authenticated user id.
+ */
 export async function createContribution(
   contribution: InsertPoolContribution
 ): Promise<PoolContribution> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
+  const service = createServiceClient()
+  const { data, error } = await service
     .from('pool_contributions')
     .insert(contribution)
     .select('*')
@@ -55,9 +61,10 @@ export async function createContribution(
   return data
 }
 
+/** Service role for the same reason as createContribution; the user filter is the only scope. */
 export async function withdrawContribution(id: string, userId: string): Promise<PoolContribution> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
+  const service = createServiceClient()
+  const { data, error } = await service
     .from('pool_contributions')
     .update({ status: 'withdrawn', updated_at: new Date().toISOString() })
     .eq('id', id)

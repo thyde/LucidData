@@ -37,6 +37,7 @@ import { computeOrderTotal } from '@/lib/constants/marketplace-economics'
 import { vouchedShare, type AssuranceMix } from '@/lib/constants/marketplace-integrity'
 import { getPoolAssuranceMix } from '@/lib/services/marketplace-integrity.service'
 import { UserFacingError } from '@/lib/actions/action-result'
+import { isSaleRestrictedEntry } from '@/lib/validations/marketplace'
 
 export interface FieldCoverage {
   field: string
@@ -168,7 +169,11 @@ export async function evaluatePool(poolId: string, orgId: string): Promise<PoolE
   if (freshnessResult.error) throw freshnessResult.error
   if (schemaMixResult.error) throw schemaMixResult.error
 
-  const contributions = await contributionRepo.findActiveContributionsByPool(poolId)
+  const contributions = (await contributionRepo.findActiveContributionsByPool(poolId)).filter(
+    // Matches the purchase path, so the evaluation never counts a record a
+    // purchase would leave out.
+    (contribution) => !isSaleRestrictedEntry(contribution)
+  )
   const recordCount = contributions.length
   const contributors = new Set(contributions.map((entry) => entry.user_id)).size
   const assurance = await getPoolAssuranceMix(poolId)

@@ -33,6 +33,9 @@ export const MINIMUM_ORDER_CENTS = 5000
  */
 export const PAYOUT_THRESHOLD_CENTS = 2500
 
+/** Days a buyer can download a purchased snapshot. Published on the pricing page. */
+export const EXPORT_WINDOW_DAYS = 7
+
 /**
  * External assumption: US standard card pricing. Used only to check that an
  * order can cover its own processing, never to charge the buyer.

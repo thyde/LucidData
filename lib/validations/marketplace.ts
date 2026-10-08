@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
 
 /** Categories a pool/contribution can target. Mirrors the migration CHECK. */
 export const dataCategorySchema = z.enum([
@@ -20,11 +21,50 @@ export const MARKETPLACE_RESTRICTED_CATEGORIES = [
   'browsing',
 ] as const satisfies readonly DataCategory[]
 
+function isRestrictedCategory(category: string | null | undefined): boolean {
+  return (MARKETPLACE_RESTRICTED_CATEGORIES as readonly string[]).includes(category ?? '')
+}
+
 export function isMarketplaceCategoryAllowed(category: DataCategory): boolean {
-  return !MARKETPLACE_RESTRICTED_CATEGORIES.includes(
-    category as (typeof MARKETPLACE_RESTRICTED_CATEGORIES)[number]
+  return !isRestrictedCategory(category)
+}
+
+/**
+ * Schema types that hold restricted data whatever category an entry is filed
+ * under. A medical record filed under "personal" is still health data. Tracker
+ * summaries are browsing data even though they are filed under "other", so they
+ * are named rather than inferred. The database refuses the same list; a test
+ * holds the two together.
+ */
+export const SALE_RESTRICTED_SCHEMA_TYPES: readonly string[] = [
+  ...Object.entries(VAULT_SCHEMA_TYPES)
+    .filter(([, definition]) => isRestrictedCategory(definition.category))
+    .map(([schemaType]) => schemaType),
+  'browsing_insight',
+].sort()
+
+/** True when an entry, or a contribution made from one, can never be sold. */
+export function isSaleRestrictedEntry(entry: {
+  category?: string | null
+  schema_type?: string | null
+}): boolean {
+  return (
+    isRestrictedCategory(entry.category) ||
+    (typeof entry.schema_type === 'string' && SALE_RESTRICTED_SCHEMA_TYPES.includes(entry.schema_type))
   )
 }
+
+/** "Health, financial, location, and browsing data". */
+export function describeRestrictedCategories(): string {
+  const [first, ...rest] = MARKETPLACE_RESTRICTED_CATEGORIES
+  const named = [first.charAt(0).toUpperCase() + first.slice(1), ...rest]
+  return named.length > 1
+    ? `${named.slice(0, -1).join(', ')}, and ${named[named.length - 1]} data`
+    : `${named[0]} data`
+}
+
+/** "Health, financial, location, and browsing data are never for sale", without a full stop. */
+export const SALE_RESTRICTED_STATEMENT = `${describeRestrictedCategories()} are never for sale`
 
 export const marketplacePurposeSchema = z.enum([
   'research',

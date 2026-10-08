@@ -18,6 +18,10 @@ vi.mock('@/lib/repositories/payout.repository', () => ({
   findPayoutsByUser: vi.fn(),
 }))
 
+vi.mock('@/lib/repositories/vault.repository', () => ({
+  findVaultById: vi.fn(),
+}))
+
 vi.mock('@/lib/services/audit.service', () => ({
   createAuditEntry: vi.fn(),
 }))
@@ -40,27 +44,44 @@ import * as contributionRepo from '@/lib/repositories/contribution.repository'
 import * as monetizationRepo from '@/lib/repositories/monetization.repository'
 import * as payoutRepo from '@/lib/repositories/payout.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
+import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertNotUniversallyOptedOut } from '@/lib/services/privacy-signal.service'
 import { contribute, getEarnings } from '@/lib/services/contribution.service'
-import type { DataPool, PoolContribution, Payout, SalePreferences } from '@/types/database.types'
+import type {
+  DataPool,
+  PoolContribution,
+  Payout,
+  SalePreferences,
+  VaultData,
+} from '@/types/database.types'
 
 const userId = 'user-1'
 const pool = {
   id: 'pool-1',
   buyer_org_id: 'org-1',
-  name: 'Synthetic health research',
+  name: 'Synthetic workforce research',
   price_per_record_cents: 500,
-  category: 'personal',
+  category: 'credentials',
   purpose: 'research',
 } as DataPool
 
 const input = {
   pool_id: pool.id,
   vault_data_id: 'vault-1',
-  category: 'health' as const,
-  anonymized_payload: { condition_group: 'synthetic' },
+  category: 'credentials' as const,
+  anonymized_payload: { role: 'synthetic' },
   accepted_terms: true,
+}
+
+function vaultEntry(overrides: Partial<VaultData> = {}): VaultData {
+  return {
+    id: input.vault_data_id,
+    user_id: userId,
+    category: 'credentials',
+    schema_type: 'employment',
+    ...overrides,
+  } as VaultData
 }
 
 function preferences(overrides: Partial<SalePreferences> = {}): SalePreferences {
@@ -75,9 +96,10 @@ describe('contribute sale preferences', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(poolRepo.findOpenPoolById).mockResolvedValue(pool)
+    vi.mocked(vaultRepo.findVaultById).mockResolvedValue(vaultEntry())
     vi.mocked(monetizationRepo.findSalePreferences).mockResolvedValue(null)
     vi.mocked(monetizationRepo.findFieldsByVault).mockResolvedValue([
-      { field_key: 'condition_group', opted_in: true } as never,
+      { field_key: 'role', opted_in: true } as never,
     ])
   })
 
@@ -109,7 +131,7 @@ describe('contribute sale preferences', () => {
     vi.mocked(monetizationRepo.findFieldsByVault).mockResolvedValue([])
 
     await expect(contribute(userId, input)).rejects.toThrow(
-      'These fields are private: condition_group'
+      'These fields are private: role'
     )
     expect(contributionRepo.createContribution).not.toHaveBeenCalled()
   })
@@ -138,6 +160,59 @@ describe('contribute sale preferences', () => {
     expect(poolRepo.findOpenPoolById).not.toHaveBeenCalled()
     expect(contributionRepo.createContribution).not.toHaveBeenCalled()
     expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+})
+
+describe('contribute restricted data', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(poolRepo.findOpenPoolById).mockResolvedValue(pool)
+    vi.mocked(monetizationRepo.findSalePreferences).mockResolvedValue(null)
+    vi.mocked(monetizationRepo.findFieldsByVault).mockResolvedValue([
+      { field_key: 'role', opted_in: true } as never,
+    ])
+  })
+
+  it.each([
+    ['a health entry', { category: 'health', schema_type: 'custom' }],
+    ['a medical record filed under personal', { category: 'personal', schema_type: 'medical_basic' }],
+    ['a daily fitness summary', { category: 'personal', schema_type: 'fitness_daily' }],
+    ['a tracker summary filed under other', { category: 'other', schema_type: 'browsing_insight' }],
+    ['a financial summary', { category: 'credentials', schema_type: 'financial_summary' }],
+  ])('refuses %s offered to an allowed pool', async (_name, entry) => {
+    vi.mocked(vaultRepo.findVaultById).mockResolvedValue(vaultEntry(entry as Partial<VaultData>))
+
+    await expect(contribute(userId, input)).rejects.toThrow(
+      'Health, financial, location, and browsing data are never for sale.'
+    )
+    expect(contributionRepo.createContribution).not.toHaveBeenCalled()
+    expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+
+  it('refuses an entry the user does not own', async () => {
+    vi.mocked(vaultRepo.findVaultById).mockResolvedValue(null)
+
+    await expect(contribute(userId, input)).rejects.toThrow('Vault entry not found')
+    expect(vaultRepo.findVaultById).toHaveBeenCalledWith(input.vault_data_id, userId)
+    expect(contributionRepo.createContribution).not.toHaveBeenCalled()
+  })
+
+  it("records the pool's category and the entry's schema, whatever the client sent", async () => {
+    vi.mocked(vaultRepo.findVaultById).mockResolvedValue(vaultEntry())
+    vi.mocked(contributionRepo.createContribution).mockResolvedValue({
+      id: 'contribution-1',
+    } as PoolContribution)
+
+    await contribute(userId, { ...input, category: 'interests' })
+
+    expect(contributionRepo.createContribution).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: userId,
+        category: 'credentials',
+        schema_type: 'employment',
+        payout_cents: pool.price_per_record_cents,
+      })
+    )
   })
 })
 
