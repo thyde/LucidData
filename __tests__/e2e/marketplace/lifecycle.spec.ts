@@ -44,7 +44,7 @@ async function createVaultEntry(page: Page, label: string): Promise<void> {
   await dialog.getByLabel('Label').fill(label)
   await dialog.locator('#schema-type-select').selectOption('employment')
   await dialog.getByLabel('Employer').fill('Synthetic Industries')
-  await dialog.getByLabel('Role / Title').fill('Engineer')
+  await dialog.getByLabel('Role or title').fill('Engineer')
   await dialog.getByLabel('Employment type').selectOption('full_time')
   await dialog.getByLabel('Start date').fill('2020-01-15')
   await dialog.getByLabel('Salary range').selectOption('60k-100k')

@@ -137,7 +137,7 @@ test.describe('Organization credentials and consent', () => {
       await issuerPage.getByLabel('Field of study').fill('Accessible systems')
       await issuerPage.getByLabel('Graduation year').fill('2026')
       await issuerPage.getByLabel('GPA (optional)').fill('3.9')
-      await issuerPage.getByLabel('Honors / Awards').fill('Synthetic honors')
+      await issuerPage.getByLabel('Honors or awards').fill('Synthetic honors')
       await issuerPage.getByRole('button', { name: 'Issue credential' }).click()
       await expect(issuerPage.getByText('Credential issued', { exact: true })).toBeVisible({
         timeout: 20000,
@@ -178,7 +178,7 @@ test.describe('Organization credentials and consent', () => {
       await ownedRow.getByRole('button', { name: 'Share' }).click()
       const shareDialog = holderPage.getByRole('dialog', { name: 'Share credential' })
       await shareDialog.getByLabel('GPA (optional)').uncheck()
-      await shareDialog.getByLabel('Honors / Awards').uncheck()
+      await shareDialog.getByLabel('Honors or awards').uncheck()
       await shareDialog.getByRole('button', { name: 'Create share link' }).click()
       const shareUrl = (await shareDialog.locator('code').textContent())?.trim()
       if (!shareUrl) throw new Error('Credential share URL was not created')
@@ -204,7 +204,7 @@ test.describe('Organization credentials and consent', () => {
       await requestPanel
         .getByLabel('Purpose')
         .fill('Verify education before synthetic model evaluation')
-      const educationRequest = requestPanel.getByLabel('Education Record', { exact: true })
+      const educationRequest = requestPanel.getByLabel('Education record', { exact: true })
       await educationRequest.check()
       await expect(requestPanel.getByLabel('Candidate email')).toHaveValue(holderEmail)
       await expect(requestPanel.getByLabel('Purpose')).toHaveValue(
@@ -226,7 +226,7 @@ test.describe('Organization credentials and consent', () => {
         .getByLabel(`Share GPA (optional) from ${credentialLabel}`)
         .uncheck()
       await fulfillDialog
-        .getByLabel(`Share Honors / Awards from ${credentialLabel}`)
+        .getByLabel(`Share Honors or awards from ${credentialLabel}`)
         .uncheck()
       await fulfillDialog.getByRole('button', { name: 'Share selected' }).click()
       await expect(fulfillDialog).toBeHidden({ timeout: 15000 })

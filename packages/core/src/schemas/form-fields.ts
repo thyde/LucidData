@@ -1,7 +1,7 @@
 export interface FormField {
   name: string
   label: string
-  type: 'text' | 'date' | 'select' | 'multi-text' | 'checkbox' | 'number'
+  type: 'text' | 'date' | 'datetime' | 'select' | 'multi-text' | 'checkbox' | 'number'
   options?: { value: string; label: string }[]
   placeholder?: string
   required?: boolean
@@ -30,13 +30,13 @@ export const SCHEMA_FORM_FIELDS: Record<string, FormField[]> = {
       { value: 'investment', label: 'Investment' }, { value: 'other', label: 'Other' },
     ]},
     { name: 'income_range', label: 'Income range', type: 'select', options: [
-      { value: '<25k', label: 'Under $25k' }, { value: '25k-50k', label: '$25k–$50k' },
-      { value: '50k-100k', label: '$50k–$100k' }, { value: '100k-200k', label: '$100k–$200k' },
+      { value: '<25k', label: 'Under $25k' }, { value: '25k-50k', label: '$25k to $50k' },
+      { value: '50k-100k', label: '$50k to $100k' }, { value: '100k-200k', label: '$100k to $200k' },
       { value: '>200k', label: 'Over $200k' },
     ]},
     { name: 'credit_score_band', label: 'Credit score band', type: 'select', options: [
-      { value: 'poor', label: 'Poor (300–579)' }, { value: 'fair', label: 'Fair (580–669)' },
-      { value: 'good', label: 'Good (670–739)' }, { value: 'very_good', label: 'Very Good (740–799)' },
+      { value: 'poor', label: 'Poor (300 to 579)' }, { value: 'fair', label: 'Fair (580 to 669)' },
+      { value: 'good', label: 'Good (670 to 739)' }, { value: 'very_good', label: 'Very good (740 to 799)' },
       { value: 'exceptional', label: 'Exceptional (800+)' },
     ]},
     { name: 'notes', label: 'Notes', type: 'text' },
@@ -46,7 +46,7 @@ export const SCHEMA_FORM_FIELDS: Record<string, FormField[]> = {
     { name: 'date_of_birth', label: 'Date of birth', type: 'date', required: true },
     { name: 'nationality', label: 'Nationality', type: 'text', required: true },
     { name: 'id_type', label: 'Document type', type: 'select', required: true, options: [
-      { value: 'passport', label: 'Passport' }, { value: 'drivers_license', label: "Driver's License" },
+      { value: 'passport', label: 'Passport' }, { value: 'drivers_license', label: "Driver's license" },
       { value: 'national_id', label: 'National ID' }, { value: 'other', label: 'Other' },
     ]},
     { name: 'id_number_last4', label: 'Last 4 digits of ID number', type: 'text', placeholder: '1234' },
@@ -55,7 +55,7 @@ export const SCHEMA_FORM_FIELDS: Record<string, FormField[]> = {
   ],
   employment: [
     { name: 'employer', label: 'Employer', type: 'text', required: true },
-    { name: 'role', label: 'Role / Title', type: 'text', required: true },
+    { name: 'role', label: 'Role or title', type: 'text', required: true },
     { name: 'employment_type', label: 'Employment type', type: 'select', required: true, options: [
       { value: 'full_time', label: 'Full-time' }, { value: 'part_time', label: 'Part-time' },
       { value: 'contract', label: 'Contract' }, { value: 'freelance', label: 'Freelance' },
@@ -65,15 +65,15 @@ export const SCHEMA_FORM_FIELDS: Record<string, FormField[]> = {
     { name: 'end_date', label: 'End date', type: 'date' },
     { name: 'is_current', label: 'Currently employed here', type: 'checkbox' },
     { name: 'salary_range', label: 'Salary range', type: 'select', options: [
-      { value: '<30k', label: 'Under $30k' }, { value: '30k-60k', label: '$30k–$60k' },
-      { value: '60k-100k', label: '$60k–$100k' }, { value: '100k-150k', label: '$100k–$150k' },
+      { value: '<30k', label: 'Under $30k' }, { value: '30k-60k', label: '$30k to $60k' },
+      { value: '60k-100k', label: '$60k to $100k' }, { value: '100k-150k', label: '$100k to $150k' },
       { value: '>150k', label: 'Over $150k' },
     ]},
   ],
   education: [
     { name: 'institution', label: 'Institution', type: 'text', required: true },
     { name: 'degree', label: 'Degree', type: 'select', required: true, options: [
-      { value: 'high_school', label: 'High School' }, { value: 'associate', label: 'Associate' },
+      { value: 'high_school', label: 'High school' }, { value: 'associate', label: 'Associate' },
       { value: 'bachelor', label: "Bachelor's" }, { value: 'master', label: "Master's" },
       { value: 'doctorate', label: 'Doctorate' }, { value: 'certificate', label: 'Certificate' },
       { value: 'other', label: 'Other' },
@@ -81,7 +81,7 @@ export const SCHEMA_FORM_FIELDS: Record<string, FormField[]> = {
     { name: 'field_of_study', label: 'Field of study', type: 'text', required: true },
     { name: 'graduation_year', label: 'Graduation year', type: 'number', placeholder: '2024' },
     { name: 'gpa', label: 'GPA (optional)', type: 'text' },
-    { name: 'honors', label: 'Honors / Awards', type: 'text' },
+    { name: 'honors', label: 'Honors or awards', type: 'text' },
   ],
   fitness_activity: [
     { name: 'name', label: 'Activity name', type: 'text', required: true },
@@ -110,6 +110,46 @@ export const SCHEMA_FORM_FIELDS: Record<string, FormField[]> = {
     { name: 'active_minutes', label: 'Active minutes', type: 'number' },
     { name: 'resting_heart_rate', label: 'Resting heart rate (bpm)', type: 'number' },
     { name: 'sleep_minutes', label: 'Sleep (minutes)', type: 'number' },
+  ],
+  sleep_session: [
+    { name: 'start', label: 'Went to sleep', type: 'datetime', required: true },
+    { name: 'end', label: 'Woke up', type: 'datetime', required: true },
+    { name: 'asleep_min', label: 'Time asleep (minutes)', type: 'number' },
+    { name: 'deep_min', label: 'Deep sleep (minutes)', type: 'number' },
+    { name: 'rem_min', label: 'REM sleep (minutes)', type: 'number' },
+    { name: 'light_min', label: 'Light or core sleep (minutes)', type: 'number' },
+    { name: 'awake_min', label: 'Awake in bed (minutes)', type: 'number' },
+    { name: 'efficiency_pct', label: 'Sleep efficiency (%)', type: 'number' },
+  ],
+  vitals_daily: [
+    { name: 'date', label: 'Date', type: 'date', required: true },
+    { name: 'resting_heart_rate', label: 'Resting heart rate (bpm)', type: 'number' },
+    { name: 'heart_rate_variability_ms', label: 'Heart rate variability (ms)', type: 'number' },
+    { name: 'blood_oxygen_pct', label: 'Blood oxygen (%)', type: 'number' },
+    { name: 'respiratory_rate', label: 'Breathing rate (breaths per minute)', type: 'number' },
+    { name: 'body_temperature_c', label: 'Body temperature (°C)', type: 'number' },
+    { name: 'blood_pressure_systolic', label: 'Blood pressure, systolic (mmHg)', type: 'number' },
+    { name: 'blood_pressure_diastolic', label: 'Blood pressure, diastolic (mmHg)', type: 'number' },
+  ],
+  body_measurement: [
+    { name: 'date', label: 'Date', type: 'date', required: true },
+    { name: 'weight_kg', label: 'Weight (kg)', type: 'number' },
+    { name: 'height_cm', label: 'Height (cm)', type: 'number' },
+    { name: 'body_fat_pct', label: 'Body fat (%)', type: 'number' },
+    { name: 'lean_mass_kg', label: 'Lean mass (kg)', type: 'number' },
+    { name: 'waist_cm', label: 'Waist (cm)', type: 'number' },
+    { name: 'bmi', label: 'Body mass index', type: 'number' },
+  ],
+  nutrition_daily: [
+    { name: 'date', label: 'Date', type: 'date', required: true },
+    { name: 'energy_kcal', label: 'Energy (kcal)', type: 'number' },
+    { name: 'protein_g', label: 'Protein (g)', type: 'number' },
+    { name: 'carbohydrates_g', label: 'Carbohydrates (g)', type: 'number' },
+    { name: 'fat_g', label: 'Fat (g)', type: 'number' },
+    { name: 'fiber_g', label: 'Fiber (g)', type: 'number' },
+    { name: 'sugar_g', label: 'Sugar (g)', type: 'number' },
+    { name: 'sodium_mg', label: 'Sodium (mg)', type: 'number' },
+    { name: 'water_ml', label: 'Water (ml)', type: 'number' },
   ],
   // LD-206. Produced by the extension rather than typed, but the fields are
   // here so the entry renders as a labelled list rather than raw JSON.

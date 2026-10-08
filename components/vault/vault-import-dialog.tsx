@@ -24,6 +24,7 @@ import {
 import { parseWithAdapter } from '@luciddata/core/vault/adapters'
 import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
 import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
+import { summarizeSchemaErrors, validateSchemaData } from '@luciddata/core/schemas/validate'
 import {
   Dialog,
   DialogContent,
@@ -177,15 +178,29 @@ export function VaultImportDialog() {
       .map((t) => t.trim())
       .filter(Boolean)
     const fields = targetType !== 'custom' ? SCHEMA_FORM_FIELDS[targetType] : null
+    const fieldLabels = Object.fromEntries((fields ?? []).map((field) => [field.name, field.label]))
 
     setImporting(true)
     setProgress({ done: 0, total: records.length })
 
     let failed = 0
+    let skipped = 0
+    let firstProblem: string | null = null
     let stopped = false
     for (let i = 0; i < records.length; i++) {
       const record = records[i]
       const data = fields ? applyFieldMapping(record, fields, mapping) : record
+      if (fields) {
+        // Checked before encryption, because the server cannot read the row to
+        // check it. A row that does not fit is skipped rather than saved.
+        const checked = validateSchemaData(targetType, data)
+        if (!checked.success) {
+          skipped++
+          firstProblem ??= summarizeSchemaErrors(checked, fieldLabels)
+          setProgress({ done: i + 1, total: records.length })
+          continue
+        }
+      }
       try {
         const encrypted = await encrypt(JSON.stringify(data))
         // unwrap turns a refused write into a throw, so it counts as a failure
@@ -224,14 +239,26 @@ export function VaultImportDialog() {
       setProgress(null)
       return
     }
-    const imported = records.length - failed
+    const imported = records.length - failed - skipped
+    const notes: string[] = []
+    if (skipped > 0) {
+      const typeLabel = VAULT_SCHEMA_TYPES[targetType as keyof typeof VAULT_SCHEMA_TYPES].label
+      notes.push(`Skipped ${skipped} that did not fit the ${typeLabel} fields. ${firstProblem}.`)
+    }
+    if (failed > 0) notes.push(`${failed} failed.`)
     toast({
-      title: 'Import complete',
+      title: imported > 0 ? 'Import complete' : 'Nothing imported',
       description:
-        failed > 0
-          ? `Imported ${imported} of ${records.length} entries. ${failed} failed.`
+        notes.length > 0
+          ? [`Imported ${imported} of ${records.length} entries.`, ...notes].join(' ')
           : `Imported ${imported} ${imported === 1 ? 'entry' : 'entries'}.`,
     })
+    if (imported === 0 && skipped > 0) {
+      // Keep the file and the mapping, since a wrong column is the usual cause.
+      setImporting(false)
+      setProgress(null)
+      return
+    }
     reset()
     setOpen(false)
   }

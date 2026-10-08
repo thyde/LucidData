@@ -10,6 +10,12 @@ interface VaultDataDisplayProps {
 function formatFieldValue(type: string, val: unknown): string {
   if (val === null || val === undefined || val === '') return '—'
   if (type === 'checkbox') return val ? 'Yes' : 'No'
+  if (type === 'datetime') {
+    const time = Date.parse(String(val))
+    if (!Number.isNaN(time)) {
+      return new Date(time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    }
+  }
   if (type === 'multi-text') {
     if (Array.isArray(val)) return val.length > 0 ? val.join(', ') : '—'
     return String(val)

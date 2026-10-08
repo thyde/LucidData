@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, within } from '@/test/helpers/render';
 import { render } from '@/test/helpers/render';
 import userEvent from '@testing-library/user-event';
+import { fireEvent } from '@testing-library/react';
 import { VaultCreateDialog } from '../vault-create-dialog';
 import { createMockMutation } from '@/test/utils/mockFactories';
 import { waitForToast, flushPromises } from '@/test/utils/async-helpers';
@@ -155,17 +156,17 @@ describe('VaultCreateDialog', () => {
       expect(dataInput.tagName).toBe('TEXTAREA');
     });
 
-    it('renders dataType select', async () => {
+    it('offers the health types by name, under one data type control', async () => {
       const user = userEvent.setup();
       render(<VaultCreateDialog />);
 
       await user.click(screen.getByRole('button', { name: /create vault entry/i }));
 
-      const dataTypeSelect = screen.getByLabelText('Data Type', { exact: true });
-      expect(dataTypeSelect).toBeInTheDocument();
-      expect(within(dataTypeSelect).getByRole('option', { name: /^json$/i })).toBeInTheDocument();
-      expect(within(dataTypeSelect).getByRole('option', { name: /^credential$/i })).toBeInTheDocument();
-      expect(within(dataTypeSelect).getByRole('option', { name: /document/i })).toBeInTheDocument();
+      const [typeSelect, ...others] = screen.getAllByLabelText(/^data type$/i);
+      expect(others).toHaveLength(0);
+      for (const name of ['Sleep session', 'Daily vitals', 'Body measurement', 'Daily nutrition']) {
+        expect(within(typeSelect).getByRole('option', { name })).toBeInTheDocument();
+      }
     });
 
     it('renders the schema type selector', async () => {
@@ -295,16 +296,6 @@ describe('VaultCreateDialog', () => {
       await waitFor(() => {
         expect(mockMutation.mutate).toHaveBeenCalled();
       });
-    });
-
-    it('validates dataType enum', async () => {
-      const user = userEvent.setup();
-      render(<VaultCreateDialog />);
-
-      await user.click(screen.getByRole('button', { name: /create vault entry/i }));
-
-      const dataTypeSelect = screen.getByLabelText('Data Type', { exact: true });
-      expect(dataTypeSelect).toHaveValue('json');
     });
 
     it('validates category enum values', async () => {
@@ -687,6 +678,85 @@ describe('VaultCreateDialog', () => {
       await waitFor(() => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Typed data', () => {
+    async function startVitals(user: ReturnType<typeof userEvent.setup>) {
+      render(<VaultCreateDialog />);
+      await user.click(screen.getByRole('button', { name: /create vault entry/i }));
+      await user.type(screen.getByLabelText(/label/i), 'Morning vitals');
+      await user.selectOptions(screen.getByLabelText('Data type', { exact: true }), 'vitals_daily');
+      fireEvent.change(screen.getByLabelText(/^Date/), { target: { value: '2026-10-08' } });
+    }
+
+    it('marks a reading that is out of range and saves nothing', async () => {
+      const user = userEvent.setup();
+      await startVitals(user);
+      const oxygen = screen.getByLabelText('Blood oxygen (%)');
+      await user.type(oxygen, '140');
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+
+      expect(await screen.findByText('Enter 100 or less')).toBeInTheDocument();
+      expect(oxygen).toHaveAttribute('aria-invalid', 'true');
+      expect(oxygen).toHaveAttribute('aria-describedby', 'blood_oxygen_pct-error');
+      expect(screen.getByText('Fix the fields marked below.')).toBeInTheDocument();
+      expect(mockMutation.mutate).not.toHaveBeenCalled();
+
+      await user.clear(oxygen);
+      await user.type(oxygen, '97');
+      expect(screen.queryByText('Enter 100 or less')).not.toBeInTheDocument();
+      expect(oxygen).not.toHaveAttribute('aria-invalid');
+
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+      await waitFor(() => {
+        expect(mockMutation.mutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            category: 'health',
+            schemaType: 'vitals_daily',
+            data: { date: '2026-10-08', blood_oxygen_pct: 97 },
+          }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('saves what was entered, without filling in the schema defaults', async () => {
+      const user = userEvent.setup();
+      render(<VaultCreateDialog />);
+      await user.click(screen.getByRole('button', { name: /create vault entry/i }));
+      await user.type(screen.getByLabelText(/label/i), 'Past job');
+      await user.selectOptions(screen.getByLabelText('Data type', { exact: true }), 'employment');
+      await user.type(screen.getByLabelText(/^Employer/), 'Synthetic Works');
+      await user.type(screen.getByLabelText(/^Role or title/), 'Engineer');
+      await user.selectOptions(screen.getByLabelText(/^Employment type/), 'full_time');
+      fireEvent.change(screen.getByLabelText(/^Start date/), { target: { value: '2018-01-01' } });
+      fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2020-06-30' } });
+      expect(screen.getByLabelText('Currently employed here')).not.toBeChecked();
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+
+      await waitFor(() => expect(mockMutation.mutate).toHaveBeenCalled());
+      const [payload] = vi.mocked(mockMutation.mutate).mock.calls[0] as [
+        { data: Record<string, unknown> },
+        unknown,
+      ];
+      // The schema defaults is_current to true and currency to USD. Neither was chosen.
+      expect(payload.data).toEqual({
+        employer: 'Synthetic Works',
+        role: 'Engineer',
+        employment_type: 'full_time',
+        start_date: '2018-01-01',
+        end_date: '2020-06-30',
+      });
+    });
+
+    it('asks for at least one reading', async () => {
+      const user = userEvent.setup();
+      await startVitals(user);
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+
+      expect(await screen.findByText('Enter at least one reading')).toBeInTheDocument();
+      expect(mockMutation.mutate).not.toHaveBeenCalled();
     });
   });
 });
