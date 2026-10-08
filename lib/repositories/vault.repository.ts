@@ -1,15 +1,23 @@
 import { createClient } from '@/lib/supabase/server'
 import type { VaultData, InsertVaultData, UpdateVaultData } from '@/types/database.types'
+import { afterKey, readAllPages } from '@/lib/repositories/paging'
 
+/**
+ * Every entry the person holds, newest first. Paged, because a single request
+ * stops at 1,000 rows: the list, the export, and a password change's re-wrap
+ * all need the whole vault.
+ */
 export async function findVaultByUserId(userId: string): Promise<VaultData[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('vault_data')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data
+  const rows = await readAllPages<VaultData>(
+    (after, limit) => {
+      let query = supabase.from('vault_data').select('*').eq('user_id', userId)
+      if (after) query = query.or(afterKey('created_at', after))
+      return query.order('created_at', { ascending: true }).order('id', { ascending: true }).limit(limit)
+    },
+    (row) => ({ at: row.created_at, id: row.id })
+  )
+  return rows.reverse()
 }
 
 export async function findVaultById(id: string, userId: string): Promise<VaultData | null> {
@@ -26,14 +34,15 @@ export async function findVaultById(id: string, userId: string): Promise<VaultDa
 
 export async function findVaultByCategory(userId: string, category: string): Promise<VaultData[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('vault_data')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('category', category)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data
+  const rows = await readAllPages<VaultData>(
+    (after, limit) => {
+      let query = supabase.from('vault_data').select('*').eq('user_id', userId).eq('category', category)
+      if (after) query = query.or(afterKey('created_at', after))
+      return query.order('created_at', { ascending: true }).order('id', { ascending: true }).limit(limit)
+    },
+    (row) => ({ at: row.created_at, id: row.id })
+  )
+  return rows.reverse()
 }
 
 export async function createVaultEntry(entry: InsertVaultData): Promise<VaultData> {

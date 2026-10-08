@@ -6,19 +6,28 @@ import { Download, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { downloadJson } from '@/lib/utils/download';
 import { useAuditLogs } from '@/lib/hooks/useAudit';
+import { useToast } from '@/lib/hooks/use-toast';
+import { exportAuditLogAction } from '@/lib/actions/audit.actions';
 
 export default function AuditPage() {
   const { data, isLoading, error, refetch } = useAuditLogs();
 
+  const { toast } = useToast();
   const logs = data?.logs ?? [];
   const chainValid = data?.chainValid ?? null;
 
-  function handleExport() {
-    downloadJson('lucid-audit-log.json', {
-      exportedAt: new Date().toISOString(),
-      chainValid,
-      entries: logs,
-    });
+  // The page shows the latest entries; the export holds every one of them.
+  async function handleExport() {
+    try {
+      const all = await exportAuditLogAction();
+      downloadJson('lucid-audit-log.json', {
+        exportedAt: new Date().toISOString(),
+        chainValid: all.chainValid,
+        entries: all.logs,
+      });
+    } catch {
+      toast({ variant: 'destructive', title: 'Could not export the log', description: 'Try again.' });
+    }
   }
 
   if (isLoading) {

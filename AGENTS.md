@@ -65,6 +65,7 @@ Database and migrations:
 - Vercel deploys `main` straight away, but the production migration waits for approval. Ship a schema change in its own pull request, approve its production run, then merge the code that depends on it. Removing a column or table follows the reverse order: stop using it first, then drop it.
 - `supabase/tests/database/` holds pgTAP tests that CI runs against a database built from every migration. They check that every public table has RLS, that every `SECURITY DEFINER` function pins `search_path` and is closed to `anon`, and that signed-in users can execute only a reviewed list of them. Exposing a new RPC means adding it to that list.
 - There is no ORM. Do not add Prisma.
+- PostgREST returns at most 1,000 rows a request and says nothing when it stops. Any read that needs a whole collection, such as every vault entry or the whole audit chain, must page with `readAllPages` from `lib/repositories/paging.ts`.
 
 Environment variables (never commit `.env.local`):
 

@@ -53,23 +53,57 @@ export async function createAuditEntry(params: CreateAuditEntryParams): Promise<
   })
 }
 
+/** The most recent entries, for display. */
 export async function getAuditLogs(userId: string): Promise<AuditLog[]> {
   return auditRepo.findAuditLogsByUserId(userId)
 }
 
-export function verifyAuditChain(logs: AuditLog[]): boolean {
-  // logs should be in ascending timestamp order for verification
-  const sorted = [...logs].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-  for (let i = 0; i < sorted.length; i++) {
-    const log = sorted[i]
-    const prevHash = i === 0 ? null : sorted[i - 1].current_hash
-    const expected = createAuditHash(prevHash, {
+/** Every entry, oldest first, for an export. */
+export async function getAllAuditLogs(userId: string): Promise<AuditLog[]> {
+  return auditRepo.findAllAuditLogs(userId)
+}
+
+/**
+ * Check a whole chain, from its first entry.
+ *
+ * Entries are taken in the order their hashes link them, not by timestamp,
+ * because two events in the same millisecond tie. The chain must start once,
+ * never branch, reach every entry, and every hash must match what it covers.
+ * Given only part of a chain this fails, because the oldest entry it holds
+ * points at one it does not: verify the whole thing, with verifyUserAuditChain.
+ */
+export function verifyAuditChain(
+  logs: readonly Pick<
+    AuditLog,
+    'user_id' | 'event_type' | 'action' | 'timestamp' | 'previous_hash' | 'current_hash'
+  >[]
+): boolean {
+  if (logs.length === 0) return true
+  const next = new Map<string | null, (typeof logs)[number]>()
+  for (const log of logs) {
+    const link = log.previous_hash ?? null
+    // Two entries after the same one is a branch, which an append-only chain never has.
+    if (next.has(link)) return false
+    next.set(link, log)
+  }
+
+  let previous: string | null = null
+  let reached = 0
+  for (let log = next.get(null); log; log = next.get(previous)) {
+    const expected = createAuditHash(previous, {
       userId: log.user_id,
       eventType: log.event_type,
       action: log.action,
       timestamp: new Date(log.timestamp),
     })
     if (expected !== log.current_hash) return false
+    previous = log.current_hash
+    reached++
   }
-  return true
+  return reached === logs.length
+}
+
+/** Read the person's whole audit chain and check it. */
+export async function verifyUserAuditChain(userId: string): Promise<boolean> {
+  return verifyAuditChain(await auditRepo.findAuditChain(userId))
 }
