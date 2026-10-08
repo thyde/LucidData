@@ -146,7 +146,8 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
 export const SERVER_VISIBLE_VAULT_METADATA = [
   {
     column: 'label',
-    purpose: 'The name you give an entry, shown in your vault list',
+    purpose:
+      'The name you give an entry, shown in your vault list. An entry the app imports or syncs is named by its type, such as Workout, so the name it had at its source stays encrypted',
   },
   {
     column: 'description',

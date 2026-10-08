@@ -118,7 +118,8 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
         data: {
           label: values.label,
           category: values.category,
-          description: values.description || undefined,
+          // Sent even when empty, so clearing the field clears it on the server.
+          description: values.description ?? '',
           tags: values.tags || [],
           data: parsedData,
           expiresAt: values.expiresAt ? new Date(values.expiresAt) : undefined,

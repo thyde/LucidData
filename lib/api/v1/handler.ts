@@ -37,6 +37,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const STATUS_BY_CODE: Record<string, number> = {
   not_found: 404,
   conflict: 409,
+  already_stored: 409,
   recovery_required: 409,
   health_consent_required: 403,
   step_up_required: 403,

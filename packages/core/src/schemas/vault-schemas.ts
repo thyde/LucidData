@@ -230,6 +230,9 @@ export const NutritionDailySchema = z
 export type NutritionDaily = z.infer<typeof NutritionDailySchema>
 
 // --- Schema registry ---
+// `internal` marks a type the app writes itself: the extension's tracker
+// summary, and the copy of a credential saved when one is claimed. Nobody types
+// one in or imports one from a file, and no organization issues or requests one.
 export const VAULT_SCHEMA_TYPES = {
   custom: { label: 'Custom (JSON)', description: 'Free-form JSON data', category: 'personal' },
   medical_basic: { label: 'Medical record', description: 'Basic medical information', category: 'health' },
@@ -243,10 +246,23 @@ export const VAULT_SCHEMA_TYPES = {
   vitals_daily: { label: 'Daily vitals', description: 'Resting heart rate, blood oxygen, blood pressure, and other readings for one day', category: 'health' },
   body_measurement: { label: 'Body measurement', description: 'Weight, height, body fat, or waist on one day', category: 'health' },
   nutrition_daily: { label: 'Daily nutrition', description: 'Energy, protein, carbohydrates, fat, and water for one day', category: 'health' },
-  browsing_insight: { label: 'Tracker summary', description: 'Who collected data as you browsed, counted on your device', category: 'other' },
+  browsing_insight: { label: 'Tracker summary', description: 'Who collected data as you browsed, counted on your device', category: 'other', internal: true },
+  verifiable_credential: { label: 'Issued credential', description: 'An encrypted copy of a credential an organization issued to you', category: 'credentials', internal: true },
 } as const
 
 export type VaultSchemaType = keyof typeof VAULT_SCHEMA_TYPES
+
+function isInternal(type: VaultSchemaType): boolean {
+  return 'internal' in VAULT_SCHEMA_TYPES[type]
+}
+
+/** Types a person can enter by hand or import a file into. */
+export const ENTERABLE_SCHEMA_TYPES = (Object.keys(VAULT_SCHEMA_TYPES) as VaultSchemaType[]).filter(
+  (type) => !isInternal(type)
+)
+
+/** Types an organization can issue or request as a credential: not free-form, not written by the app. */
+export const CREDENTIAL_SCHEMA_TYPES = ENTERABLE_SCHEMA_TYPES.filter((type) => type !== 'custom')
 
 export const SCHEMA_VALIDATORS: Record<string, z.ZodSchema> = {
   medical_basic: MedicalBasicSchema,

@@ -380,6 +380,22 @@ describe('VaultEditDialog', () => {
       expect(data.label).toBe('Renamed vitals');
       expect(data.data).toEqual({ date: '2026-10-08', blood_oxygen_pct: 140 });
     });
+
+    it('clears a description that is emptied', async () => {
+      const user = userEvent.setup();
+      render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
+
+      await user.clear(screen.getByDisplayValue('My health information'));
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      await waitFor(() => expect(mockUpdateMutation.mutate).toHaveBeenCalled());
+      const [{ data }] = vi.mocked(mockUpdateMutation.mutate).mock.calls[0] as [
+        { data: Record<string, unknown> },
+        unknown,
+      ];
+      // Readable text a person removes has to be removed on the server too.
+      expect(data.description).toBe('');
+    });
   });
 
   // Submission Tests (7 tests)

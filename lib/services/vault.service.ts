@@ -1,7 +1,7 @@
 import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertRecoveryReadyForFirstWrite } from '@/lib/services/recovery-factor.service'
-import { parseProvenance } from '@luciddata/core/validations/provenance'
+import { ALREADY_STORED, parseProvenance } from '@luciddata/core/validations/provenance'
 import type { VaultData, InsertVaultData, UpdateVaultData } from '@/types/database.types'
 import { UserFacingError } from '@/lib/actions/action-result'
 import { assertHealthDataConsent } from '@/lib/services/legal.service'
@@ -36,6 +36,46 @@ export interface UpdateVaultPayload {
   expires_at?: string
 }
 
+// The columns each write may set. Everything else in a payload is dropped, so a
+// caller cannot choose which columns are written, and the owner always comes
+// from the session.
+const CREATE_FIELDS = [
+  'label',
+  'category',
+  'tags',
+  'schema_type',
+  'description',
+  'client_ciphertext',
+  'encrypted_dek',
+  'dek_salt',
+  'expires_at',
+] as const
+const UPDATE_FIELDS = [
+  'label',
+  'category',
+  'tags',
+  'description',
+  'client_ciphertext',
+  'encrypted_dek',
+  'dek_salt',
+  'expires_at',
+] as const
+
+function pick(payload: object, fields: readonly string[]): Record<string, unknown> {
+  const source = payload as Record<string, unknown>
+  const picked: Record<string, unknown> = {}
+  for (const field of fields) {
+    if (source[field] !== undefined) picked[field] = source[field]
+  }
+  return picked
+}
+
+/** The unique index on a source's record id, which makes a re-import add nothing. */
+function isDuplicateSourceRecord(error: unknown): boolean {
+  const { code, message } = (error ?? {}) as { code?: string; message?: string }
+  return code === '23505' && String(message ?? '').includes('idx_vault_source_record_unique')
+}
+
 export async function createVaultData(userId: string, payload: CreateVaultPayload): Promise<VaultData> {
   // LD-110: health data needs its own consent before we store any of it.
   if (isHealthEntry(payload)) await assertHealthDataConsent(userId)
@@ -52,11 +92,19 @@ export async function createVaultData(userId: string, payload: CreateVaultPayloa
     source_captured_at: payload.source_captured_at,
   })
 
-  const entry = await vaultRepo.createVaultEntry({
-    user_id: userId,
-    ...payload,
-    ...provenance,
-  } as InsertVaultData)
+  let entry: VaultData
+  try {
+    entry = await vaultRepo.createVaultEntry({
+      ...pick(payload, CREATE_FIELDS),
+      ...provenance,
+      user_id: userId,
+    } as InsertVaultData)
+  } catch (error) {
+    if (isDuplicateSourceRecord(error)) {
+      throw new UserFacingError('This record is already in your vault', ALREADY_STORED)
+    }
+    throw error
+  }
   await createAuditEntry({
     userId,
     eventType: 'data_created',
@@ -94,7 +142,11 @@ export async function updateVaultData(id: string, userId: string, payload: Updat
   // storing health data, so it needs the same consent as creating one.
   if (isHealthEntry(payload)) await assertHealthDataConsent(userId)
 
-  const updated = await vaultRepo.updateVaultEntry(id, userId, payload as UpdateVaultData)
+  const updated = await vaultRepo.updateVaultEntry(
+    id,
+    userId,
+    pick(payload, UPDATE_FIELDS) as UpdateVaultData
+  )
   await createAuditEntry({
     userId,
     eventType: 'data_updated',

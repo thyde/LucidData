@@ -22,8 +22,10 @@ import {
   type FieldMapping,
 } from '@luciddata/core/vault/import-parsers'
 import { parseWithAdapter } from '@luciddata/core/vault/adapters'
-import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
+import { ENTERABLE_SCHEMA_TYPES, VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
 import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
+import { fitLabel, importedEntryLabel } from '@luciddata/core/vault/labels'
+import { vaultTagsSchema } from '@luciddata/core/validations/vault'
 import { summarizeSchemaErrors, validateSchemaData } from '@luciddata/core/schemas/validate'
 import {
   Dialog,
@@ -170,13 +172,20 @@ export function VaultImportDialog() {
     applyTargetType(type, parsed?.records ?? [])
   }
 
+  const tags = useMemo(
+    () =>
+      tagsInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+    [tagsInput]
+  )
+  const tagsCheck = vaultTagsSchema.safeParse(tags)
+  const tagsError = tagsCheck.success ? null : tagsCheck.error.issues[0].message
+
   const handleImport = async () => {
-    if (!parsed || isLocked) return
+    if (!parsed || isLocked || tagsError) return
     const records = parsed.records.slice(0, MAX_RECORDS)
-    const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
     const fields = targetType !== 'custom' ? SCHEMA_FORM_FIELDS[targetType] : null
     const fieldLabels = Object.fromEntries((fields ?? []).map((field) => [field.name, field.label]))
 
@@ -210,7 +219,11 @@ export function VaultImportDialog() {
           () =>
             unwrap(
               createVaultEntryAction({
-                label: labelForRecord(record, `${labelPrefix} ${i + 1}`),
+                // Labels are readable. A provider export's records carry free
+                // text, such as a workout's name, so those are labelled by type.
+                label: adapterLabel
+                  ? importedEntryLabel(fields ? targetType : 'custom')
+                  : labelForRecord(record, fitLabel(`${labelPrefix || 'Imported'} ${i + 1}`)),
                 category,
                 tags,
                 schema_type: fields ? targetType : undefined,
@@ -357,9 +370,9 @@ export function VaultImportDialog() {
                   value={targetType}
                   onChange={(e) => handleTargetTypeChange(e.target.value)}
                 >
-                  {Object.entries(VAULT_SCHEMA_TYPES).map(([key, { label }]) => (
+                  {ENTERABLE_SCHEMA_TYPES.map((key) => (
                     <option key={key} value={key}>
-                      {key === 'custom' ? 'Keep fields as-is' : label}
+                      {key === 'custom' ? 'Keep fields as-is' : VAULT_SCHEMA_TYPES[key].label}
                     </option>
                   ))}
                 </select>
@@ -399,18 +412,27 @@ export function VaultImportDialog() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="import-label-prefix">Label prefix</Label>
-                <Input
-                  id="import-label-prefix"
-                  value={labelPrefix}
-                  onChange={(e) => setLabelPrefix(e.target.value)}
-                  placeholder="Imported"
-                />
+              {adapterLabel ? (
                 <p className="text-xs text-muted-foreground">
-                  Used when a record has no name, title, or label field.
+                  Each entry is labelled with its type, such as Workout. Labels are not encrypted,
+                  so names and dates from the export stay in the encrypted data.
                 </p>
-              </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="import-label-prefix">Label prefix</Label>
+                  <Input
+                    id="import-label-prefix"
+                    value={labelPrefix}
+                    maxLength={80}
+                    onChange={(e) => setLabelPrefix(e.target.value)}
+                    placeholder="Imported"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    A record&apos;s name, title, or label field becomes its label, and this is used when
+                    it has none. Labels are not encrypted, so LucidData can see them.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="import-category">Category</Label>
@@ -436,7 +458,14 @@ export function VaultImportDialog() {
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
                   placeholder="Comma-separated, applied to all"
+                  aria-invalid={tagsError ? true : undefined}
+                  aria-describedby={tagsError ? 'import-tags-error' : undefined}
                 />
+                {tagsError && (
+                  <p id="import-tags-error" className="text-sm text-destructive">
+                    {tagsError}
+                  </p>
+                )}
               </div>
 
               {progress && (
@@ -460,7 +489,11 @@ export function VaultImportDialog() {
           >
             Cancel
           </Button>
-          <Button type="button" onClick={handleImport} disabled={!parsed || importing || isLocked}>
+          <Button
+            type="button"
+            onClick={handleImport}
+            disabled={!parsed || importing || isLocked || Boolean(tagsError)}
+          >
             {importing ? 'Importing…' : 'Import'}
           </Button>
         </DialogFooter>

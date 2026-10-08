@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/lib/hooks/use-toast'
-import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
+import { CREDENTIAL_SCHEMA_TYPES, VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
 import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
 import {
   createCredentialRequestAction,
@@ -18,9 +18,9 @@ import type { CredentialRequest } from '@/types/database.types'
 import type { FulfilledCredentialView } from '@/lib/services/credential-request.service'
 import { unwrap } from '@/lib/actions/unwrap'
 
-const REQUESTABLE = Object.entries(VAULT_SCHEMA_TYPES).filter(
-  ([key]) => key !== 'custom'
-) as [string, { label: string; description: string }][]
+const REQUESTABLE = CREDENTIAL_SCHEMA_TYPES.map(
+  (type) => [type, VAULT_SCHEMA_TYPES[type]] as [string, { label: string; description: string }]
+)
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',

@@ -25,7 +25,11 @@ import {
   FormTagsField,
   FormDateField,
 } from '@/components/common/form-fields';
-import { VAULT_SCHEMA_TYPES, type VaultSchemaType } from '@luciddata/core/schemas/vault-schemas';
+import {
+  ENTERABLE_SCHEMA_TYPES,
+  VAULT_SCHEMA_TYPES,
+  type VaultSchemaType,
+} from '@luciddata/core/schemas/vault-schemas';
 import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields';
 import { validateSchemaData } from '@luciddata/core/schemas/validate';
 import { SchemaForm } from './schema-form';
@@ -187,8 +191,8 @@ export function VaultCreateDialog() {
                 value={schemaType}
                 onChange={e => handleSchemaTypeChange(e.target.value as VaultSchemaType)}
               >
-                {Object.entries(VAULT_SCHEMA_TYPES).map(([key, { label }]) => (
-                  <option key={key} value={key}>{label}</option>
+                {ENTERABLE_SCHEMA_TYPES.map((key) => (
+                  <option key={key} value={key}>{VAULT_SCHEMA_TYPES[key].label}</option>
                 ))}
               </select>
               {schemaType !== 'custom' && (

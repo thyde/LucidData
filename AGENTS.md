@@ -128,7 +128,7 @@ types/           database.types.ts is generated
 - Call the service function the matching server action calls. Put new logic in the service, never in the handler.
 - Never use the service-role client in a v1 handler, and never read a user id from the request. `lib/api/v1/__tests__/routes.test.ts` fails the build on either.
 - Validate bodies with the schemas in `packages/core/src/validations/client-api.ts`, and add every new route to `ROUTES` in `lib/api/v1/openapi.ts`. The routes test checks that the document and the route files match, and the snapshot shows the change in review.
-- Expected failures are `UserFacingError`s with a code. The wrapper turns `not_found` into 404, `conflict` and `recovery_required` into 409, `health_consent_required` into 403, `rate_limited` into 429, and any other refusal into 400. Every other error is logged and returned as a generic 500.
+- Expected failures are `UserFacingError`s with a code. The wrapper turns `not_found` into 404, `conflict`, `already_stored`, and `recovery_required` into 409, `health_consent_required` into 403, `rate_limited` into 429, and any other refusal into 400. Every other error is logged and returned as a generic 500.
 - A route file may export only HTTP methods and segment config such as `dynamic`. Next.js type-checks this during the build, not during `npm run typecheck`.
 
 ## Security rules that apply to every feature
@@ -148,13 +148,14 @@ Never log or expose (threat-model "never do" list):
 
 - Plaintext vault data, the master key, derived keys, DEKs, salts, passwords, or session tokens. Not in logs, errors, analytics, or responses.
 - Keep unencrypted metadata minimal. Columns like `label`, `category`, and `tags` are queryable and therefore visible to the server; never put sensitive content there.
+- An entry the app imports or syncs is labelled by its type with `importedEntryLabel()` from `packages/core/src/vault/labels.ts`. A provider's own name for a record is free text that LD-501 classifies as an identifier, so it stays in the encrypted data and the browser shows it with `recordSummary()`.
 - Do not weaken PBKDF2 iterations, reuse IVs, or roll your own crypto. Use the helpers in `packages/core/src/crypto/` and `lib/crypto/`.
 
 Encryption (client-side):
 
 - Encrypt vault data in the browser before it reaches the server. Use `packages/core/src/crypto/client-crypto.ts` (AES-GCM) and `packages/core/src/crypto/key-derivation.ts` (PBKDF2, 600k iterations).
 - Use envelope encryption: encrypt data with a per-entry DEK, wrap the DEK with the user's master key, and send only `client_ciphertext`, `encrypted_dek`, and `dek_salt`.
-- Treat those three fields as required and non-empty for any write. Validate them in the action (Zod schema in `packages/core/src/validations/`) before calling the service. Never write a partial or plaintext row. Note: the current vault path accepts a typed payload without a Zod `parse`; new and refactored writes should add the schema check.
+- Treat those three fields as required and non-empty for any write. Validate them in the action (Zod schema in `packages/core/src/validations/`) before calling the service. Never write a partial or plaintext row. The vault actions parse with the client API's `vaultEntryCreateSchema` and `vaultEntryUpdateSchema`, so both surfaces accept the same fields, and the vault service copies only the columns a write may set, with the owner taken from the session.
 - Server-held keys exist only for issuer signing: Ed25519 private keys are AES-256-GCM-wrapped with `ISSUER_KEY_SECRET` (`lib/crypto/credential-signing.ts`).
 
 Keys and recovery:

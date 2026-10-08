@@ -7,16 +7,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/lib/hooks/use-toast'
 import { SchemaForm } from '@/components/vault/schema-form'
-import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
+import { CREDENTIAL_SCHEMA_TYPES, VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
 import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
 import { issueCredentialAction } from '@/lib/actions/credential.actions'
 import { revokeCredentialAction } from '@/lib/actions/credential.actions'
 import type { IssuedCredential } from '@/types/database.types'
 
-// Issuer-relevant schema types (exclude free-form custom and personal-only types).
-const ISSUABLE_TYPES = Object.entries(VAULT_SCHEMA_TYPES).filter(
-  ([key]) => key !== 'custom'
-) as [string, { label: string; description: string }][]
+// Free-form custom entries and types the app writes itself are not credentials.
+const ISSUABLE_TYPES = CREDENTIAL_SCHEMA_TYPES.map(
+  (type) => [type, VAULT_SCHEMA_TYPES[type]] as [string, { label: string; description: string }]
+)
 
 interface IssueCredentialProps {
   orgId: string

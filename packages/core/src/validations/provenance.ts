@@ -55,6 +55,13 @@ export const provenanceSchema = z
 export type ProvenanceInput = z.infer<typeof provenanceSchema>
 
 /**
+ * The code a write is refused with when the vault already holds the same record
+ * from the same source. An importer or a sync drain treats it as done: the
+ * record is there, which is what the write was for.
+ */
+export const ALREADY_STORED = 'already_stored'
+
+/**
  * Validate provenance before it is written.
  *
  * Returns the normalized subset rather than the whole payload, so a caller

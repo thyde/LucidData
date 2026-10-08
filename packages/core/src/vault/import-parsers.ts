@@ -3,6 +3,7 @@
 // the clear. Each parser turns a file's text into a list of plain record objects,
 // one per vault entry.
 
+import { fitLabel } from './labels'
 import type { FormField } from '../schemas/form-fields'
 
 export type ImportFormat = 'json' | 'csv'
@@ -135,7 +136,7 @@ export function labelForRecord(
   fallback: string
 ): string {
   const candidate = record.label ?? record.name ?? record.title ?? record.id
-  const text = candidate == null ? '' : String(candidate).trim()
+  const text = candidate == null ? '' : fitLabel(String(candidate))
   return text || fallback
 }
 
