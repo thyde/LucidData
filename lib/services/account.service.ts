@@ -95,6 +95,26 @@ export async function completeOnboarding(userId: string): Promise<void> {
   await userRepo.updateUser(userId, { onboarding_completed: true })
 }
 
+/**
+ * Store the salt the browser generated for this account's master key, unless
+ * one is already stored, and return the salt that is. Called on the first
+ * sign-in after the email address is confirmed, or straight after sign-up where
+ * confirmation is off. The caller must derive the key from the returned salt,
+ * not from the one it proposed.
+ */
+export async function claimKeySalt(userId: string, proposed: string): Promise<string> {
+  const stored = await userRepo.setKeySaltIfUnset(userId, proposed)
+  if (!stored) throw new Error('Key salt was not stored')
+  if (stored === proposed) {
+    await createAuditEntry({
+      userId,
+      eventType: 'vault_initialized',
+      action: 'Set up vault encryption',
+    })
+  }
+  return stored
+}
+
 export async function removePasskey(userId: string, passkeyId: string): Promise<void> {
   const service = createServiceClient()
   const { data, error } = await service

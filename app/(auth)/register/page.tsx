@@ -6,16 +6,19 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getAuthErrorMessage } from '@/lib/utils/network-errors';
 import { useEncryption } from '@/lib/context/encryption-context';
-import { generateKeySalt } from '@/lib/crypto/key-derivation';
 import { useTurnstile } from '@/lib/hooks/use-turnstile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display';
-import { setupRecoveryFromPassword } from '@/lib/account/account-crypto';
+import { CheckEmail } from '@/components/auth/check-email';
+import { RecoveryCodeDialog } from '@/components/auth/recovery-code-dialog';
+import { setUpVault } from '@/lib/account/account-crypto';
 import { signupSourceFrom } from '@/lib/utils/signup-source';
+
+/** The account exists and is signed in; only the vault setup is missing. */
+const SETUP_UNFINISHED_MESSAGE =
+  'Your account is created, but setting up your vault did not finish. Sign in to finish it.';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -26,6 +29,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState<string | null>(null);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
@@ -65,8 +69,6 @@ export default function RegisterPage() {
     setLoading(true);
     setErrors({});
 
-    // Generate a unique key salt before registration (browser crypto, no server involvement)
-    const keySalt = generateKeySalt();
     const supabase = createClient();
 
     try {
@@ -88,44 +90,33 @@ export default function RegisterPage() {
         return;
       }
 
+      // With email confirmation on, there is no session until the address is
+      // confirmed. The vault is set up at the first sign-in after that, which
+      // is when the password is next in hand.
       if (!data.session) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-          options: { captchaToken: await getCaptchaToken() },
-        });
-
-        if (signInError) {
-          setErrors({ general: getAuthErrorMessage(signInError) });
-          return;
-        }
+        setAwaitingConfirmation(email);
+        return;
       }
 
-      // Store the key_salt in the users table
+      // Confirmation is off here (local development and previews), so the vault
+      // is set up now, in the browser, from the password just entered.
+      let setup;
       try {
-        await fetch('/api/user/profile', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key_salt: keySalt }),
-        });
+        setup = await setUpVault(password);
       } catch {
-        // Non-fatal: key_salt can be regenerated, but user must re-register to set it properly
+        setErrors({ general: SETUP_UNFINISHED_MESSAGE });
+        return;
       }
 
-      // Derive master key for this session
       try {
-        await unlock(password, keySalt);
+        await unlock(password, setup.keySalt);
       } catch {
-        // Non-fatal: vault will be locked but user is still registered
+        // The vault stays locked, and signing in again unlocks it.
       }
 
-      // Set up a recovery code so a future password reset can restore the vault.
-      try {
-        const code = await setupRecoveryFromPassword(password, keySalt);
-        setRecoveryCode(code);
-        return; // Hold on the recovery-code dialog until the user acknowledges it.
-      } catch {
-        // Non-fatal: the user can generate a recovery code later in settings.
+      if (setup.recoveryCode) {
+        setRecoveryCode(setup.recoveryCode);
+        return; // Hold on the recovery-code dialog until the person acknowledges it.
       }
 
       router.push('/dashboard');
@@ -138,11 +129,21 @@ export default function RegisterPage() {
     }
   };
 
+  if (awaitingConfirmation) {
+    return (
+      <CheckEmail
+        email={awaitingConfirmation}
+        getCaptchaToken={getCaptchaToken}
+        turnstileRef={turnstileRef}
+      />
+    );
+  }
+
   return (
     <>
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
+        <CardTitle as="h1" className="text-2xl font-bold text-center">Create an account</CardTitle>
         <CardDescription className="text-center">
           Start securing your personal data today
         </CardDescription>
@@ -215,21 +216,7 @@ export default function RegisterPage() {
         </CardFooter>
       </form>
     </Card>
-    <Dialog open={!!recoveryCode} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
-        <DialogHeader>
-          <DialogTitle>Save your recovery code</DialogTitle>
-          <DialogDescription>
-            This is the only way to recover your vault if you forget your password. Store it
-            somewhere safe. It is shown once.
-          </DialogDescription>
-        </DialogHeader>
-        {recoveryCode && <RecoveryCodeDisplay code={recoveryCode} />}
-        <Button asChild className="w-full">
-          <Link href="/dashboard">Continue to dashboard</Link>
-        </Button>
-      </DialogContent>
-    </Dialog>
+    <RecoveryCodeDialog code={recoveryCode} continueHref="/dashboard" />
     </>
   );
 }

@@ -68,15 +68,23 @@ export function analyzeError(error: unknown): NetworkErrorAnalysis {
 export function getAuthErrorMessage(error: unknown): string {
   // Before the network checks: Turnstile's 'timeout-or-duplicate' would otherwise read as an outage.
   const message = (error as Error | null)?.message ?? '';
-  if ((error as { code?: string } | null)?.code === 'captcha_failed' || /captcha protection/i.test(message)) {
+  const code = (error as { code?: string } | null)?.code;
+  if (code === 'captcha_failed' || /captcha protection/i.test(message)) {
     return CAPTCHA_FAILED_MESSAGE;
+  }
+  if (code === 'email_not_confirmed' || /email not confirmed/i.test(message)) {
+    return EMAIL_NOT_CONFIRMED_MESSAGE;
   }
 
   const analysis = analyzeError(error);
 
   if (analysis.isNetworkError) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    return `Cannot connect to authentication service at ${url}. Please ensure Supabase is running. Try: npx supabase start`;
+    // The setup hint only helps someone running the app locally.
+    if (process.env.NODE_ENV === 'development') {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      return `Cannot connect to authentication service at ${url}. Please ensure Supabase is running. Try: npx supabase start`;
+    }
+    return NETWORK_FAILED_MESSAGE;
   }
 
   return analysis.message;
@@ -84,3 +92,9 @@ export function getAuthErrorMessage(error: unknown): string {
 
 export const CAPTCHA_FAILED_MESSAGE =
   'The security check did not complete. Reload the page and try again. If this keeps happening, allow challenges.cloudflare.com in your browser or content blocker.';
+
+export const EMAIL_NOT_CONFIRMED_MESSAGE =
+  'Confirm your email address before you sign in. Use the link in the email we sent when you signed up.';
+
+export const NETWORK_FAILED_MESSAGE =
+  'We could not reach the sign-in service. Check your connection and try again.';

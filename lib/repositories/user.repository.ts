@@ -13,9 +13,31 @@ export async function findUserById(id: string): Promise<User | null> {
   return data
 }
 
+/**
+ * Store a key salt only if the account has none, then return whichever salt is
+ * stored. Two tabs finishing setup at once both get the same answer, and the
+ * database refuses to replace a salt that is already set.
+ */
+export async function setKeySaltIfUnset(id: string, keySalt: string): Promise<string | null> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('users')
+    .update({ key_salt: keySalt, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('key_salt', null)
+  if (error) throw error
+
+  const { data, error: readError } = await supabase
+    .from('users')
+    .select('key_salt')
+    .eq('id', id)
+    .single()
+  if (readError) throw readError
+  return data.key_salt
+}
+
 export async function updateUser(id: string, updates: {
   display_name?: string
-  key_salt?: string
   key_hint?: string
   wrapped_master_key?: string | null
   recovery_code_salt?: string | null

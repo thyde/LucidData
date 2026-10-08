@@ -15,6 +15,21 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PasskeyLoginButton } from '@/components/auth/passkey-login-button';
 import { VaultUnlockDialog } from '@/components/auth/vault-unlock-dialog';
 import { MfaChallenge } from '@/components/auth/mfa-challenge';
+import { RecoveryCodeDialog } from '@/components/auth/recovery-code-dialog';
+import { useResendConfirmation } from '@/components/auth/check-email';
+import { setUpVault } from '@/lib/account/account-crypto';
+
+/** What the confirm-email page reports back, shown above the form. */
+const CONFIRMATION_NOTICES: Record<string, { kind: 'status' | 'alert'; text: string }> = {
+  '1': {
+    kind: 'status',
+    text: 'Your email address is confirmed. Sign in to set up your vault.',
+  },
+  invalid: {
+    kind: 'alert',
+    text: 'That confirmation link has expired or was already used. If you have not confirmed yet, sign in and you can ask for a new link.',
+  },
+};
 
 function LoginForm() {
   const router = useRouter();
@@ -28,7 +43,16 @@ function LoginForm() {
   const [passkeyKeySalt, setPasskeyKeySalt] = useState<string | null>(null);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
   const redirectTo = safeRedirectPath(searchParams.get('redirectedFrom'));
+  const confirmation = CONFIRMATION_NOTICES[searchParams.get('confirmed') ?? ''];
+  const {
+    resend,
+    sending: resending,
+    coolingDown,
+    notice: resendNotice,
+  } = useResendConfirmation({ email: unconfirmedEmail ?? '', getCaptchaToken });
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
@@ -54,6 +78,7 @@ function LoginForm() {
 
     setLoading(true);
     setErrors({});
+    setUnconfirmedEmail(null);
 
     const supabase = createClient();
 
@@ -66,16 +91,24 @@ function LoginForm() {
 
       if (error) {
         setErrors({ general: getAuthErrorMessage(error) });
+        if (error.code === 'email_not_confirmed') setUnconfirmedEmail(email);
         return;
       }
 
-      // Derive master key from password immediately after login
+      // Derive the master key from the password while it is in hand.
+      let newRecoveryCode: string | null = null;
       try {
         const profileRes = await fetch('/api/user/profile');
         if (profileRes.ok) {
           const { data: profile } = await profileRes.json() as { data: { key_salt: string | null } };
           if (profile?.key_salt) {
             await unlock(password, profile.key_salt);
+          } else {
+            // LD-610: the first sign-in after confirming the email address is
+            // where the vault gets its salt and recovery code.
+            const setup = await setUpVault(password);
+            await unlock(password, setup.keySalt);
+            newRecoveryCode = setup.recoveryCode;
           }
         }
       } catch {
@@ -87,6 +120,11 @@ function LoginForm() {
       if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
         setMfaRequired(true);
         return;
+      }
+
+      if (newRecoveryCode) {
+        setRecoveryCode(newRecoveryCode);
+        return; // Hold on the recovery-code dialog until the person acknowledges it.
       }
 
       router.push(redirectTo);
@@ -103,7 +141,7 @@ function LoginForm() {
     return (
       <Card>
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Two-factor authentication</CardTitle>
+          <CardTitle as="h1" className="text-2xl font-bold text-center">Two-factor authentication</CardTitle>
           <CardDescription className="text-center">
             Enter the 6-digit code from your authenticator app
           </CardDescription>
@@ -123,16 +161,49 @@ function LoginForm() {
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+        <CardTitle as="h1" className="text-2xl font-bold text-center">Welcome back</CardTitle>
         <CardDescription className="text-center">
           Enter your credentials to access your vault
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleLogin} noValidate>
         <CardContent className="space-y-4">
+          {confirmation && !errors.general && (
+            <p
+              role={confirmation.kind}
+              className={
+                confirmation.kind === 'alert'
+                  ? 'bg-destructive/15 text-destructive text-sm p-3 rounded-md'
+                  : 'bg-muted text-sm p-3 rounded-md'
+              }
+            >
+              {confirmation.text}
+            </p>
+          )}
           {errors.general && (
             <div role="alert" className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
               {errors.general}
+            </div>
+          )}
+          {unconfirmedEmail && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={resending || coolingDown}
+                onClick={resend}
+              >
+                {resending ? 'Sending...' : 'Send a new confirmation link'}
+              </Button>
+              {resendNotice && (
+                <p
+                  role={resendNotice.kind === 'error' ? 'alert' : 'status'}
+                  className="text-sm text-muted-foreground text-center"
+                >
+                  {resendNotice.text}
+                </p>
+              )}
             </div>
           )}
           <div className="space-y-2">
@@ -211,6 +282,7 @@ function LoginForm() {
           onClose={() => setShowUnlockDialog(false)}
         />
       )}
+      <RecoveryCodeDialog code={recoveryCode} continueHref={redirectTo} />
     </Card>
   );
 }
@@ -221,7 +293,7 @@ export default function LoginPage() {
       fallback={
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+            <CardTitle as="h1" className="text-2xl font-bold text-center">Welcome back</CardTitle>
             <CardDescription className="text-center">
               Enter your credentials to access your vault
             </CardDescription>

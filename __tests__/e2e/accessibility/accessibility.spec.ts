@@ -69,12 +69,21 @@ test.describe('Accessibility, public surfaces', () => {
     '/trust/threat-model',
     '/login',
     '/register',
+    '/forgot-password',
+    '/confirm-email?token_hash=scan-only&type=email',
   ]
 
   for (const route of publicRoutes) {
     test(`${route} has no serious or critical violations`, async ({ page }) => {
       await page.goto(route)
       await scan(page)
+    })
+  }
+
+  for (const route of ['/login', '/register', '/forgot-password', '/confirm-email']) {
+    test(`${route} names the page with one level-one heading`, async ({ page }) => {
+      await page.goto(route)
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     })
   }
 

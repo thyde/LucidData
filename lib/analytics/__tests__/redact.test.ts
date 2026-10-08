@@ -30,6 +30,7 @@ describe('redactAnalyticsEvent', () => {
     'https://luciddatabank.com/verify/receipt/6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f',
     'https://luciddatabank.com/org/invite/Qm9vbGVhbkNvbnN0YW50c0FyZU5vdFNlY3JldHM',
     'https://luciddatabank.com/recover-vault',
+    'https://luciddatabank.com/confirm-email?token_hash=pkce_0123456789abcdef&type=email',
     'https://luciddatabank.com/trusted-partner',
   ])('drops the private page %s', (url) => {
     expect(redactAnalyticsEvent(pageview(url))).toBeNull()

@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Reset your password</CardTitle>
+        <CardTitle as="h1" className="text-2xl font-bold text-center">Reset your password</CardTitle>
         <CardDescription className="text-center">
           We will email you a link to reset your password and recover your vault.
         </CardDescription>
