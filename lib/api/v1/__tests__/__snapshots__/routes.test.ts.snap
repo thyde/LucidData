@@ -1,0 +1,3825 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`OpenAPI document > matches the published snapshot 1`] = `
+{
+  "components": {
+    "schemas": {
+      "AccountDelete": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "confirm_phrase": {
+            "type": "string",
+          },
+          "step_up_token": {
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "confirm_phrase",
+          "step_up_token",
+        ],
+        "type": "object",
+      },
+      "ConsentCreate": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "access_level": {
+            "enum": [
+              "read",
+              "export",
+              "verify",
+            ],
+            "type": "string",
+          },
+          "data_category": {
+            "enum": [
+              "personal",
+              "health",
+              "financial",
+              "credentials",
+              "location",
+              "interests",
+              "browsing",
+              "other",
+            ],
+            "type": "string",
+          },
+          "end_date": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string",
+          },
+          "granted_to": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string",
+          },
+          "granted_to_email": {
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string",
+          },
+          "granted_to_name": {
+            "maxLength": 200,
+            "type": "string",
+          },
+          "purpose": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string",
+          },
+          "vault_data_id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "granted_to",
+          "access_level",
+          "purpose",
+        ],
+        "type": "object",
+      },
+      "ConsentExtend": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "end_date": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "end_date",
+        ],
+        "type": "object",
+      },
+      "ConsentRequestResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "note": {
+            "maxLength": 500,
+            "type": "string",
+          },
+          "response": {
+            "enum": [
+              "approved",
+              "denied",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "response",
+        ],
+        "type": "object",
+      },
+      "ConsentRevoke": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "reason",
+        ],
+        "type": "object",
+      },
+      "CredentialRequestDeny": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "note": {
+            "maxLength": 500,
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "CredentialRequestFulfill": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "selections": {
+            "items": {
+              "properties": {
+                "credential_id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+                "disclosed_claims": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "minItems": 1,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "credential_id",
+                "disclosed_claims",
+              ],
+              "type": "object",
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "selections",
+        ],
+        "type": "object",
+      },
+      "Error": {
+        "properties": {
+          "code": {
+            "description": "A stable code to branch on, when there is one.",
+            "type": "string",
+          },
+          "error": {
+            "description": "A message written for the person using the client.",
+            "type": "string",
+          },
+          "issues": {
+            "description": "For invalid input, what was wrong with which field.",
+            "items": {
+              "properties": {
+                "message": {
+                  "type": "string",
+                },
+                "path": {
+                  "type": "string",
+                },
+              },
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "error",
+        ],
+        "type": "object",
+      },
+      "HealthConsentGrant": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "source": {
+            "default": "settings",
+            "enum": [
+              "settings",
+              "health-gate",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "IngestClear": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string",
+            },
+            "maxItems": 200,
+            "type": "array",
+          },
+        },
+        "required": [
+          "ids",
+        ],
+        "type": "object",
+      },
+      "IngestionKeyPublish": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "public_key": {
+            "maxLength": 4000,
+            "minLength": 40,
+            "type": "string",
+          },
+          "salt": {
+            "maxLength": 200,
+            "minLength": 8,
+            "type": "string",
+          },
+          "wrapped_private_key": {
+            "maxLength": 8000,
+            "minLength": 20,
+            "type": "string",
+          },
+        },
+        "required": [
+          "public_key",
+          "wrapped_private_key",
+          "salt",
+        ],
+        "type": "object",
+      },
+      "KeySaltClaim": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "key_salt": {
+            "pattern": "^[A-Za-z0-9+/]{43}=$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "key_salt",
+        ],
+        "type": "object",
+      },
+      "LegalAccept": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "documents": {
+            "items": {
+              "enum": [
+                "terms",
+                "privacy",
+              ],
+              "type": "string",
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "documents",
+        ],
+        "type": "object",
+      },
+      "ProfileUpdate": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "display_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+          },
+          "email_notifications_enabled": {
+            "type": "boolean",
+          },
+          "key_hint": {
+            "maxLength": 200,
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "RecoveryEscrow": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "recovery_code_salt": {
+            "minLength": 1,
+            "type": "string",
+          },
+          "wrapped_master_key": {
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "wrapped_master_key",
+          "recovery_code_salt",
+        ],
+        "type": "object",
+      },
+      "RecoveryFactorAdd": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "label": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string",
+          },
+          "salt": {
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "enum": [
+              "recovery_code",
+              "recovery_kit",
+            ],
+            "type": "string",
+          },
+          "wrapped_master_key": {
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "type",
+          "label",
+          "wrapped_master_key",
+          "salt",
+        ],
+        "type": "object",
+      },
+      "ShareCreate": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "credential_id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "disclosed_claims": {
+            "items": {
+              "minLength": 1,
+              "type": "string",
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "type": "array",
+          },
+          "expires_in_days": {
+            "maximum": 365,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "verifier_email": {
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "credential_id",
+          "disclosed_claims",
+        ],
+        "type": "object",
+      },
+      "StepUpRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "action": {
+            "enum": [
+              "export_vault",
+              "revoke_consent",
+              "change_password",
+              "add_recovery_factor",
+              "delete_account",
+              "revoke_session",
+            ],
+            "type": "string",
+          },
+          "proof": {
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "action",
+          "proof",
+        ],
+        "type": "object",
+      },
+      "VaultEntryBatchCreate": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "entries": {
+            "items": {
+              "properties": {
+                "category": {
+                  "default": "personal",
+                  "enum": [
+                    "personal",
+                    "health",
+                    "financial",
+                    "credentials",
+                    "location",
+                    "interests",
+                    "browsing",
+                    "other",
+                  ],
+                  "type": "string",
+                },
+                "client_ciphertext": {
+                  "maxLength": 2000000,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "dek_salt": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "description": {
+                  "maxLength": 500,
+                  "type": "string",
+                },
+                "encrypted_dek": {
+                  "maxLength": 4000,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "expires_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "schema_type": {
+                  "default": "custom",
+                  "enum": [
+                    "custom",
+                    "medical_basic",
+                    "financial_summary",
+                    "identity",
+                    "employment",
+                    "education",
+                    "fitness_activity",
+                    "fitness_daily",
+                    "browsing_insight",
+                  ],
+                  "type": "string",
+                },
+                "source_captured_at": {
+                  "type": "string",
+                },
+                "source_provider": {
+                  "pattern": "^[a-z0-9][a-z0-9_-]{0,39}$",
+                  "type": "string",
+                },
+                "source_record_id": {
+                  "description": "The provider's own key for the record. Requires source_provider.",
+                  "pattern": "^[A-Za-z0-9._:@=-]{1,128}$",
+                  "type": "string",
+                },
+                "tags": {
+                  "default": [],
+                  "items": {
+                    "maxLength": 50,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "maxItems": 20,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "label",
+                "client_ciphertext",
+                "encrypted_dek",
+                "dek_salt",
+              ],
+              "type": "object",
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "entries",
+        ],
+        "type": "object",
+      },
+      "VaultEntryCreate": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "category": {
+            "default": "personal",
+            "enum": [
+              "personal",
+              "health",
+              "financial",
+              "credentials",
+              "location",
+              "interests",
+              "browsing",
+              "other",
+            ],
+            "type": "string",
+          },
+          "client_ciphertext": {
+            "maxLength": 2000000,
+            "minLength": 1,
+            "type": "string",
+          },
+          "dek_salt": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string",
+          },
+          "description": {
+            "maxLength": 500,
+            "type": "string",
+          },
+          "encrypted_dek": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string",
+          },
+          "expires_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string",
+          },
+          "label": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+          },
+          "schema_type": {
+            "default": "custom",
+            "enum": [
+              "custom",
+              "medical_basic",
+              "financial_summary",
+              "identity",
+              "employment",
+              "education",
+              "fitness_activity",
+              "fitness_daily",
+              "browsing_insight",
+            ],
+            "type": "string",
+          },
+          "source_captured_at": {
+            "type": "string",
+          },
+          "source_provider": {
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,39}$",
+            "type": "string",
+          },
+          "source_record_id": {
+            "description": "The provider's own key for the record. Requires source_provider.",
+            "pattern": "^[A-Za-z0-9._:@=-]{1,128}$",
+            "type": "string",
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string",
+            },
+            "maxItems": 20,
+            "type": "array",
+          },
+        },
+        "required": [
+          "label",
+          "client_ciphertext",
+          "encrypted_dek",
+          "dek_salt",
+        ],
+        "type": "object",
+      },
+      "VaultEntryUpdate": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "category": {
+            "enum": [
+              "personal",
+              "health",
+              "financial",
+              "credentials",
+              "location",
+              "interests",
+              "browsing",
+              "other",
+            ],
+            "type": "string",
+          },
+          "client_ciphertext": {
+            "maxLength": 2000000,
+            "minLength": 1,
+            "type": "string",
+          },
+          "dek_salt": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string",
+          },
+          "description": {
+            "maxLength": 500,
+            "type": "string",
+          },
+          "encrypted_dek": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string",
+          },
+          "expires_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string",
+          },
+          "label": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+          },
+          "tags": {
+            "items": {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string",
+            },
+            "maxItems": 20,
+            "type": "array",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "The access token from signing in to LucidData. An account with two-factor authentication needs a token from a session that completed it.",
+        "scheme": "bearer",
+        "type": "http",
+      },
+    },
+  },
+  "info": {
+    "contact": {
+      "email": "support@luciddatabank.com",
+    },
+    "description": "The API the LucidData phone app and browser extensions use. Vault entries are encrypted on the device before they are sent, so the server stores and returns ciphertext it cannot read. Every request acts as the signed-in person, and row level security limits it to their own data. Request bodies are generated from the same schemas the server validates against.",
+    "title": "LucidData client API",
+    "version": "1.0.0",
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/account": {
+      "delete": {
+        "description": "Needs the phrase DELETE MY ACCOUNT and a step-up grant for delete_account.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDelete",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The signed deletion receipt.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Delete the account",
+      },
+    },
+    "/api/v1/audit": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The audit log, and whether its hash chain verifies.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Read the audit log",
+      },
+    },
+    "/api/v1/consents": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Every consent, each with its current status.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List consents",
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentCreate",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The consent, with its status.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Grant a consent",
+      },
+    },
+    "/api/v1/consents/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The consent, with its status.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Read one consent",
+      },
+    },
+    "/api/v1/consents/{id}/extend": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentExtend",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The consent with its new end date.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Extend a consent",
+      },
+    },
+    "/api/v1/consents/{id}/revoke": {
+      "post": {
+        "description": "Stops future access. Data already delivered stays with the recipient.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentRevoke",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The revoked consent.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Revoke a consent",
+      },
+    },
+    "/api/v1/credentials": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Credentials issued to the person, claimed and claimable, each with its issuer and a fresh signature check.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List held credentials",
+      },
+    },
+    "/api/v1/credentials/formats": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The standards formats a credential can be exported into.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List export formats",
+      },
+    },
+    "/api/v1/credentials/{id}/claim": {
+      "post": {
+        "description": "For a credential addressed to the account's verified email.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The claimed credential.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Claim a credential",
+      },
+    },
+    "/api/v1/credentials/{id}/export": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "description": "A format from /api/v1/credentials/formats.",
+            "in": "query",
+            "name": "format",
+            "required": true,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+          {
+            "description": "A version of that format.",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "maxLength": 20,
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The credential in the requested format.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Export a credential",
+      },
+    },
+    "/api/v1/ingest": {
+      "get": {
+        "description": "Records a sync sealed to the ingestion key, oldest first, up to 200. Only the device holding the master key can open them.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The sealed records, each with its provider.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List sealed records waiting to be opened",
+      },
+    },
+    "/api/v1/ingest/clear": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestClear",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "How many were cleared.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Clear sealed records the device has stored",
+      },
+    },
+    "/api/v1/ingest/key": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The public key, and the private half wrapped with the master key.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Read the ingestion key",
+      },
+      "put": {
+        "description": "Once only. A second publish is refused, because replacing the key would strand records already sealed to it.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestionKeyPublish",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation that the key is published.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Publish the ingestion key",
+      },
+    },
+    "/api/v1/legal": {
+      "get": {
+        "description": "A client should block use until no document is outstanding, as the web app does.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Accepted and outstanding documents, and health data consent.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Read legal acceptance status",
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegalAccept",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated status.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Accept the current terms or privacy policy",
+      },
+    },
+    "/api/v1/legal/health-consent": {
+      "delete": {
+        "description": "New health data is refused and every source is disconnected. Stored entries stay until deleted.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated status, and how many sources were disconnected.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Withdraw consent to storing health data",
+      },
+      "post": {
+        "description": "Required before any health entry is stored, and separate from the terms.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthConsentGrant",
+              },
+            },
+          },
+          "required": false,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated status.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Consent to storing health data",
+      },
+    },
+    "/api/v1/me": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The profile, including the key salt the master key is derived with. No wrapped keys.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Read the profile",
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated profile.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Change the profile",
+      },
+    },
+    "/api/v1/me/key-salt": {
+      "post": {
+        "description": "Stores the salt only if the account has none. The stored salt is returned, and it differs from the one sent only if another device claimed first.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeySaltClaim",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The stored key salt.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Claim the key salt for a new vault",
+      },
+    },
+    "/api/v1/me/recovery-escrow": {
+      "put": {
+        "description": "The master key wrapped on the device under a key derived from a recovery code. Password-reset recovery opens it. The code never reaches the server.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryEscrow",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation that the escrow is stored.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Store the recovery-code escrow",
+      },
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Notifications, and how many are unread.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List notifications",
+      },
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Mark every notification read",
+      },
+    },
+    "/api/v1/notifications/{id}/read": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Mark a notification read",
+      },
+    },
+    "/api/v1/recovery": {
+      "get": {
+        "description": "A new vault refuses its first entry, with code recovery_required, until it has a recovery factor or the person has declined one.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The recovery factors, and whether the vault may be written.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Read recovery status",
+      },
+    },
+    "/api/v1/recovery/decline": {
+      "post": {
+        "description": "Accept that a forgotten password makes the vault permanently unreadable. Allows the first write without a factor.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Decline recovery",
+      },
+    },
+    "/api/v1/recovery/factors": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryFactorAdd",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The new factor, without its wrapped key.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Add a recovery factor",
+      },
+    },
+    "/api/v1/recovery/factors/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation of the removal.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Remove a recovery factor",
+      },
+    },
+    "/api/v1/recovery/factors/{id}/confirm": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Confirm a recovery factor is still held",
+      },
+    },
+    "/api/v1/requests/consent": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Each request, with the name of the organization that asked.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List consent requests from organizations",
+      },
+    },
+    "/api/v1/requests/consent/{id}": {
+      "post": {
+        "description": "Approving creates the consent the organization asked for.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentRequestResponse",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The answered request.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Answer a consent request",
+      },
+    },
+    "/api/v1/requests/credential": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Each request, with the organization that asked.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List credential requests from organizations",
+      },
+    },
+    "/api/v1/requests/credential/{id}/deny": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialRequestDeny",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation that the request was declined.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Decline a credential request",
+      },
+    },
+    "/api/v1/requests/credential/{id}/fulfill": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialRequestFulfill",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "How many credentials were shared.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Answer a credential request by sharing",
+      },
+    },
+    "/api/v1/shares": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Every share link the person has made.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List credential shares",
+      },
+      "post": {
+        "description": "The token comes back once. Store it on the device if it is needed again.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareCreate",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The share, and its token.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Share chosen fields of a credential",
+      },
+    },
+    "/api/v1/shares/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation of the revocation.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Revoke a share",
+      },
+    },
+    "/api/v1/sources": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The providers that can be connected, and the connected sources.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List data sources",
+      },
+    },
+    "/api/v1/sources/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "description": "Also delete the vault entries imported from this provider.",
+            "in": "query",
+            "name": "delete_imported",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation of the disconnection.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Disconnect a data source",
+      },
+    },
+    "/api/v1/step-up": {
+      "post": {
+        "description": "Exchange the access token of a password sign-in made in the last two minutes for a single-use grant naming one action. The password itself is never sent.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepUpRequest",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The grant token.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Confirm a sensitive action",
+      },
+    },
+    "/api/v1/vault": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Every entry, encrypted. Labels, categories, tags, and dates are readable; the contents are not.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "List vault entries",
+      },
+      "post": {
+        "description": "The device encrypts the entry with a fresh data key and wraps that key with the master key. Health entries need consent to store health data first.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultEntryCreate",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The stored entry.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Store an encrypted entry",
+      },
+    },
+    "/api/v1/vault/batch": {
+      "post": {
+        "description": "For imports. Each entry succeeds or fails on its own.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultEntryBatchCreate",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "How many were stored, and a result for each entry by index.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Store up to 100 encrypted entries",
+      },
+    },
+    "/api/v1/vault/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Confirmation of the deletion.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Delete a vault entry",
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The entry, encrypted.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Read one vault entry",
+      },
+      "patch": {
+        "description": "To change the contents, send client_ciphertext, encrypted_dek, and dek_salt together.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultEntryUpdate",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated entry.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Change a vault entry",
+      },
+    },
+  },
+  "security": [
+    {
+      "bearerAuth": [],
+    },
+  ],
+  "servers": [
+    {
+      "url": "https://example.test",
+    },
+  ],
+}
+`;

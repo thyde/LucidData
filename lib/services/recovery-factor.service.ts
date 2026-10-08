@@ -108,8 +108,9 @@ export async function getRecoveryStatus(userId: string): Promise<RecoveryStatus>
 export async function assertRecoveryReadyForFirstWrite(userId: string): Promise<void> {
   const status = await getRecoveryStatus(userId)
   if (status.vaultWriteAllowed) return
-  throw new Error(
-    'Set up a recovery factor before storing data. Without one, forgetting your password makes your vault permanently unreadable, and nobody can restore it for you.'
+  throw new UserFacingError(
+    'Set up a recovery factor before storing data. Without one, forgetting your password makes your vault permanently unreadable, and nobody can restore it for you.',
+    'recovery_required'
   )
 }
 
@@ -180,7 +181,7 @@ export async function removeRecoveryFactor(userId: string, factorId: string): Pr
     .select('id, type')
     .maybeSingle()
   if (error) throw error
-  if (!data) throw new UserFacingError('Recovery factor not found')
+  if (!data) throw new UserFacingError('Recovery factor not found', 'not_found')
 
   await createAuditEntry({
     userId,
@@ -194,12 +195,16 @@ export async function removeRecoveryFactor(userId: string, factorId: string): Pr
 export async function confirmRecoveryFactor(userId: string, factorId: string): Promise<void> {
   const supabase = await createClient()
   const now = new Date().toISOString()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('recovery_factors')
     .update({ last_confirmed_at: now })
     .eq('id', factorId)
     .eq('user_id', userId)
+    .select('id')
+    .maybeSingle()
   if (error) throw error
+  // Confirming a factor that is not there must not record recovery as confirmed.
+  if (!data) throw new UserFacingError('Recovery factor not found', 'not_found')
 
   await userRepo.updateUser(userId, { recovery_last_confirmed_at: now })
   await createAuditEntry({

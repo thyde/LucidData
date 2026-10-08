@@ -84,6 +84,12 @@ export async function getVaultDataById(id: string, userId: string): Promise<Vaul
 }
 
 export async function updateVaultData(id: string, userId: string, payload: UpdateVaultPayload): Promise<VaultData> {
+  // Looked up through the repository, not getVaultDataById, which would record
+  // an access the person did not make.
+  if (!(await vaultRepo.findVaultById(id, userId))) {
+    throw new UserFacingError('Vault entry not found', 'not_found')
+  }
+
   // LD-110: filing an entry under health, or changing a health entry, is
   // storing health data, so it needs the same consent as creating one.
   if (isHealthEntry(payload)) await assertHealthDataConsent(userId)
@@ -100,7 +106,7 @@ export async function updateVaultData(id: string, userId: string, payload: Updat
 
 export async function deleteVaultData(id: string, userId: string): Promise<void> {
   const entry = await vaultRepo.findVaultById(id, userId)
-  if (!entry) throw new UserFacingError('Vault entry not found')
+  if (!entry) throw new UserFacingError('Vault entry not found', 'not_found')
 
   await vaultRepo.deleteVaultEntry(id, userId)
   await createAuditEntry({

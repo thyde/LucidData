@@ -197,7 +197,7 @@ export async function disconnectSource(
     .eq('id', sourceId)
     .eq('user_id', userId)
     .maybeSingle()
-  if (!source) throw new UserFacingError('Source not found')
+  if (!source) throw new UserFacingError('Source not found', 'not_found')
 
   await revokeUpstream(source as DataSource).catch((error) => {
     errorLogger.log(error, ErrorSeverity.LOW, {

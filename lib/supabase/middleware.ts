@@ -72,6 +72,8 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/api/issuers') &&
     !request.nextUrl.pathname.startsWith('/api/stripe') &&
     !request.nextUrl.pathname.startsWith('/api/cron') &&
+    // LD-608: the client API authenticates each request with a bearer token.
+    !request.nextUrl.pathname.startsWith('/api/v1/') &&
     request.nextUrl.pathname !== '/'
   ) {
     // Redirect to login if accessing protected route, preserve original path

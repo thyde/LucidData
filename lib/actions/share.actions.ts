@@ -1,12 +1,11 @@
 'use server'
 
-import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import {
-  createShare,
+  createHolderShare,
   listSharesForUser,
   revokeShare,
-  type CreatedShare,
 } from '@/lib/services/share.service'
 import type { CredentialShare } from '@/types/database.types'
 
@@ -29,19 +28,9 @@ export async function createShareAction(
 ): Promise<CreateShareResult | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    if (disclosedClaims.length === 0) {
-      throw new UserFacingError('Select at least one field to share')
-    }
-
-    const expiresAt = options.expiresInDays
-      ? new Date(Date.now() + options.expiresInDays * 86_400_000).toISOString()
-      : null
-
-    const result: CreatedShare = await createShare(userId, credentialId, disclosedClaims, {
-      expiresAt,
-      verifierEmail: options.verifierEmail ?? null,
-    })
-    return { shareId: result.share.id, token: result.token }  })
+    const result = await createHolderShare(userId, credentialId, disclosedClaims, options)
+    return { shareId: result.share.id, token: result.token }
+  })
 }
 
 export async function getMySharesAction(): Promise<CredentialShare[] | ActionFailure> {

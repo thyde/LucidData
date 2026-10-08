@@ -70,6 +70,7 @@ Organizations:
 | Payments and payouts | Stripe Checkout for organization subscriptions and dataset purchases, and Stripe Connect payouts to contributors. | Built |
 | Vault data export | Export vault entries to open formats (JSON-LD). Entries are decrypted in the browser before download. | Built |
 | Account recovery and notifications | Recovery-code vault escrow, password change with re-encryption, and realtime in-app notifications with optional email. | Built |
+| Client API | A versioned HTTP API at `/api/v1` for the phone app and the browser extension. Calls carry the person's Supabase access token, so the database's row level security decides what each one can reach. The OpenAPI document is at `/api/v1/openapi`. | Built |
 
 ## Roadmap
 
@@ -133,7 +134,7 @@ LucidData/
 │   ├── (auth)/            # Sign-in, register, passkey, and signup routes
 │   ├── (dashboard)/       # Vault, consent, audit, credentials, requests, settings
 │   ├── (org)/             # Organization and credential-issuer routes
-│   ├── api/               # Route handlers (auth, org, connectors, cron, stripe, user)
+│   ├── api/               # Route handlers (auth, org, connectors, cron, stripe, user, and the v1 client API)
 │   └── sw.ts              # Serwist service-worker source
 ├── components/            # React components
 │   ├── ui/               # shadcn/ui primitives

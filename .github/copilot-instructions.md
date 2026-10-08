@@ -143,7 +143,7 @@ The full rules, with the client-side envelope-encryption flow, are in [Core Secu
 
 ## Server Action & Data-Access Patterns
 
-Vault, consent, and credential mutations use **server actions** in `lib/actions/`, not REST route handlers. Each action authenticates via the Supabase session, then calls a service that uses a repository. Route handlers under `app/api/` are reserved for auth, org, and webhook-style endpoints.
+Vault, consent, and credential mutations from the web app use **server actions** in `lib/actions/`, not REST route handlers. Each action authenticates via the Supabase session, then calls a service that uses a repository. Route handlers under `app/api/` are for auth, org, and webhook-style endpoints, plus the client API in `app/api/v1/`. Its handlers are wrapped in `v1()` from `lib/api/v1/handler.ts`, which authenticates the bearer token and makes `createClient()` act as that person, so they call the same services as the actions and never the service role.
 
 Key rules: authenticate from the session, validate with Zod, scope every query by the authenticated `userId`, and append an audit-log entry for sensitive operations.
 
@@ -303,7 +303,7 @@ app/
   (auth)/          # Sign-in, register, passkey, signup
   (dashboard)/     # Vault, consent, audit, credentials, requests, settings
   (org)/           # Organization and credential-issuer routes
-  api/             # Auth, org, and webhook route handlers
+  api/             # Auth, org, and webhook route handlers, plus api/v1/ (the client API)
 components/        # ui/ (shadcn) plus feature folders (vault, consent, credentials, org)
 lib/
   actions/         # Server actions ('use server')

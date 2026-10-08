@@ -87,7 +87,7 @@ Mutations flow through four layers. Never touch the database directly from compo
 3. Repository in `lib/repositories/`. Supabase reads and writes, always scoped by `userId`.
 4. Supabase client. Use `lib/supabase/server.ts` in server code and `lib/supabase/client.ts` in Client Components. `lib/supabase/service.ts` is the service-role client; see the RLS warning before using it.
 
-Mutations use server actions, not REST handlers. Route handlers under `app/api/` are reserved for auth, org, and webhook-style endpoints. The action surface is broad (17 domains): vault, consent, consent-request, credential, credential-request, issuer, share, audit, account, notification, billing, monetization, marketplace, offer, data-order, contribution, and insights. New features follow the same four-layer flow.
+The web app mutates through server actions, not REST handlers. Route handlers under `app/api/` are for auth, org, and webhook-style endpoints, plus the versioned client API in `app/api/v1/` that the phone app and the extension call. The action surface is broad (17 domains): vault, consent, consent-request, credential, credential-request, issuer, share, audit, account, notification, billing, monetization, marketplace, offer, data-order, contribution, and insights. New features follow the same four-layer flow.
 
 Directory layout:
 
@@ -98,9 +98,11 @@ app/
   (marketing)/   public marketing pages
   (org)/         organization and credential-issuer routes
   api/           auth, org, and webhook route handlers
+  api/v1/        the client API for the phone app and the extension
 components/      ui/ (shadcn) plus feature folders
 lib/
   actions/       server actions
+  api/v1/        the client API's handler wrapper and OpenAPI document
   services/      business logic
   repositories/  Supabase data access
   crypto/        server crypto: audit hashing, credential and receipt signing
@@ -118,6 +120,16 @@ types/           database.types.ts is generated
 ```
 
 `packages/core` is an npm workspace that ships TypeScript source; import it as `@luciddata/core/<path>`, for example `@luciddata/core/crypto/client-crypto`. It may not import Next.js, React, the Supabase clients, Node built-ins, or anything from the web app, and inside the package imports are relative. ESLint and `packages/core/src/__tests__/boundary.test.ts` enforce this. Code that touches the DOM, the server, or the environment stays in the web app. Read [packages/core/AGENTS.md](packages/core/AGENTS.md) before adding to it.
+
+### Client API
+
+`app/api/v1/` serves every client that is not the web app. Each handler is wrapped in `v1()` from `lib/api/v1/handler.ts`, which checks the bearer token with Supabase Auth, refuses revoked sessions and sessions that skipped a verified second factor, rate limits per person, and runs the handler with the person's token. Inside that call `createClient()` from `lib/supabase/server.ts` sends the token instead of cookies, so one service serves both surfaces and row level security applies to both.
+
+- Call the service function the matching server action calls. Put new logic in the service, never in the handler.
+- Never use the service-role client in a v1 handler, and never read a user id from the request. `lib/api/v1/__tests__/routes.test.ts` fails the build on either.
+- Validate bodies with the schemas in `packages/core/src/validations/client-api.ts`, and add every new route to `ROUTES` in `lib/api/v1/openapi.ts`. The routes test checks that the document and the route files match, and the snapshot shows the change in review.
+- Expected failures are `UserFacingError`s with a code. The wrapper turns `not_found` into 404, `conflict` and `recovery_required` into 409, `health_consent_required` into 403, `rate_limited` into 429, and any other refusal into 400. Every other error is logged and returned as a generic 500.
+- A route file may export only HTTP methods and segment config such as `dynamic`. Next.js type-checks this during the build, not during `npm run typecheck`.
 
 ## Security rules that apply to every feature
 

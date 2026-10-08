@@ -1,6 +1,6 @@
 'use server'
 
-import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
+import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import * as account from '@/lib/services/account.service'
 import {
@@ -9,9 +9,7 @@ import {
   deleteAccountSchema,
   emailNotificationPreferenceSchema,
   claimKeySaltSchema,
-  DELETE_CONFIRM_PHRASE,
 } from '@luciddata/core/validations/account'
-import { consumeStepUp } from '@/lib/services/session-security.service'
 import { z } from 'zod'
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -85,17 +83,6 @@ export async function deleteAccountAction(
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     const { confirmPhrase, stepUpToken } = deleteAccountSchema.parse(input)
-    if (confirmPhrase !== DELETE_CONFIRM_PHRASE) {
-      throw new UserFacingError('Confirmation phrase does not match')
-    }
-    // LD-106: a warm session is not enough to destroy an account.
-    await consumeStepUp(userId, 'delete_account', stepUpToken)
-    const outcome = await account.deleteAccount(userId)
-    // LD-607: hand back the signed proof so the person can keep and check it.
-    return {
-      receipt: outcome.receipt,
-      signature: outcome.signature,
-      keyId: outcome.keyId,
-      verified: outcome.verified,
-    }  })
+    return account.deleteAccountConfirmed(userId, confirmPhrase, stepUpToken)
+  })
 }

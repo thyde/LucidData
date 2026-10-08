@@ -33,6 +33,8 @@ export const RATE_LIMITS = {
   verification: { windowSeconds: 3600, limit: 300 },
   /** Invitation sends per organization per hour. */
   orgInvitation: { windowSeconds: 3600, limit: 50 },
+  /** LD-608: versioned client API calls per person per minute. */
+  clientApi: { windowSeconds: 60, limit: 120 },
 } as const satisfies Record<string, RateLimit>
 
 export type RateLimitName = keyof typeof RATE_LIMITS

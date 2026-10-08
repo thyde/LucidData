@@ -133,11 +133,12 @@ export async function fulfillCredentialRequest(
     .select('*')
     .eq('id', requestId)
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   if (loadErr) throw loadErr
+  if (!reqRow) throw new UserFacingError('Credential request not found', 'not_found')
   const request = reqRow as CredentialRequest
   if (request.status !== 'pending') {
-    throw new UserFacingError('This request has already been answered')
+    throw new UserFacingError('This request has already been answered', 'conflict')
   }
 
   const service = createServiceClient()
@@ -185,10 +186,11 @@ export async function denyCredentialRequest(
     .select('status')
     .eq('id', requestId)
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   if (loadErr) throw loadErr
+  if (!reqRow) throw new UserFacingError('Credential request not found', 'not_found')
   if ((reqRow as { status: string }).status !== 'pending') {
-    throw new UserFacingError('This request has already been answered')
+    throw new UserFacingError('This request has already been answered', 'conflict')
   }
 
   const { error } = await supabase

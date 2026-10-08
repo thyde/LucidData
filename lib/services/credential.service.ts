@@ -173,6 +173,41 @@ export async function getCredentialsForUser(
   return (data ?? []) as IssuedCredential[]
 }
 
+export interface HeldCredential {
+  credential: IssuedCredential
+  issuerName: string
+  issuerVerified: boolean
+  verification: CredentialVerification
+}
+
+/**
+ * The person's credentials, claimed and claimable, each with its issuer's name
+ * and a fresh check of the issuer's signature. A person cannot read an
+ * organization's row, so issuer names come from the service role, for the
+ * issuers of these credentials only.
+ */
+export async function listHeldCredentials(userId: string, email: string): Promise<HeldCredential[]> {
+  const credentials = await getCredentialsForUser(userId, email)
+  if (credentials.length === 0) return []
+
+  const service = createServiceClient()
+  const organizationIds = [...new Set(credentials.map((credential) => credential.organization_id))]
+  const { data: organizations } = await service
+    .from('organizations')
+    .select('id, name, verified_at')
+    .in('id', organizationIds)
+  const byId = new Map((organizations ?? []).map((organization) => [organization.id, organization]))
+
+  return Promise.all(
+    credentials.map(async (credential) => ({
+      credential,
+      issuerName: byId.get(credential.organization_id)?.name ?? 'Unknown issuer',
+      issuerVerified: Boolean(byId.get(credential.organization_id)?.verified_at),
+      verification: await verifyIssuedCredential(credential),
+    }))
+  )
+}
+
 /**
  * Claim a credential for a user. Credentials are either pre-assigned to a known
  * user at issuance (subject_user_id set, but not yet claimed) or addressed only
