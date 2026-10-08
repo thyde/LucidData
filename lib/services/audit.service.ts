@@ -69,14 +69,19 @@ export async function getAllAuditLogs(userId: string): Promise<AuditLog[]> {
  * Every entry's hash must match what it covers, including the hash of the
  * entry before it, and every entry must point at an entry that exists. So a
  * changed entry fails its own hash, a reordered one fails because its link is
- * part of its hash, and a removed one leaves the next entry pointing at
- * nothing. Given only part of a log this fails for the same reason: verify the
- * whole thing, with verifyUserAuditChain.
+ * part of its hash, and a removed entry is caught whenever a later entry
+ * pointed at it. Given only part of a log this fails for the same reason:
+ * verify the whole thing, with verifyUserAuditChain.
  *
  * Two entries may point at the same predecessor. Two requests can append at
  * once, and entries written before 2026-10-09 by scheduled jobs could not see
  * the latest entry and started a second chain. Neither alters a recorded
  * event, so neither is reported as tampering.
+ *
+ * What this cannot see: an entry nothing points at can be removed without a
+ * trace. In a single line that is only the newest entry, but each branch and
+ * each chain a scheduled job split off has such an end. Only these fields are
+ * hashed: the link, the event type, the person, the time, and the action.
  */
 export function verifyAuditChain(
   logs: readonly Pick<
