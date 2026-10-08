@@ -3385,7 +3385,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 
 ### Defects found during validation
 
-These were live defects in the codebase rather than missing features. Status updated 2026-07-26.
+These were live defects in the codebase rather than missing features. Status updated 2026-10-08.
 
 | Defect | Evidence | Owned by | Status |
 |---|---|---|---|
@@ -3402,11 +3402,26 @@ These were live defects in the codebase rather than missing features. Status upd
 | The service worker cached cross-origin responses | Serwist's default rules kept Supabase responses and third-party scripts for an hour | LD-610 | **Fixed** 2026-10-05. Cross-origin requests always go to the network, and the cache an older worker filled is deleted |
 | Password-reset links could redirect to a stranger's preview deployment | Wildcard `*.vercel.app` entries in the Supabase redirect allowlist | LD-610 | **Fixed** 2026-10-05, **regressed**, and fixed again 2026-10-08. The Supabase Vercel integration rewrites the allowlist on every Vercel deployment, so the next deploy put `https://lucid-*-data-lucid-data.vercel.app/**` back. Supabase's `*` matches hyphens, so a stranger's Vercel team named like `x-data-lucid-data` would have matched. The integration's project connection is removed, and the allowlist stayed at the one recovery URL through the next production deployment |
 | Sign-in could send people to another site | `/login` and `/two-factor` trusted the `redirectedFrom` query value | LD-610 | **Fixed** 2026-10-05. Only same-site paths are accepted |
+| Health data could be sold through a pool of another category | [contribution.service.ts](../lib/services/contribution.service.ts) checked the pool's category but never the vault entry's, and the vault offered sale toggles on health entries | LD-111 | **Fixed** 2026-10-08. The stored entry decides, by category or schema type, in the service, the release, the evaluation, and the database. Any such contribution was withdrawn, with a notice to the person |
+| A signed-in person could change the address other features find them by | `users_update_own` allowed every column through PostgREST, and credential issuance, requests, and passkey sign-in look people up by `users.email` | LD-610 | **Fixed** 2026-10-08. Signed-in sessions can update only profile and key columns; the address follows the sign-in address, and any changed one was restored |
+| Contributions and their payouts could be written directly | `pool_contributions_insert_own` and `_update_own` let a person set `payout_cents`, the payload, and the schema type, and payouts were paid from the stored value | LD-506 | **Fixed** 2026-10-08. Only the contribution service writes contributions. A release pays at most the pool's price per record, and stored payouts and unpaid transfers above it were reset |
+| Anyone could share someone else's credential | `cs_all_own` let a person insert a share for any credential, and the public verify page did not check the share's owner against the credential's subject | LD-111 | **Fixed** 2026-10-08. The server writes shares, only for the subject and only in answer to a request sent to them; the verify page and request view check both; stray shares were revoked |
+| Health data could be stored without consent | The LD-110 consent check ran in the vault service, but `vault_all_own` allowed a direct insert | LD-110 | **Fixed** 2026-10-08. The database refuses health data from a signed-in session without current consent |
+| The person answering a request could rewrite its terms | `cr_update_own` and `credreq_update_own` allowed every column | LD-610 | **Fixed** 2026-10-08. Only the response columns can change |
+| A person could file a rights case with any status or deadline | "Users file their own rights cases" allowed a direct insert, although the table's own comment said only the service role moves a case, and an appeal could point at someone else's case | LD-301 | **Fixed** 2026-10-08. Only the server files cases, and it checks that an appeal contests the person's own refusal |
 
 Every defect found during validation is fixed. The two GDPR Article 17 defects, where a deleted
 account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
 Deletion no longer relies on foreign key behaviour: what does not cascade is handled explicitly, the
 result is verified rather than assumed, and the person receives a signed receipt.
+
+The last seven rows were found on 2026-10-08 while checking that health data could not be sold, and
+the six after the first share one cause. A row level security policy also governs direct API access:
+PostgREST exposes every public table, so whatever a policy allowed, a signed-in person could do with
+their own session and the public key, skipping every check in the server. Policies written as "the
+owner may write their own rows" handed people columns the server was meant to set. Each was reproduced
+against a local stack before it was fixed, and `supabase/tests/database/direct-write-guards.test.sql`
+now holds every one closed. The rule for new tables is in AGENTS.md.
 
 ### Before this spec is considered final
 

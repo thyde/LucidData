@@ -69,7 +69,9 @@ SELECT is_empty(
 -- A policy only takes effect if the role also holds the table privilege. A
 -- database built from these migrations once had every policy and none of the
 -- privileges, so signed-in users could read nothing. organization_api_keys is
--- closed on purpose: its hashes are read only by the service role.
+-- closed on purpose: its hashes are read only by the service role. Column-level
+-- grants count, because some tables let a person update only the columns that
+-- answer a request or edit a profile.
 SELECT is_empty(
   $$
     SELECT c.relname || '.' || p.polname
@@ -79,16 +81,12 @@ SELECT is_empty(
     WHERE n.nspname = 'public'
       AND (0 = ANY (p.polroles) OR 'authenticated'::regrole::oid = ANY (p.polroles))
       AND c.relname NOT IN ('organization_api_keys')
-      AND NOT has_table_privilege(
-        'authenticated',
-        c.oid,
-        CASE p.polcmd
-          WHEN 'a' THEN 'INSERT'
-          WHEN 'w' THEN 'UPDATE'
-          WHEN 'd' THEN 'DELETE'
-          ELSE 'SELECT'
-        END
-      )
+      AND NOT CASE p.polcmd
+        WHEN 'a' THEN has_any_column_privilege('authenticated', c.oid, 'INSERT')
+        WHEN 'w' THEN has_any_column_privilege('authenticated', c.oid, 'UPDATE')
+        WHEN 'd' THEN has_table_privilege('authenticated', c.oid, 'DELETE')
+        ELSE has_any_column_privilege('authenticated', c.oid, 'SELECT')
+      END
   $$,
   'Every policy for signed-in users has the table privilege it needs'
 );

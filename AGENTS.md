@@ -118,8 +118,10 @@ These are not optional. Skipping them creates real vulnerabilities. This is a pe
 Row Level Security (RLS):
 
 - RLS is the primary database guardrail and is enabled on every public table. Every new table must enable RLS and add policies scoped with `(SELECT auth.uid())` so PostgreSQL evaluates the session user once per statement (see `20260725031537_schema_constraints_and_rls_performance.sql`).
+- A policy also governs direct API access. PostgREST exposes every public table, so whatever a policy lets a signed-in person do, they can do with their own session and the public key, skipping every check in the action and the service. Grant API roles only what a person may do unaided. Use column-level `GRANT UPDATE (...)` where some columns are the server's to set, as on `users` and the request tables, and grant no write at all on rows whose values the server must compute or check, such as contributions and shares. `supabase/tests/database/direct-write-guards.test.sql` shows how to test this.
+- A trigger on a table that another table references with `ON DELETE SET NULL` also fires on the update that clears the reference. Compare `OLD` and `NEW` and let that update through, or deleting the referenced row will fail.
 - `SECURITY DEFINER` functions must pin `SET search_path = ''` and revoke `EXECUTE` from API roles unless they are deliberately exposed as RPCs.
-- The service-role client (`lib/supabase/service.ts`) bypasses RLS entirely. Never use it to serve user-facing reads or writes. When it is unavoidable (registration, API-key auth, webhooks), the repository-layer `userId` filter is the only thing protecting the user, so it must be present and correct.
+- The service-role client (`lib/supabase/service.ts`) bypasses RLS entirely. Never use it to serve user-facing reads or writes. When it is unavoidable (registration, API-key auth, webhooks, and rows API roles may not write, such as contributions and shares), the repository-layer `userId` filter, taken from the authenticated session, is the only thing protecting the user, so it must be present and correct.
 
 Never log or expose (threat-model "never do" list):
 

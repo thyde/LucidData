@@ -2542,6 +2542,10 @@ export type Database = {
         Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
       }
+      is_sale_restricted: {
+        Args: { p_category: string; p_schema_type: string }
+        Returns: boolean
+      }
       list_my_sessions: {
         Args: never
         Returns: {
