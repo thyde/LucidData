@@ -312,6 +312,27 @@ export async function syncSource(
     return result
   }
 
+  // A record the vault already holds arrived through an earlier sync and
+  // drain. The queue's own unique key cannot see it once the drain has cleared
+  // the row, so without this check every sync would queue it again and report
+  // an import that never happened.
+  if (records.length > 0) {
+    const { data: stored, error: storedError } = await service
+      .from('vault_data')
+      .select('source_record_id')
+      .eq('user_id', source.user_id)
+      .eq('source_provider', source.provider)
+      .in(
+        'source_record_id',
+        records.map((record) => record.providerRecordId)
+      )
+    // Our fault, not the connection's: thrown rather than marked on the source,
+    // so the next hourly run tries again without asking the person to reconnect.
+    if (storedError) throw storedError
+    const already = new Set((stored ?? []).map((row) => row.source_record_id as string))
+    records = records.filter((record) => !already.has(record.providerRecordId))
+  }
+
   for (const record of records) {
     try {
       // The label travels inside the sealed payload, not beside it. A Strava

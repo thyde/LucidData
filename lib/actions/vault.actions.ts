@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createVaultData, getUserVaultData, getVaultDataById, updateVaultData, deleteVaultData } from '@/lib/services/vault.service'
 import { vaultEntryCreateSchema, vaultEntryUpdateSchema } from '@luciddata/core/validations/client-api'
 import type { VaultData } from '@/types/database.types'
+import type { z } from 'zod'
 
 async function getAuthenticatedUserId(): Promise<string> {
   const supabase = await createClient()
@@ -23,6 +24,20 @@ function isEntryId(id: unknown): id is string {
 function entryId(id: unknown): string {
   if (!isEntryId(id)) throw new UserFacingError('Vault entry not found', 'not_found')
   return id
+}
+
+// Every caller checks its input first, so a refusal here is a bug in a caller.
+// It is returned with the field named, rather than thrown and sanitized into
+// a message nobody can act on.
+function parseEntry<T>(schema: z.ZodType<T>, input: unknown): T {
+  const result = schema.safeParse(input)
+  if (result.success) return result.data
+  const issue = result.error.issues[0]
+  const field = issue.path.join('.')
+  throw new UserFacingError(
+    `This entry was not saved. ${field ? `${field}: ` : ''}${issue.message}`,
+    'invalid_input'
+  )
 }
 
 export async function getVaultEntriesAction(): Promise<VaultData[] | ActionFailure> {
@@ -61,7 +76,7 @@ export async function createVaultEntryAction(payload: {
 }): Promise<VaultData | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return createVaultData(userId, vaultEntryCreateSchema.parse(payload))
+    return createVaultData(userId, parseEntry(vaultEntryCreateSchema, payload))
   })
 }
 
@@ -77,7 +92,7 @@ export async function updateVaultEntryAction(id: string, payload: {
 }): Promise<VaultData | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return updateVaultData(entryId(id), userId, vaultEntryUpdateSchema.parse(payload))
+    return updateVaultData(entryId(id), userId, parseEntry(vaultEntryUpdateSchema, payload))
   })
 }
 

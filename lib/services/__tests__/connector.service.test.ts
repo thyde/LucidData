@@ -22,6 +22,7 @@ const calls: Call[] = []
 const rowsByTable = new Map<string, Record<string, unknown>[]>()
 const insertErrors: (Record<string, unknown> | null)[] = []
 const failingDeletes = new Set<string>()
+const failingSelects = new Set<string>()
 const createAuditEntry = vi.fn()
 
 vi.mock('@/lib/services/audit.service', () => ({
@@ -37,7 +38,10 @@ function chain(table: string, op: string, patch?: Record<string, unknown>) {
   calls.push({ table, op, patch })
   const settle = () => ({
     data: rowsByTable.get(table) ?? [],
-    error: op === 'delete' && failingDeletes.has(table) ? { message: 'delete refused' } : null,
+    error:
+      (op === 'delete' && failingDeletes.has(table)) || (op === 'select' && failingSelects.has(table))
+        ? { message: `${op} refused` }
+        : null,
   })
   const api = {
     eq: () => api,
@@ -131,6 +135,7 @@ beforeEach(() => {
   rowsByTable.clear()
   insertErrors.length = 0
   failingDeletes.clear()
+  failingSelects.clear()
   vi.clearAllMocks()
   createAuditEntry.mockResolvedValue(undefined)
 })
@@ -213,6 +218,31 @@ describe('a sync with an ingestion key', () => {
     )
     expect(insert?.row?.provider_record_id).toBe('111')
     expect(insert?.row?.schema_type).toBe('fitness_activity')
+  })
+
+  it('does not queue again a record the vault already holds', async () => {
+    // The drain cleared the queue row after storing it, so only the vault can
+    // say it has arrived. Queuing it again would report an import that never
+    // happened, on every sync.
+    const pair = await generateIngestionKeypair()
+    rowsByTable.set('users', [{ ingest_public_key: pair.publicKeyB64 }])
+    rowsByTable.set('vault_data', [{ source_record_id: '111' }])
+
+    const result = await syncSource(source(), fetchReturning(ACTIVITIES))
+
+    expect(result).toEqual({ imported: 0, failed: 0 })
+    expect(calls.some((call) => call.table === 'pending_ingest' && call.op === 'insert')).toBe(false)
+    expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+
+  it('leaves the source connected when the vault check fails, so the next run retries', async () => {
+    const pair = await generateIngestionKeypair()
+    rowsByTable.set('users', [{ ingest_public_key: pair.publicKeyB64 }])
+    failingSelects.add('vault_data')
+
+    await expect(syncSource(source(), fetchReturning(ACTIVITIES))).rejects.toBeTruthy()
+    expect(calls.some((call) => call.table === 'pending_ingest' && call.op === 'insert')).toBe(false)
+    expect(calls.some((call) => call.table === 'data_sources' && call.op === 'update')).toBe(false)
   })
 
   it('treats a duplicate as already imported rather than as a failure', async () => {

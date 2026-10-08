@@ -14,6 +14,7 @@ import {
 } from '@/lib/actions/credential.actions'
 import { createVaultEntryAction } from '@/lib/actions/vault.actions'
 import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
+import { fitLabel } from '@luciddata/core/vault/labels'
 import { ShareCredentialDialog } from '@/components/credentials/share-credential-dialog'
 import { unwrap } from '@/lib/actions/unwrap'
 
@@ -59,7 +60,9 @@ export function CredentialsInbox() {
         })
         const enc = await encrypt(plaintext)
         const entry = await unwrap(createVaultEntryAction({
-          label: cred.label,
+          // The whole label is inside the encrypted copy; the readable one is
+          // cut to the length a vault label can be.
+          label: fitLabel(cred.label),
           category: 'credentials',
           schema_type: 'verifiable_credential',
           description: `Issued by ${item.issuerName}`,

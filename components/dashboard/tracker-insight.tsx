@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { useToast } from '@/lib/hooks/use-toast'
 import { createVaultEntryAction } from '@/lib/actions/vault.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 import { VAULT_KEYS } from '@/lib/hooks/useVault'
 import { clearInsight, getInsight, type InsightState } from '@/lib/extension/bridge-client'
 
@@ -59,12 +60,16 @@ export function TrackerInsight() {
     setSaving(true)
     try {
       const encrypted = await encrypt(JSON.stringify(state.vaultRecord))
-      await createVaultEntryAction({
-        label: `Tracker summary to ${state.vaultRecord.period_end}`,
-        category: 'other',
-        schema_type: 'browsing_insight',
-        ...encrypted,
-      })
+      // unwrap turns a refused save into a throw, so the summary is only
+      // cleared from the extension once the vault really holds it.
+      await unwrap(
+        createVaultEntryAction({
+          label: `Tracker summary to ${state.vaultRecord.period_end}`,
+          category: 'other',
+          schema_type: 'browsing_insight',
+          ...encrypted,
+        })
+      )
       await clearInsight()
       queryClient.invalidateQueries({ queryKey: VAULT_KEYS.lists() })
       toast({ title: 'Saved to your vault' })

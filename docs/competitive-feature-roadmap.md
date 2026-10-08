@@ -1218,6 +1218,7 @@ Implementation.
 - `app/api/connectors/[provider]/webhook/route.ts` verifies the provider signature, never logs the body, and schedules a sync of that one source.
 - Run the cron hourly once LD-610 moves hosting off Hobby, and let `next_sync_at` decide which sources are due.
 - Keep the `retired` flag from the Fitbit change: a retired provider is never offered, a grant cannot complete, and an existing source stops syncing with the reason shown.
+- Remember which synced records a person deleted, so a later sync does not bring them back. Today the worker skips a record the vault already holds, but a deleted one looks the same as one that never arrived, and Strava's 30 latest activities are fetched on every run. A cursor ends the refetching; a record of deletions, holding only the provider and its record id, covers a backfill.
 - Let a person replace an ingestion key that no master key opens any more. A password change before 2026-10-08 did not re-wrap it, so on those accounts every sealed record is unreadable and a new key cannot be published over the old one. Replacing it discards the records sealed to the old key, says how many, and needs a step-up grant.
 
 Security.
@@ -1232,6 +1233,7 @@ Acceptance criteria.
 - [ ] Records from a provider whose terms forbid onward transfer cannot be contributed or granted.
 - [ ] Adding a provider needs no edit outside its own module and the registry.
 - [ ] An account whose ingestion key no master key opens can replace it, after a step-up, and is told how many sealed records that discards.
+- [ ] A synced record the person deleted does not come back on a later sync.
 
 Tests. Recorded fixtures per provider. Cursor idempotency. Signature rejection. A test that every
 provider module declares a terms policy.
@@ -3457,9 +3459,10 @@ These were live defects in the codebase rather than missing features. Status upd
 | A signed-in session could replace or clear the recovery escrow and recovery factors directly | The users column grant included `wrapped_master_key` and `recovery_code_salt`, and `recovery_factors_all_own` allowed every write, so a direct write skipped the step-up check, the audit entry, and the alert. The key salt was already write-once, but a session could still set the first one | LD-106 | **Fixed** 2026-10-08. The services write these through the service role, and `20261008150000_close_recovery_writes.sql` removes the direct grants; `recovery-writes.test.sql` holds them closed |
 | A vault write stored any column the request named | `createVaultEntryAction` and `updateVaultEntryAction` passed their payload to the service unparsed, and the service spread it into the insert and the update, with the caller's keys after the session's user id on insert. Row level security stopped a write to another person's row, but a person could set their own entry's schema type, provenance, or timestamps, which the client API refused | LD-608 | **Fixed** 2026-10-08. Both actions parse with the client API's schemas, and the service copies only the columns each write may set, with the owner taken from the session |
 | A synced record's own name was stored in the clear | LD-201 seals a provider's name for a record because LD-501 classifies it as an identifier, but the drain in [usePendingIngest.ts](../lib/hooks/usePendingIngest.ts) wrote it back out as the entry's label, which the server can read | LD-201 | **Fixed** 2026-10-08, before any production sync, because the Strava app has never been configured. Synced entries and entries imported from a provider export are labelled by type. The name stays in the encrypted data, and the vault list shows it from there |
-| A record stored before its queue row was cleared stayed queued for good | The vault's unique index refuses a second copy of a synced record, but the refusal reached the drain as an unexplained failure, so a drain that stopped between storing and clearing retried and failed on every unlock. The client API reported the same refusal as a server fault | LD-202 | **Fixed** 2026-10-08. The service answers `already_stored`, a 409 in the API, and the drain counts the record as done |
+| A record stored before its queue row was cleared stayed queued for good | The vault's unique index refuses a second copy of a synced record, but the refusal reached the drain as an unexplained failure, so a drain that stopped between storing and clearing retried and failed on every unlock. The client API reported the same refusal as a server fault | LD-202 | **Fixed** 2026-10-08. The service answers `already_stored`, a 409 in the API, and the drain counts the record as done. The sync worker now checks the vault before it queues a record, because every sync fetches the latest activities again and the queue's own unique key cannot see a record the drain has cleared |
 | A claimed credential could be saved only from the web app | Claiming a credential saves a copy with schema type `verifiable_credential`, which the registry did not list, so the client API refused it. The web action never checked the type | LD-608 | **Fixed** 2026-10-08. The type is registered as one the app writes itself, so any client can store it, and it is never offered for manual entry, import, issuance, or requests. Tracker summaries, which the organization portal offered as a credential type, are treated the same way |
 | An emptied description was never cleared | The edit dialog sent nothing when the description was empty, so text a person removed from a readable column stayed on the server | LD-110 | **Fixed** 2026-10-08. An emptied description is sent and cleared |
+| Saving a tracker summary could report success when nothing was saved | The dashboard panel ignored a refusal from the vault, such as a new vault's request to set up recovery first, then said the summary was saved and deleted it from the extension | LD-206 | **Fixed** 2026-10-08. The summary is cleared only once the vault holds it, and a refusal is shown |
 
 Every defect found during validation is fixed. The two GDPR Article 17 defects, where a deleted
 account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
@@ -3479,7 +3482,7 @@ recovery module had no tests at all, so a kit that opened nothing looked like wo
 has known-answer vectors produced outside this codebase, and an end-to-end test resets a password and
 restores a vault with a kit.
 
-The last five rows were found on 2026-10-08 while checking the vault's write path after LD-209. Moving
+The last six rows were found on 2026-10-08 while checking the vault's write path after LD-209. Moving
 the vault actions onto the client API's schemas is what exposed them, because the same requests that the
 API refused had been passing through the web app.
 

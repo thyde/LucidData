@@ -148,7 +148,7 @@ Never log or expose (threat-model "never do" list):
 
 - Plaintext vault data, the master key, derived keys, DEKs, salts, passwords, or session tokens. Not in logs, errors, analytics, or responses.
 - Keep unencrypted metadata minimal. Columns like `label`, `category`, and `tags` are queryable and therefore visible to the server; never put sensitive content there.
-- An entry the app imports or syncs is labelled by its type with `importedEntryLabel()` from `packages/core/src/vault/labels.ts`. A provider's own name for a record is free text that LD-501 classifies as an identifier, so it stays in the encrypted data and the browser shows it with `recordSummary()`.
+- An entry synced from a connector or read by a provider export adapter is labelled by its type with `importedEntryLabel()` from `packages/core/src/vault/labels.ts`. A provider's own name for a record is free text that LD-501 classifies as an identifier, so it stays in the encrypted data and the browser shows it with `recordSummary()`.
 - Do not weaken PBKDF2 iterations, reuse IVs, or roll your own crypto. Use the helpers in `packages/core/src/crypto/` and `lib/crypto/`.
 
 Encryption (client-side):
