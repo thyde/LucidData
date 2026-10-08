@@ -2631,10 +2631,6 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      rewrap_vault_entries_atomic: {
-        Args: { entries: Json }
-        Returns: undefined
-      }
       rewrap_vault_keys: {
         Args: { p_entries: Json; p_ingest_key?: Json; p_user_id: string }
         Returns: undefined

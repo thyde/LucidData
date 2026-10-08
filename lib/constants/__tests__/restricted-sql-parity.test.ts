@@ -9,7 +9,12 @@ import { HEALTH_SCHEMA_TYPES } from '@/lib/constants/legal'
 
 // The database refuses restricted contributions and unconsented health data on
 // its own, with its own copies of the lists. These tests hold each copy to the
-// TypeScript it mirrors, so neither side can change alone.
+// TypeScript it mirrors.
+//
+// The schema type lists may run ahead in the database. A migration that adds a
+// type ships before the code that offers it, so for a while the database
+// refuses a type the app does not know yet. That is the safe direction; the
+// unsafe one, the app restricting a type the database does not, fails here.
 
 const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations')
 
@@ -44,9 +49,11 @@ describe('database copies of the restricted lists', () => {
     )
   })
 
-  it('refuses the same schema types the marketplace restricts', () => {
+  it('refuses at least the schema types the marketplace restricts', () => {
     const body = latestDefinition('is_sale_restricted')
-    expect(sqlArray(body, 'restricted_schema_types')).toEqual([...SALE_RESTRICTED_SCHEMA_TYPES])
+    expect(sqlArray(body, 'restricted_schema_types')).toEqual(
+      expect.arrayContaining([...SALE_RESTRICTED_SCHEMA_TYPES])
+    )
   })
 
   it('judges contributions with the shared helper rather than a list of their own', () => {
@@ -56,8 +63,16 @@ describe('database copies of the restricted lists', () => {
     expect(body).not.toMatch(/CONSTANT TEXT\[\]/)
   })
 
-  it('asks for health consent on the same schema types the vault service does', () => {
+  it('asks for health consent on at least the schema types the vault service does', () => {
     const body = latestDefinition('require_health_data_consent')
-    expect(sqlArray(body, 'health_schema_types')).toEqual([...HEALTH_SCHEMA_TYPES].sort())
+    expect(sqlArray(body, 'health_schema_types')).toEqual(
+      expect.arrayContaining([...HEALTH_SCHEMA_TYPES])
+    )
+  })
+
+  it('treats every health type it requires consent for as never for sale', () => {
+    const consent = sqlArray(latestDefinition('require_health_data_consent'), 'health_schema_types')
+    const restricted = sqlArray(latestDefinition('is_sale_restricted'), 'restricted_schema_types')
+    expect(restricted).toEqual(expect.arrayContaining(consent))
   })
 })
