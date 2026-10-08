@@ -17,12 +17,24 @@ export async function findContributionsByUser(userId: string): Promise<PoolContr
   return data
 }
 
-/** Active contributions for a pool — buyer export path, service role. */
-export async function findActiveContributionsByPool(poolId: string): Promise<PoolContribution[]> {
+/** A contribution with the classification of the vault entry it came from, if it still exists. */
+export type PoolContributionWithEntry = PoolContribution & {
+  vault_data: { category: string; schema_type: string } | null
+}
+
+/**
+ * Active contributions for a pool, for the buyer release and evaluation paths,
+ * through the service role. The source entry's category and schema type come
+ * along so restricted data can be recognised by what it is, not only by what
+ * the contribution recorded. Nothing else from the entry is read.
+ */
+export async function findActiveContributionsByPool(
+  poolId: string
+): Promise<PoolContributionWithEntry[]> {
   const service = createServiceClient()
   const { data, error } = await service
     .from('pool_contributions')
-    .select('*')
+    .select('*, vault_data(category, schema_type)')
     .eq('pool_id', poolId)
     .eq('status', 'active')
     .order('created_at', { ascending: false })

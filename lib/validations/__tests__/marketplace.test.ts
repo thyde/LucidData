@@ -4,6 +4,7 @@ import {
   SALE_RESTRICTED_STATEMENT,
   describeRestrictedCategories,
   isMarketplaceCategoryAllowed,
+  isSaleRestrictedContribution,
   isSaleRestrictedEntry,
 } from '@/lib/validations/marketplace'
 
@@ -32,6 +33,26 @@ describe('sale restrictions', () => {
     expect(isSaleRestrictedEntry({})).toBe(false)
     expect(isMarketplaceCategoryAllowed('credentials')).toBe(true)
     expect(isMarketplaceCategoryAllowed('health')).toBe(false)
+  })
+
+  it('judges a contribution by its source entry as well as its own columns', () => {
+    const contribution = { category: 'credentials', schema_type: 'employment' }
+    expect(isSaleRestrictedContribution({ ...contribution, vault_data: null })).toBe(false)
+    expect(
+      isSaleRestrictedContribution({
+        ...contribution,
+        vault_data: { category: 'credentials', schema_type: 'employment' },
+      })
+    ).toBe(false)
+    expect(
+      isSaleRestrictedContribution({
+        ...contribution,
+        vault_data: { category: 'financial', schema_type: 'employment' },
+      })
+    ).toBe(true)
+    expect(isSaleRestrictedContribution({ category: 'credentials', schema_type: 'medical_basic' })).toBe(
+      true
+    )
   })
 
   it('states the restriction in plain words', () => {

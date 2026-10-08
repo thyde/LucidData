@@ -218,4 +218,30 @@ describe('evaluatePool', () => {
     const result = await evaluatePool('pool-1', 'org-1')
     expect(Object.keys(result.samples)).toEqual(['employment'])
   })
+
+  it('never describes or samples restricted data, even if some is in the pool', async () => {
+    rpcResults.set('pool_schema_mix', [
+      { schema_type: 'employment', records: 6 },
+      { schema_type: 'medical_basic', records: 1 },
+    ])
+    const result = await evaluatePool('pool-1', 'org-1')
+    expect(Object.keys(result.samples)).toEqual(['employment'])
+    expect(Object.keys(result.deliverableFields)).toEqual(['employment'])
+  })
+
+  it('prices and previews without contributions from restricted entries', async () => {
+    // An employment entry filed under financial: the contribution recorded the
+    // pool's category, so only the source entry shows what it was.
+    findActiveContributionsByPool.mockResolvedValue([
+      ...Array.from({ length: 6 }, (_, index) => contribution(index)),
+      contribution(50, { vault_data: { category: 'financial', schema_type: 'employment' } }),
+    ])
+
+    const result = await evaluatePool('pool-1', 'org-1')
+    if (!result.privacy.releasable) throw new Error('expected releasable')
+    expect(result.privacy.recordsOffered).toBe(6)
+    expect(result.estimatedTotalCents).toBe(1000 + 6 * 200)
+    // The pool still holds seven rows, which the coverage shares are taken over.
+    expect(result.recordCount).toBe(7)
+  })
 })

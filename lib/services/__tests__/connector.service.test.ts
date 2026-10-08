@@ -21,6 +21,7 @@ interface Call {
 const calls: Call[] = []
 const rowsByTable = new Map<string, Record<string, unknown>[]>()
 const insertErrors: (Record<string, unknown> | null)[] = []
+const failingDeletes = new Set<string>()
 const createAuditEntry = vi.fn()
 
 vi.mock('@/lib/services/audit.service', () => ({
@@ -34,7 +35,10 @@ vi.mock('@/lib/services/error-logger', () => ({
 
 function chain(table: string, op: string, patch?: Record<string, unknown>) {
   calls.push({ table, op, patch })
-  const settle = () => ({ data: rowsByTable.get(table) ?? [], error: null })
+  const settle = () => ({
+    data: rowsByTable.get(table) ?? [],
+    error: op === 'delete' && failingDeletes.has(table) ? { message: 'delete refused' } : null,
+  })
   const api = {
     eq: () => api,
     in: () => api,
@@ -71,7 +75,7 @@ vi.mock('@/lib/supabase/service', () => ({
   }),
 }))
 
-const { syncSource, ensureFreshToken, availableConnectors, TOKEN_REFRESH_MARGIN_MS } =
+const { syncSource, ensureFreshToken, availableConnectors, disconnectSource, TOKEN_REFRESH_MARGIN_MS } =
   await import('@/lib/services/connector.service')
 const { generateIngestionKeypair, openSealed } = await import(
   '@/lib/crypto/ingestion-keys'
@@ -126,8 +130,35 @@ beforeEach(() => {
   calls.length = 0
   rowsByTable.clear()
   insertErrors.length = 0
+  failingDeletes.clear()
   vi.clearAllMocks()
   createAuditEntry.mockResolvedValue(undefined)
+})
+
+describe('disconnecting a source', () => {
+  it('deletes imported records when asked, and records that it did', async () => {
+    rowsByTable.set('data_sources', [source({ provider: 'fitbit' })])
+
+    await disconnectSource('user-1', 'source-1', { deleteImported: true })
+
+    expect(calls.some((call) => call.table === 'vault_data' && call.op === 'delete')).toBe(true)
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'data_source_disconnected',
+        metadata: expect.objectContaining({ deleted_imported: true }),
+      })
+    )
+  })
+
+  it('does not record a deletion that failed', async () => {
+    rowsByTable.set('data_sources', [source({ provider: 'fitbit' })])
+    failingDeletes.add('vault_data')
+
+    await expect(
+      disconnectSource('user-1', 'source-1', { deleteImported: true })
+    ).rejects.toMatchObject({ message: 'delete refused' })
+    expect(createAuditEntry).not.toHaveBeenCalled()
+  })
 })
 
 describe('a sync without an ingestion key', () => {
