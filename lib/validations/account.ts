@@ -26,6 +26,24 @@ export const emailNotificationPreferenceSchema = z.object({
   enabled: z.boolean(),
 })
 
+/** A 32-byte key salt from `generateKeySalt`, base64 with padding. */
+export const claimKeySaltSchema = z.object({
+  keySalt: z.string().regex(/^[A-Za-z0-9+/]{43}=$/, 'Invalid key salt'),
+})
+
+/**
+ * The token types a confirmation link may carry. Recovery and magic-link
+ * tokens sign someone in, so the confirm page must never accept them.
+ */
+export const EMAIL_CONFIRMATION_TYPES = ['email', 'signup'] as const
+export type EmailConfirmationType = (typeof EMAIL_CONFIRMATION_TYPES)[number]
+
+/** The two values a confirmation link carries. Anything else is refused. */
+export const confirmEmailSchema = z.object({
+  tokenHash: z.string().min(1).max(512),
+  type: z.enum(EMAIL_CONFIRMATION_TYPES),
+})
+
 export const DELETE_CONFIRM_PHRASE = 'DELETE MY ACCOUNT'
 
 export type SetRecoveryEscrowInput = z.infer<typeof setRecoveryEscrowSchema>

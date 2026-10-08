@@ -8,6 +8,7 @@ import {
   rewrapEntriesSchema,
   deleteAccountSchema,
   emailNotificationPreferenceSchema,
+  claimKeySaltSchema,
   DELETE_CONFIRM_PHRASE,
 } from '@/lib/validations/account'
 import { consumeStepUp } from '@/lib/services/session-security.service'
@@ -50,6 +51,18 @@ export async function completeOnboardingAction(): Promise<void | ActionFailure> 
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     return account.completeOnboarding(userId)  })
+}
+
+/**
+ * LD-610: record the salt for a new vault, once. Returns the stored salt, which
+ * differs from the one sent only if another tab claimed first.
+ */
+export async function claimKeySaltAction(input: unknown): Promise<string | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { keySalt } = claimKeySaltSchema.parse(input)
+    return account.claimKeySalt(userId, keySalt)
+  })
 }
 
 export async function setEmailNotificationPreferenceAction(input: unknown): Promise<void | ActionFailure> {

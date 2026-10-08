@@ -1,7 +1,7 @@
 // Browser-side orchestration for recovery codes, password change, and vault recovery.
 // Pure crypto runs in the browser; persistence goes through server actions.
 
-import { deriveMasterKey, deriveMasterKeyExtractable, importMasterKey } from '@/lib/crypto/key-derivation'
+import { deriveMasterKey, deriveMasterKeyExtractable, generateKeySalt, importMasterKey } from '@/lib/crypto/key-derivation'
 import { rewrapDek } from '@/lib/crypto/client-crypto'
 import {
   generateRecoveryCode,
@@ -12,9 +12,35 @@ import {
   unwrapMasterKeyForRecovery,
 } from '@/lib/crypto/recovery'
 import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
-import { setRecoveryEscrowAction, rewrapVaultEntriesAction } from '@/lib/actions/account.actions'
+import { setRecoveryEscrowAction, rewrapVaultEntriesAction, claimKeySaltAction } from '@/lib/actions/account.actions'
 import { addRecoveryFactorAction } from '@/lib/actions/recovery.actions'
 import { unwrap } from '@/lib/actions/unwrap'
+
+export interface VaultSetup {
+  /** The salt this account's master key comes from. Always the stored one. */
+  keySalt: string
+  /** Shown to the person once. Null if another tab set up first or escrow failed. */
+  recoveryCode: string | null
+}
+
+/**
+ * LD-610: first-time vault setup, run in the browser with the password the
+ * person just signed in with. Happens straight after sign-up where email
+ * confirmation is off, and on the first sign-in after confirming where it is on.
+ */
+export async function setUpVault(password: string): Promise<VaultSetup> {
+  const proposed = generateKeySalt()
+  const keySalt = await unwrap(claimKeySaltAction({ keySalt: proposed }))
+  // Another tab won the race and has already shown its own recovery code.
+  if (keySalt !== proposed) return { keySalt, recoveryCode: null }
+  try {
+    return { keySalt, recoveryCode: await setupRecoveryFromPassword(password, keySalt) }
+  } catch {
+    // LD-105: the first vault write is blocked until recovery exists, and
+    // settings can create the code later.
+    return { keySalt, recoveryCode: null }
+  }
+}
 
 // Generate a fresh recovery code, escrow the (extractable) master key under it,
 // persist the wrapped bytes + salt, and return the code to show the user once.

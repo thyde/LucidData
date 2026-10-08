@@ -15,7 +15,7 @@ function TwoFactorInner() {
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Two-factor authentication</CardTitle>
+        <CardTitle as="h1" className="text-2xl font-bold text-center">Two-factor authentication</CardTitle>
         <CardDescription className="text-center">
           Enter the 6-digit code from your authenticator app to continue.
         </CardDescription>

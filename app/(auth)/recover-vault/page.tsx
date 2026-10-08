@@ -108,7 +108,7 @@ export default function RecoverVaultPage() {
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Recover your vault</CardTitle>
+        <CardTitle as="h1" className="text-2xl font-bold text-center">Recover your vault</CardTitle>
         <CardDescription className="text-center">
           Set a new password and enter your recovery code to restore your encrypted data.
         </CardDescription>
