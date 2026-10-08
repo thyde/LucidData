@@ -49,7 +49,7 @@ This file is self-contained: the patterns below live in its own sections. The ol
 - **Server-held keys exist only for issuer signing:** issuer Ed25519 private keys are AES-256-GCM-wrapped with `ISSUER_KEY_SECRET` (see `lib/crypto/credential-signing.ts`).
 
 ### Audit Logging (Hash Chains)
-- **Create audit log** for ALL vault/consent operations (create, read, update, delete, grant, revoke)
+- **Create audit log** for ALL vault/consent operations (create, read, update, delete, grant, revoke). A bulk import writes one entry per batch, listing the stored ids in its metadata (see `createVaultDataBatch`)
 - **Include `previousHash`** to maintain immutable chain integrity
 - **Use `lib/crypto/hashing.ts`** - `createAuditHash()` for hash generation
 - **Never modify** existing audit log entries (immutable by design)

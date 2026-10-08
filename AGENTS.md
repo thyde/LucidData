@@ -170,6 +170,7 @@ Keys and recovery:
 Audit logging:
 
 - Write an audit log for every sensitive operation (create, read, update, delete, grant, revoke).
+- A bulk import writes one audit entry for each batch, with the ids it stored in the entry's metadata, rather than one entry per record. `createVaultDataBatch` in `lib/services/vault.service.ts` does this; use it for any new import path.
 - Include `previousHash` to keep the chain intact. Use `createAuditHash()` from `lib/crypto/hashing.ts`.
 - Never modify existing audit rows. The chain is immutable and verified with `verifyHashChain()`.
 
