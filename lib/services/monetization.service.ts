@@ -1,7 +1,9 @@
 import * as monetizationRepo from '@/lib/repositories/monetization.repository'
+import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import type { VaultFieldMonetization, SalePreferences } from '@/types/database.types'
 import type { FieldMonetizationInput, SalePreferencesInput } from '@/lib/validations/marketplace'
+import { isSaleRestrictedEntry } from '@/lib/validations/marketplace'
 
 export async function getFieldMonetization(
   vaultDataId: string,
@@ -19,12 +21,21 @@ export async function setFieldMonetization(
   userId: string,
   input: FieldMonetizationInput
 ): Promise<void> {
+  // The stored entry, not the request, says what kind of data this is. The
+  // vault never offers these toggles for restricted data, so reaching either
+  // refusal means a client went around it.
+  const entry = await vaultRepo.findVaultById(input.vault_data_id, userId)
+  if (!entry) throw new Error('Vault entry not found')
+  if (isSaleRestrictedEntry(entry) && input.fields.some((field) => field.opted_in)) {
+    throw new Error('This entry holds data that is never for sale')
+  }
+
   for (const field of input.fields) {
     await monetizationRepo.upsertField({
       vault_data_id: input.vault_data_id,
       user_id: userId,
       field_key: field.field_key,
-      category: input.category,
+      category: entry.category,
       opted_in: field.opted_in,
     })
   }

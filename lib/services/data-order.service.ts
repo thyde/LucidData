@@ -6,12 +6,17 @@ import * as poolRepo from '@/lib/repositories/pool.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { recordOrderPayouts } from '@/lib/services/payout.service'
-import { assertOrderMeetsMinimum, computeOrderTotal } from '@/lib/constants/marketplace-economics'
+import {
+  EXPORT_WINDOW_DAYS,
+  assertOrderMeetsMinimum,
+  computeOrderTotal,
+} from '@/lib/constants/marketplace-economics'
 import { prepareRelease, type PrivacyReport } from '@/lib/privacy/k-anonymity'
 import type { DataOrder, Json } from '@/types/database.types'
 import { UserFacingError } from '@/lib/actions/action-result'
 import {
   isMarketplaceCategoryAllowed,
+  isSaleRestrictedEntry,
   type PurchasePoolInput,
 } from '@/lib/validations/marketplace'
 
@@ -39,8 +44,6 @@ export interface DatasetExport {
     redacted: boolean
   }[]
 }
-
-const EXPORT_WINDOW_DAYS = 7
 
 /** Compute the total for an immutable snapshot purchase. */
 function computeTotal(
@@ -165,7 +168,11 @@ export async function startPoolPurchase(
     throw new UserFacingError('This category is not available for marketplace sale')
   }
 
-  const contributions = await contributionRepo.findActiveContributionsByPool(pool.id)
+  const contributions = (await contributionRepo.findActiveContributionsByPool(pool.id)).filter(
+    // The database refuses restricted contributions now; this keeps any made
+    // before that rule out of every release.
+    (contribution) => !isSaleRestrictedEntry(contribution)
+  )
   const contributorCount = new Set(contributions.map((contribution) => contribution.user_id)).size
   if (contributorCount < pool.minimum_contributors) {
     throw new Error(

@@ -28,6 +28,7 @@ import { ConsentCreateDialog } from '@/components/consent/consent-create-dialog'
 import { VaultDataDisplay } from './vault-data-display';
 import { FieldMonetizationToggle } from './field-monetization-toggle';
 import { Share2 } from 'lucide-react';
+import { isSaleRestrictedEntry, SALE_RESTRICTED_STATEMENT } from '@/lib/validations/marketplace';
 
 interface VaultViewDialogProps {
   entryId: string;
@@ -221,20 +222,26 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   )}
                 </div>
 
-                {/* Monetization */}
+                {/* Marketplace. Restricted data never gets the toggles at all. */}
                 {!entry.decryptionError &&
                   entry.data &&
                   typeof entry.data === 'object' &&
                   Object.keys(entry.data).length > 0 && (
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                        Sell your data
+                        Marketplace
                       </h3>
-                      <FieldMonetizationToggle
-                        vaultDataId={entry.id}
-                        category={entry.category}
-                        fields={Object.keys(entry.data as Record<string, unknown>)}
-                      />
+                      {isSaleRestrictedEntry(entry) ? (
+                        <p className="text-sm text-muted-foreground">
+                          {SALE_RESTRICTED_STATEMENT}, so this entry cannot be offered to buyers.
+                        </p>
+                      ) : (
+                        <FieldMonetizationToggle
+                          vaultDataId={entry.id}
+                          category={entry.category}
+                          fields={Object.keys(entry.data as Record<string, unknown>)}
+                        />
+                      )}
                     </div>
                   )}
 

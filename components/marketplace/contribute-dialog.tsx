@@ -23,7 +23,11 @@ import { formatCents } from '@/components/dashboard/chart-theme'
 import { formatFeePercent, splitEarnings } from '@/lib/constants/marketplace-economics'
 import type { DecryptedVaultData } from '@/types'
 import type { OpenDataPool } from '@/lib/services/marketplace.service'
-import { MARKETPLACE_PURPOSE_LABELS } from '@/lib/validations/marketplace'
+import {
+  MARKETPLACE_PURPOSE_LABELS,
+  SALE_RESTRICTED_STATEMENT,
+  isSaleRestrictedEntry,
+} from '@/lib/validations/marketplace'
 
 interface ContributeDialogProps {
   pool: OpenDataPool
@@ -42,6 +46,11 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
   const [isPending, startTransition] = useTransition()
 
   const fields = useMemo(() => (selected ? toFieldEntries(selected.data) : []), [selected])
+  // Restricted data is never offered, whatever pool this is.
+  const eligible = useMemo(
+    () => (entries ?? []).filter((entry) => !isSaleRestrictedEntry(entry)),
+    [entries]
+  )
 
   // LD-505: what the buyer pays, what LucidData retains, and what the person
   // actually earns, all shown before they agree to anything.
@@ -143,8 +152,13 @@ export function ContributeDialog({ pool, open, onOpenChange, onContributed }: Co
                 Your vault is empty. Add an entry first.
               </p>
             )}
+            {!isLoading && (entries?.length ?? 0) > 0 && eligible.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                None of your entries can be shared here. {SALE_RESTRICTED_STATEMENT}.
+              </p>
+            )}
             <div className="space-y-2">
-              {entries?.map((entry) => (
+              {eligible.map((entry) => (
                 <button
                   key={entry.id}
                   onClick={() => selectEntry(entry)}

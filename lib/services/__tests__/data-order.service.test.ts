@@ -122,6 +122,45 @@ describe('data order snapshots', () => {
     expect(orderRepo.createOrder).not.toHaveBeenCalled()
   })
 
+  it('never releases a restricted contribution made before the database refused them', async () => {
+    const medical = {
+      ...contributions[0],
+      id: 'contribution-medical',
+      user_id: 'user-medical',
+      category: 'credentials',
+      schema_type: 'medical_basic',
+      anonymized_payload: { conditions: 'synthetic' },
+    }
+    vi.mocked(contributionRepo.findActiveContributionsByPool).mockResolvedValue([
+      ...contributions,
+      medical,
+    ])
+
+    await startPoolPurchase(pool.buyer_org_id, 'buyer-1', {
+      pool_id: pool.id,
+      order_type: 'snapshot',
+    })
+
+    const records = vi.mocked(orderRepo.createOrderRecords).mock.calls[0][0]
+    expect(records.map((record) => record.source_contribution_id)).not.toContain(medical.id)
+    expect(records).toHaveLength(contributions.length)
+  })
+
+  it('does not count restricted contributions toward the minimum cohort', async () => {
+    vi.mocked(contributionRepo.findActiveContributionsByPool).mockResolvedValue([
+      ...contributions.slice(0, 4),
+      { ...contributions[4], category: 'health' },
+    ])
+
+    await expect(
+      startPoolPurchase(pool.buyer_org_id, 'buyer-1', {
+        pool_id: pool.id,
+        order_type: 'snapshot',
+      })
+    ).rejects.toThrow('needs at least 5 contributors')
+    expect(orderRepo.createOrder).not.toHaveBeenCalled()
+  })
+
   it('snapshots the exact records used for pricing', async () => {
     await startPoolPurchase(pool.buyer_org_id, 'buyer-1', {
       pool_id: pool.id,

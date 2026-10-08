@@ -127,6 +127,9 @@ export async function resolveShareToken(token: string): Promise<PublicShareView 
     .maybeSingle()
   if (!credential) return null
   const cred = credential as IssuedCredential
+  // Only the person a credential was issued to can share it. A share row made
+  // by anyone else is treated as if it did not exist.
+  if (cred.subject_user_id !== share.user_id) return null
 
   const credVerification = await verifyIssuedCredential(cred)
 

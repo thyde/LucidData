@@ -7,7 +7,11 @@ import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertNotUniversallyOptedOut } from '@/lib/services/privacy-signal.service'
 import type { PoolContribution, Json } from '@/types/database.types'
 import type { ContributeInput } from '@/lib/validations/marketplace'
-import { isMarketplaceCategoryAllowed } from '@/lib/validations/marketplace'
+import {
+  isMarketplaceCategoryAllowed,
+  isSaleRestrictedEntry,
+  SALE_RESTRICTED_STATEMENT,
+} from '@/lib/validations/marketplace'
 import { containsIdentifierField } from '@/lib/crypto/anonymize'
 import { PLATFORM_FEE_BPS, splitEarnings } from '@/lib/constants/marketplace-economics'
 import { UserFacingError } from '@/lib/actions/action-result'
@@ -41,6 +45,14 @@ export async function contribute(userId: string, input: ContributeInput): Promis
   if (!pool) throw new UserFacingError('Pool not found or no longer open')
   if (!isMarketplaceCategoryAllowed(pool.category as ContributeInput['category'])) {
     throw new UserFacingError('This category is not available for marketplace sale')
+  }
+
+  // The entry decides what kind of data this is, not the pool and not the
+  // request. A medical record offered to a "personal" pool is still health data.
+  const vaultEntry = await vaultRepo.findVaultById(input.vault_data_id, userId)
+  if (!vaultEntry) throw new UserFacingError('Vault entry not found')
+  if (isSaleRestrictedEntry(vaultEntry)) {
+    throw new UserFacingError(`${SALE_RESTRICTED_STATEMENT}.`)
   }
 
   const preferences = await monetizationRepo.findSalePreferences(userId)
@@ -80,12 +92,6 @@ export async function contribute(userId: string, input: ContributeInput): Promis
     throw new UserFacingError(`These fields are private: ${privateFields.join(', ')}`)
   }
 
-  // LD-501: the privacy gate classifies fields per schema, not per broad data
-  // category, so the schema has to travel with the contribution. A vault entry
-  // the user does not own resolves to null, which the gate treats as
-  // unclassifiable and suppresses.
-  const vaultEntry = await vaultRepo.findVaultById(input.vault_data_id, userId)
-
   // LD-506: the unique index is the actual control. This only turns its error
   // into something the person can act on, so a caller that forgets to check
   // still cannot write a duplicate.
@@ -96,8 +102,10 @@ export async function contribute(userId: string, input: ContributeInput): Promis
       user_id: userId,
       vault_data_id: input.vault_data_id,
       anonymized_payload: input.anonymized_payload as Json,
-      category: input.category,
-      schema_type: vaultEntry?.schema_type ?? null,
+      category: pool.category,
+      // LD-501: the privacy gate classifies fields per schema, not per broad
+      // data category, so the schema has to travel with the contribution.
+      schema_type: vaultEntry.schema_type ?? null,
       payout_cents: pool.price_per_record_cents,
       // LD-505: pin the fee that applied when the person agreed. A later change to
       // the platform fee must never alter terms already consented to.

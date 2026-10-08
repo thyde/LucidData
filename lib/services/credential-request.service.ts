@@ -257,6 +257,8 @@ export async function getRequestFulfillment(
       .maybeSingle()
     if (!credRow) continue
     const credential = credRow as IssuedCredential
+    // Only the credential's own subject can share it.
+    if (credential.subject_user_id !== share.user_id) continue
 
     const verification = await verifyIssuedCredential(credential)
     const { data: issuer } = await service
