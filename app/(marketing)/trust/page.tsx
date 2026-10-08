@@ -8,6 +8,7 @@ import {
   SUBPROCESSORS,
   REVOCATION_LIMIT,
   VULNERABILITY_DISCLOSURE,
+  PRODUCT_MEASUREMENT,
 } from '@/lib/constants/trust-disclosures'
 import { RESIDUAL_DISCLOSURES } from '@/lib/constants/deletion-manifest'
 import { describeFormats } from '@/lib/credentials/formats'
@@ -158,6 +159,22 @@ export default function TrustPage() {
           Consent terms, audit records, credential claims, and billing details are also stored
           unencrypted, because both parties and any auditor need to read them.
         </p>
+      </section>
+
+      <section className="mt-14 space-y-4">
+        <h2 className="text-2xl font-semibold">How we measure the product</h2>
+        <p className="text-muted-foreground">
+          We count a few things to learn whether LucidData is useful. There are no advertising
+          pixels, and nothing records your screen or your clicks.
+        </p>
+        <dl className="space-y-4">
+          {PRODUCT_MEASUREMENT.map((row) => (
+            <div key={row.measure}>
+              <dt className="font-medium">{row.measure}</dt>
+              <dd className="text-muted-foreground">{row.how}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       <section className="mt-14 space-y-4">

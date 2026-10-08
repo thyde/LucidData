@@ -67,6 +67,10 @@ vi.mock('@/lib/services/connector.service', () => ({
   runConnectorSync: () => Promise.resolve({ imported: 0, failed: 0 }),
 }))
 
+vi.mock('@/lib/services/product-metrics.service', () => ({
+  refreshMetricSnapshots: () => Promise.resolve(0),
+}))
+
 vi.mock('@/lib/supabase/service', () => ({
   createServiceClient: () => ({
     from: (table: string) => {
@@ -288,14 +292,15 @@ describe('runScheduledJobs', () => {
       'webhook_delivery',
       'bulk_operations',
       'connector_sync',
+      'metrics_snapshot',
     ])
-    expect(jobRunInsert).toHaveBeenCalledTimes(8)
+    expect(jobRunInsert).toHaveBeenCalledTimes(9)
   })
 
   it('reports a failing job without stopping the sweep', async () => {
     findDuePayouts.mockRejectedValue(new Error('database unreachable'))
     const results = await runScheduledJobs()
-    expect(results).toHaveLength(8)
+    expect(results).toHaveLength(9)
     expect(results[0].error).toBe('database unreachable')
     expect(results[1].error).toBeUndefined()
   })

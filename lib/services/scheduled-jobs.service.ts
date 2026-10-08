@@ -14,6 +14,7 @@
  *   webhook_delivery send queued organization webhooks, with backoff
  *   bulk_operations  resume interrupted bulk jobs and purge finished ones
  *   connector_sync   pull new provider records and seal them to the user's key
+ *   metrics_snapshot store the weekly LD-610 measures, at most once a day
  *
  * Connector token refresh happens inside connector_sync, before each fetch,
  * rather than as a job of its own: a token refreshed hours before it is used is
@@ -35,6 +36,7 @@ import { runRetentionPurges } from '@/lib/services/retention.service'
 import { dispatchDueDeliveries } from '@/lib/services/webhook.service'
 import { runBulkJobs, purgeOldBulkJobs } from '@/lib/services/bulk-job.service'
 import { runConnectorSync } from '@/lib/services/connector.service'
+import { refreshMetricSnapshots } from '@/lib/services/product-metrics.service'
 import { PAYOUT_THRESHOLD_CENTS } from '@/lib/constants/marketplace-economics'
 
 export const JOB_NAMES = [
@@ -46,6 +48,7 @@ export const JOB_NAMES = [
   'webhook_delivery',
   'bulk_operations',
   'connector_sync',
+  'metrics_snapshot',
 ] as const
 export type JobName = (typeof JOB_NAMES)[number]
 
@@ -288,6 +291,15 @@ export async function runConnectorSyncJob(): Promise<JobResult> {
   return { job: 'connector_sync', processed: imported, failed }
 }
 
+/**
+ * LD-610: store the weekly measures of success. Aggregate counts only, kept so
+ * the history survives the retention purges that remove some source rows.
+ */
+export async function runMetricsSnapshot(): Promise<JobResult> {
+  const processed = await refreshMetricSnapshots()
+  return { job: 'metrics_snapshot', processed, failed: 0 }
+}
+
 const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   payout_retries: runPayoutRetries,
   consent_expiry: runConsentExpiry,
@@ -297,6 +309,7 @@ const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   webhook_delivery: runWebhookDelivery,
   bulk_operations: runBulkOperations,
   connector_sync: runConnectorSyncJob,
+  metrics_snapshot: runMetricsSnapshot,
 }
 
 async function recordRun(result: JobResult, startedAt: string): Promise<void> {

@@ -152,6 +152,13 @@ export async function evaluatePool(poolId: string, orgId: string): Promise<PoolE
   if (!pool) throw new UserFacingError('Pool not found for this organization')
 
   const service = createServiceClient()
+  // LD-610: buyer conversion needs to know which organizations looked before
+  // buying. Organization and pool only, and a failed write never blocks the
+  // evaluation itself.
+  await Promise.resolve(
+    service.from('pool_evaluations').insert({ organization_id: orgId, pool_id: poolId })
+  ).catch(() => undefined)
+
   const [coverageResult, freshnessResult, schemaMixResult] = await Promise.all([
     service.rpc('pool_field_coverage', { p_pool_id: poolId }),
     service.rpc('pool_freshness', { p_pool_id: poolId }),

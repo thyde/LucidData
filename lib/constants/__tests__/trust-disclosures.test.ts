@@ -10,7 +10,9 @@ import {
   REVOCATION_LIMIT,
   VULNERABILITY_DISCLOSURE,
   THREAT_MODEL,
+  PRODUCT_MEASUREMENT,
 } from '@/lib/constants/trust-disclosures'
+import { SIGNUP_SOURCES, type SignupSource } from '@/lib/utils/signup-source'
 
 const CRYPTO_DIR = join(process.cwd(), 'lib', 'crypto')
 
@@ -104,7 +106,22 @@ describe('trust disclosures', () => {
       REVOCATION_LIMIT,
       VULNERABILITY_DISCLOSURE,
       THREAT_MODEL,
+      PRODUCT_MEASUREMENT,
     })
     expect(copy).not.toContain('\u2014')
+  })
+
+  it('discloses every place a sign-up source can come from', () => {
+    // Adding a source to the allowlist without saying so on /trust would mean
+    // recording something the trust centre does not mention.
+    const named: Record<SignupSource, RegExp> = {
+      verify: /credential check/i,
+      extension: /browser extension/i,
+    }
+    const disclosure = PRODUCT_MEASUREMENT.find((row) => row.measure === 'Where you signed up from')
+    expect(disclosure).toBeDefined()
+    for (const source of SIGNUP_SOURCES) {
+      expect(disclosure?.how).toMatch(named[source])
+    }
   })
 })

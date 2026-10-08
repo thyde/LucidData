@@ -95,6 +95,15 @@ document.getElementById('open-options').addEventListener('click', (event) => {
   chrome.runtime.openOptionsPage()
 })
 
+// The `from` value is the only thing this tells the app: that the person came
+// from the extension. Nothing about their browsing goes with it.
+document.getElementById('open-register').addEventListener('click', async (event) => {
+  event.preventDefault()
+  const origin = await appOrigin()
+  await chrome.tabs.create({ url: `${origin}/register?from=extension` })
+  window.close()
+})
+
 document.getElementById('open-dashboard').addEventListener('click', async () => {
   const origin = await appOrigin()
   await chrome.tabs.create({ url: `${origin}/dashboard` })

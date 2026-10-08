@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { RecoveryCodeDisplay } from '@/components/settings/recovery-code-display';
 import { setupRecoveryFromPassword } from '@/lib/account/account-crypto';
+import { signupSourceFrom } from '@/lib/utils/signup-source';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -69,10 +70,17 @@ export default function RegisterPage() {
     const supabase = createClient();
 
     try {
+      // Only a page we link from can set this, and only to a value on the list.
+      const signupSource = signupSourceFrom(
+        new URLSearchParams(window.location.search).get('from')
+      );
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { captchaToken: await getCaptchaToken() },
+        options: {
+          captchaToken: await getCaptchaToken(),
+          ...(signupSource ? { data: { signup_source: signupSource } } : {}),
+        },
       });
 
       if (error) {

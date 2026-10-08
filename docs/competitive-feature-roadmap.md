@@ -1,7 +1,7 @@
 # Competitive feature roadmap
 
 Research date: 2026-07-25
-Last delivery update: 2026-10-05
+Last delivery update: 2026-10-07
 Status: active. **Phase 1 and Phase 2 are delivered. Phase 3 and Phase 4 are in progress.**
 Phase 1: [section 6.1](#61-phase-1-delivery-record) for the record, [section 6.2](#62-implications-for-later-phases) for what changed underneath the remaining specs.
 Phase 2: [section 6.4](#64-phase-2-delivery-record) for the record, [section 6.5](#65-defects-found-while-building-phase-2) for defects found on the way, and [section 6.6](#66-what-is-left-in-phase-2) for what remains and in what order.
@@ -1393,6 +1393,7 @@ Implementation.
 - Decrypt and aggregate in the browser, in a pure module that LD-609 shares with the app.
 - Read from the LD-103 IndexedDB index so a year of daily entries renders quickly, and clear it on lock.
 - Make onboarding start with connecting a source or importing an Apple Health export.
+- Count visits for the LD-610 measures: one increment per person per day the timeline is opened, kept as a daily count with no metric, date range, or value attached, and read by `product_metrics` as timeline visits per week. Signed-in pages stay out of the page-view analytics, so this counter is the only record.
 
 Security. Aggregates are plaintext in memory and in the local index. Treat them like the LD-103 index:
 never sent to the server, and cleared on lock and sign-out.
@@ -1402,6 +1403,7 @@ Acceptance criteria.
 - [ ] Each value shows its source, and overlapping sources are not counted twice.
 - [ ] Nothing derived from health entries leaves the browser.
 - [ ] The view is keyboard accessible and passes the axe scan.
+- [ ] Timeline visits per week appear in the `product_metrics` output.
 
 Tests. Aggregation unit tests with overlapping sources. A network-silence test. The accessibility suite.
 
@@ -2407,7 +2409,7 @@ Acceptance criteria.
 - [x] A preview deployment cannot reach production data.
 - [x] A migration reaches production only through the workflow.
 - [x] An error event contains no query string, email address, or health field, asserted by test.
-- [ ] The section 6 metrics can be measured from the analytics data.
+- [x] The section 6 metrics can be measured from the analytics data.
 - [x] A restore drill has run, and its date and result are published under LD-107.
 
 Tests. Scrubber unit tests. The nightly e2e run. A workflow dry run against staging.
@@ -2432,6 +2434,8 @@ Progress, 2026-10-05.
 - CI builds a database from every migration on each pull request, lints it with `supabase db lint`, and runs pgTAP tests: row level security on every public table, `search_path` pinned on every `SECURITY DEFINER` function, none of them callable by `anon`, a reviewed list callable by signed-in users, and a table privilege behind every policy for signed-in users. Each test failed against a deliberate violation before it was kept. The Playwright suite runs nightly against a production build and a local Supabase stack, and its first run passed.
 - Spending is capped below the owner's limit of $150 a month. Vercel's on-demand budget is $60 and pauses production when it is reached, and Supabase's spend cap is on. The committed total is about $60 a month and the worst case about $120; [AGENTS.md](../AGENTS.md) keeps the table.
 - The first restore drill ran on 2026-10-06. The previous day's physical backup of production was restored into a new, temporary project, which was healthy four minutes after the request. All 44 tables matched production by row count and a hash of every row, as did both accounts, all 46 migration records, and the head of the audit hash chain; the one difference was the 56 hourly scheduler rows written after the backup. The restored project answered on its own API, and was deleted after about five minutes, at a cost of under a cent. The result is published at `/trust/assurance`, which also stopped claiming point-in-time recovery: it is a paid add-on that is not enabled, so a restore returns the database to the last daily backup.
+- The section 6 measures can be read from first-party data, which closes the last criterion. A database function, `product_metrics`, works them out for any period from rows the product already keeps, and only the service role can call it. The hourly scheduler stores one snapshot per week in `metric_snapshots`, rewriting each of the last six weeks once a day so the thirty-day measures can mature, then leaving the week alone. Sharing and credential presentations are counted from the audit log, not from share rows, because share rows are purged 30 days after they lapse and a count built on them would shrink as the week got older. Two facts were missing and are now recorded. `users.signup_source` holds `verify` or `extension` when the person arrived from a credential check or the extension, set once at sign-up from an allowlist the database enforces, and `direct` otherwise. `pool_evaluations` records which organization looked at which of its own pools, so buyer conversion has a denominator. The trust centre says what is measured and how. Until LD-611 gives the measures a screen, read them in the SQL editor with `select * from metric_snapshots order by period_start desc`.
+- Three measures still come from somewhere else. Extension installs come from the store dashboards, because the extension reports nothing to us; saving a tracker summary to the vault is counted as the visible part of tier 1 enablement. Timeline visits per week wait for LD-214, which builds the timeline, and that spec now carries the counter.
 
 ---
 
@@ -3083,6 +3087,9 @@ Registrations alone will hide the adoption problem visible across this category.
 - Extension installs, tier 1 enablement, and whether extension arrivals retain better than direct signups.
 - Credential presentations performed, and signups attributable to having been on the verifying side of one.
 - Added 2026-10-05: health sources connected per person, days of history imported, and timeline visits per week.
+
+Since 2026-10-07 these are computed by the `product_metrics` database function and stored weekly in
+`metric_snapshots`; LD-610 records how each one is counted and the three that come from elsewhere.
 
 ## 7. Financial model
 

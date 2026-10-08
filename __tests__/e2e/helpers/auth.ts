@@ -85,9 +85,10 @@ export async function login(
 export async function signup(
   page: Page,
   email: string = TEST_USER.email,
-  password: string = TEST_USER.password
+  password: string = TEST_USER.password,
+  options: { path?: string } = {}
 ): Promise<void> {
-  await page.goto('/signup');
+  await page.goto(options.path ?? '/signup');
 
   // Wait for form to be ready
   await page.waitForSelector('input[name="email"]', { state: 'visible' });
