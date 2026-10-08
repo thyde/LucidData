@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZodError } from 'zod'
 import { isActionFailure } from '@/lib/actions/action-result'
 
 const getUser = vi.fn()
@@ -52,10 +51,16 @@ describe('createVaultEntryAction', () => {
     })
   })
 
-  it('refuses an entry without its encrypted envelope', async () => {
-    await expect(
-      createVaultEntryAction({ label: 'Plain', client_ciphertext: 'c', encrypted_dek: '', dek_salt: 's' })
-    ).rejects.toBeInstanceOf(ZodError)
+  it('refuses an entry without its encrypted envelope, and says which field', async () => {
+    const result = await createVaultEntryAction({
+      label: 'Plain',
+      client_ciphertext: 'c',
+      encrypted_dek: '',
+      dek_salt: 's',
+    })
+
+    expect(isActionFailure(result) && result.code).toBe('invalid_input')
+    expect(isActionFailure(result) && result.message).toContain('encrypted_dek')
     expect(createVaultData).not.toHaveBeenCalled()
   })
 
@@ -63,9 +68,9 @@ describe('createVaultEntryAction', () => {
     await createVaultEntryAction({ label: 'Degree', category: 'credentials', schema_type: 'verifiable_credential', ...envelope })
     expect(createVaultData).toHaveBeenCalledTimes(1)
 
-    await expect(
-      createVaultEntryAction({ label: 'x', schema_type: 'MedicalRecord', ...envelope })
-    ).rejects.toBeInstanceOf(ZodError)
+    const result = await createVaultEntryAction({ label: 'x', schema_type: 'MedicalRecord', ...envelope })
+    expect(isActionFailure(result) && result.code).toBe('invalid_input')
+    expect(createVaultData).toHaveBeenCalledTimes(1)
   })
 
   it('refuses a caller without a session', async () => {
@@ -87,7 +92,9 @@ describe('updateVaultEntryAction', () => {
   })
 
   it('refuses new ciphertext without its wrapped key', async () => {
-    await expect(updateVaultEntryAction(ID, { client_ciphertext: 'c' })).rejects.toBeInstanceOf(ZodError)
+    const result = await updateVaultEntryAction(ID, { client_ciphertext: 'c' })
+
+    expect(isActionFailure(result) && result.code).toBe('invalid_input')
     expect(updateVaultData).not.toHaveBeenCalled()
   })
 
