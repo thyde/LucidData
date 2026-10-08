@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [
+<!-- HealthKit Export Version: 14 -->
+<!ELEMENT HealthData (ExportDate,Me,(Record|Correlation|Workout|ActivitySummary|ClinicalRecord|Audiogram|VisionPrescription)*)>
+<!ATTLIST Record type CDATA #REQUIRED unit CDATA #IMPLIED value CDATA #IMPLIED sourceName CDATA #REQUIRED>
+]>
+<HealthData locale="en_US">
+ <ExportDate value="2026-10-08 09:00:00 -0700"/>
+ <Me HKCharacteristicTypeIdentifierDateOfBirth="" HKCharacteristicTypeIdentifierBiologicalSex="HKBiologicalSexNotSet" HKCharacteristicTypeIdentifierBloodType="HKBloodTypeNotSet"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="iPhone" sourceVersion="11.0" unit="count" creationDate="2026-10-05 18:00:00 -0700" startDate="2026-10-05 09:00:00 -0700" endDate="2026-10-05 18:00:00 -0700" value="6000"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Watch" sourceVersion="11.0" unit="count" creationDate="2026-10-05 18:00:00 -0700" startDate="2026-10-05 09:00:00 -0700" endDate="2026-10-05 18:00:00 -0700" value="6500"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="iPhone" sourceVersion="11.0" unit="count" creationDate="2026-10-06 18:00:00 -0700" startDate="2026-10-06 09:00:00 -0700" endDate="2026-10-06 18:00:00 -0700" value="8000"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Watch" sourceVersion="11.0" unit="count" creationDate="2026-10-06 18:00:00 -0700" startDate="2026-10-06 09:00:00 -0700" endDate="2026-10-06 18:00:00 -0700" value="7200"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Watch" sourceVersion="11.0" unit="count" creationDate="2026-10-07 18:00:00 -0700" startDate="2026-10-07 09:00:00 -0700" endDate="2026-10-07 18:00:00 -0700" value="9100"/>
+ <Record type="HKQuantityTypeIdentifierRestingHeartRate" sourceName="Watch" sourceVersion="11.0" unit="count/min" creationDate="2026-10-05 06:00:00 -0700" startDate="2026-10-05 06:00:00 -0700" endDate="2026-10-05 06:00:00 -0700" value="61"/>
+ <Record type="HKQuantityTypeIdentifierRestingHeartRate" sourceName="Watch" sourceVersion="11.0" unit="count/min" creationDate="2026-10-06 06:00:00 -0700" startDate="2026-10-06 06:00:00 -0700" endDate="2026-10-06 06:00:00 -0700" value="59"/>
+ <Record type="HKQuantityTypeIdentifierRestingHeartRate" sourceName="Watch" sourceVersion="11.0" unit="count/min" creationDate="2026-10-07 06:00:00 -0700" startDate="2026-10-07 06:00:00 -0700" endDate="2026-10-07 06:00:00 -0700" value="58"/>
+ <Record type="HKQuantityTypeIdentifierOxygenSaturation" sourceName="Watch" sourceVersion="11.0" unit="%" creationDate="2026-10-07 03:00:00 -0700" startDate="2026-10-07 03:00:00 -0700" endDate="2026-10-07 03:00:00 -0700" value="0.96"/>
+ <Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Withings" sourceVersion="11.0" unit="lb" creationDate="2026-10-05 07:00:00 -0700" startDate="2026-10-05 07:00:00 -0700" endDate="2026-10-05 07:00:00 -0700" value="161.0"/>
+ <Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Withings" sourceVersion="11.0" unit="lb" creationDate="2026-10-07 07:00:00 -0700" startDate="2026-10-07 07:00:00 -0700" endDate="2026-10-07 07:00:00 -0700" value="159.5"/>
+ <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Lose It!" sourceVersion="11.0" unit="kcal" creationDate="2026-10-06 20:00:00 -0700" startDate="2026-10-06 20:00:00 -0700" endDate="2026-10-06 20:00:00 -0700" value="2100"/>
+ <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Lose It!" sourceVersion="11.0" unit="g" creationDate="2026-10-06 20:00:00 -0700" startDate="2026-10-06 20:00:00 -0700" endDate="2026-10-06 20:00:00 -0700" value="95"/>
+ <Correlation type="HKCorrelationTypeIdentifierFood" sourceName="Lose It!" startDate="2026-10-06 20:00:00 -0700" endDate="2026-10-06 20:00:00 -0700">
+ <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Lose It!" sourceVersion="11.0" unit="kcal" creationDate="2026-10-06 20:00:00 -0700" startDate="2026-10-06 20:00:00 -0700" endDate="2026-10-06 20:00:00 -0700" value="2100"/>
+ <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Lose It!" sourceVersion="11.0" unit="g" creationDate="2026-10-06 20:00:00 -0700" startDate="2026-10-06 20:00:00 -0700" endDate="2026-10-06 20:00:00 -0700" value="95"/>
+ </Correlation>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="iPhone" sourceVersion="11.0" creationDate="2026-10-07 06:40:00 -0700" startDate="2026-10-06 22:40:00 -0700" endDate="2026-10-07 06:40:00 -0700" value="HKCategoryValueSleepAnalysisInBed"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Watch" sourceVersion="11.0" creationDate="2026-10-07 01:00:00 -0700" startDate="2026-10-06 23:00:00 -0700" endDate="2026-10-07 01:00:00 -0700" value="HKCategoryValueSleepAnalysisAsleepCore"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Watch" sourceVersion="11.0" creationDate="2026-10-07 02:00:00 -0700" startDate="2026-10-07 01:00:00 -0700" endDate="2026-10-07 02:00:00 -0700" value="HKCategoryValueSleepAnalysisAsleepDeep"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Watch" sourceVersion="11.0" creationDate="2026-10-07 03:00:00 -0700" startDate="2026-10-07 02:00:00 -0700" endDate="2026-10-07 03:00:00 -0700" value="HKCategoryValueSleepAnalysisAsleepREM"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Watch" sourceVersion="11.0" creationDate="2026-10-07 03:15:00 -0700" startDate="2026-10-07 03:00:00 -0700" endDate="2026-10-07 03:15:00 -0700" value="HKCategoryValueSleepAnalysisAwake"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Watch" sourceVersion="11.0" creationDate="2026-10-07 06:15:00 -0700" startDate="2026-10-07 03:15:00 -0700" endDate="2026-10-07 06:15:00 -0700" value="HKCategoryValueSleepAnalysisAsleepCore"/>
+ <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="31.2" durationUnit="min" sourceName="Watch" sourceVersion="11.0" creationDate="2026-10-07 18:32:00 -0700" startDate="2026-10-07 18:00:00 -0700" endDate="2026-10-07 18:31:12 -0700">
+  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate" startDate="2026-10-07 18:00:00 -0700" endDate="2026-10-07 18:31:12 -0700" average="151" minimum="95" maximum="172" unit="count/min"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierActiveEnergyBurned" startDate="2026-10-07 18:00:00 -0700" endDate="2026-10-07 18:31:12 -0700" sum="402" unit="kcal"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierDistanceWalkingRunning" startDate="2026-10-07 18:00:00 -0700" endDate="2026-10-07 18:31:12 -0700" sum="5.1" unit="km"/>
+  <WorkoutRoute sourceName="Watch" startDate="2026-10-07 18:00:00 -0700" endDate="2026-10-07 18:31:12 -0700"><FileReference path="/workout-routes/route_2026-10-07_6.31pm.gpx"/></WorkoutRoute>
+ </Workout>
+</HealthData>

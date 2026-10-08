@@ -22,6 +22,9 @@ import {
   type FieldMapping,
 } from '@luciddata/core/vault/import-parsers'
 import { parseWithAdapter } from '@luciddata/core/vault/adapters'
+import { readHealthExport, type ExportReadResult } from '@luciddata/core/vault/archive'
+import { looksLikeZip, ZipError } from '@luciddata/core/vault/zip'
+import { HealthExportImport } from './health-export-import'
 import { ENTERABLE_SCHEMA_TYPES, VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
 import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
 import { fitLabel, importedEntryLabel } from '@luciddata/core/vault/labels'
@@ -81,6 +84,11 @@ export function VaultImportDialog() {
   const [adapterLabel, setAdapterLabel] = useState<string | null>(null)
   /** Records the file held when the adapter stopped short of all of them. */
   const [truncatedFrom, setTruncatedFrom] = useState<number | null>(null)
+  /** LD-210: a health export, read in full and imported in batches. */
+  const [healthExport, setHealthExport] = useState<ExportReadResult | null>(null)
+  /** How far through reading a health export, from 0 to 1. */
+  const [reading, setReading] = useState<number | null>(null)
+  const [healthBusy, setHealthBusy] = useState(false)
 
   const sourceKeys = useMemo(() => {
     if (!parsed) return [] as string[]
@@ -104,6 +112,9 @@ export function VaultImportDialog() {
     setProgress(null)
     setAdapterLabel(null)
     setTruncatedFrom(null)
+    setHealthExport(null)
+    setReading(null)
+    setHealthBusy(false)
   }
 
   /**
@@ -135,6 +146,34 @@ export function VaultImportDialog() {
     setFileName(file.name)
     const base = file.name.replace(/\.[^.]+$/, '')
     setLabelPrefix(base || 'Imported')
+    setHealthExport(null)
+
+    // LD-210: a health export is read as it streams, whatever its size,
+    // and imported in batches, so it never goes through the 1,000-record path.
+    try {
+      setReading(0)
+      const health = await readHealthExport(file, setReading)
+      if (health) {
+        if (health.records.length === 0) {
+          setParseError(`This ${health.label} export holds no records LucidData reads.`)
+        } else {
+          setHealthExport(health)
+        }
+        return
+      }
+      if (looksLikeZip(new Uint8Array(await file.slice(0, 4).arrayBuffer()))) {
+        setParseError('LucidData cannot read this archive yet. Unzip it and choose the file inside.')
+        return
+      }
+    } catch (error) {
+      setParseError(
+        error instanceof ZipError ? error.message : 'Could not read this export. Download it again and retry.'
+      )
+      return
+    } finally {
+      setReading(null)
+    }
+
     try {
       const text = await file.text()
 
@@ -295,6 +334,8 @@ export function VaultImportDialog() {
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // An import in progress keeps the dialog open; it has its own Stop button.
+        if (!next && healthBusy) return
         setOpen(next)
         if (!next) reset()
       }}
@@ -309,8 +350,8 @@ export function VaultImportDialog() {
         <DialogHeader>
           <DialogTitle>Import from a file</DialogTitle>
           <DialogDescription>
-            Import a .json or .csv file. Records are parsed and encrypted in your browser, then saved
-            as vault entries. The file never leaves your device unencrypted.
+            Import an Apple Health export, or a .json or .csv file. Records are read and encrypted in
+            your browser, then saved as vault entries. The file never leaves your device unencrypted.
           </DialogDescription>
         </DialogHeader>
 
@@ -320,14 +361,32 @@ export function VaultImportDialog() {
             <Input
               id="import-file"
               type="file"
-              accept=".json,.csv,.xml,.tsv,application/json,text/csv,text/xml"
+              accept=".zip,.json,.csv,.xml,.tsv,application/zip,application/json,text/csv,text/xml"
+              disabled={importing || healthBusy || reading !== null}
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
             {fileName && !parseError && (
               <p className="text-xs text-muted-foreground">{fileName}</p>
             )}
             {parseError && <p className="text-sm text-destructive">{parseError}</p>}
+            {reading !== null && (
+              <p className="text-sm text-muted-foreground" role="status">
+                Reading the file. {Math.round(reading * 100)}% done.
+              </p>
+            )}
           </div>
+
+          {healthExport && (
+            <HealthExportImport
+              key={fileName}
+              result={healthExport}
+              onBusyChange={setHealthBusy}
+              onDone={() => {
+                reset()
+                setOpen(false)
+              }}
+            />
+          )}
 
           {parsed && (
             <>
@@ -477,26 +536,28 @@ export function VaultImportDialog() {
           )}
         </div>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setOpen(false)
-              reset()
-            }}
-            disabled={importing}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleImport}
-            disabled={!parsed || importing || isLocked || Boolean(tagsError)}
-          >
-            {importing ? 'Importing…' : 'Import'}
-          </Button>
-        </DialogFooter>
+        {!healthExport && (
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setOpen(false)
+                reset()
+              }}
+              disabled={importing}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleImport}
+              disabled={!parsed || importing || isLocked || Boolean(tagsError)}
+            >
+              {importing ? 'Importing…' : 'Import'}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )
