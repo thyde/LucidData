@@ -15,7 +15,7 @@ import {
   redeemOfferClaim,
   withdrawOfferClaim,
 } from '@/lib/services/offer.service'
-import { createOfferSchema } from '@/lib/validations/marketplace'
+import { createOfferSchema } from '@luciddata/core/validations/marketplace'
 import type { Offer, OfferClaim } from '@/types/database.types'
 
 async function getAuthenticatedUserId(): Promise<string> {

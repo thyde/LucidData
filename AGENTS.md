@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI coding agents working in this repository. Read this before making changes. For the full reference, see [.github/copilot-instructions.md](.github/copilot-instructions.md). The crypto layer has its own nested guidance in [lib/crypto/AGENTS.md](lib/crypto/AGENTS.md); read it before touching anything under `lib/crypto/`.
+Guidance for AI coding agents working in this repository. Read this before making changes. For the full reference, see [.github/copilot-instructions.md](.github/copilot-instructions.md). The crypto layer has nested guidance in [lib/crypto/AGENTS.md](lib/crypto/AGENTS.md) for the server modules and [packages/core/src/crypto/AGENTS.md](packages/core/src/crypto/AGENTS.md) for vault encryption; read the matching one before touching either directory.
 
 Planned work lives in exactly one place. [docs/competitive-feature-roadmap.md](docs/competitive-feature-roadmap.md) is the single definitive roadmap: the prioritized list of features to build and gaps to close, with numbered specs an agent can execute one at a time. Do not plan from the README or from design documents under `docs/`.
 
@@ -82,7 +82,7 @@ Vercel variables are set by hand, per environment: production holds production k
 
 Mutations flow through four layers. Never touch the database directly from components or route handlers.
 
-1. Server action in `lib/actions/` (`'use server'`). Resolve the user with a local `getAuthenticatedUserId()` helper that calls `supabase.auth.getUser()` and throws on no session, validate input against the matching schema in `lib/validations/`, then call a service. Never trust a client-supplied user id.
+1. Server action in `lib/actions/` (`'use server'`). Resolve the user with a local `getAuthenticatedUserId()` helper that calls `supabase.auth.getUser()` and throws on no session, validate input against the matching schema in `packages/core/src/validations/`, then call a service. Never trust a client-supplied user id.
 2. Service in `lib/services/`. Business logic, validation, and audit logging.
 3. Repository in `lib/repositories/`. Supabase reads and writes, always scoped by `userId`.
 4. Supabase client. Use `lib/supabase/server.ts` in server code and `lib/supabase/client.ts` in Client Components. `lib/supabase/service.ts` is the service-role client; see the RLS warning before using it.
@@ -103,13 +103,21 @@ lib/
   actions/       server actions
   services/      business logic
   repositories/  Supabase data access
-  crypto/        client encryption, key derivation, hashing, credential signing
+  crypto/        server crypto: audit hashing, credential and receipt signing
   supabase/      server/client/session helpers
   hooks/         TanStack Query hooks
-  validations/   Zod schemas
+packages/core/   @luciddata/core, shared with the phone app and the extension
+  src/crypto/       vault encryption, key derivation, recovery, sealed ingestion
+  src/schemas/      vault schema registry and form fields
+  src/validations/  Zod schemas
+  src/privacy/      field classification for the privacy gate
+  src/vault/        import parsers and provider export adapters
+  src/connectors/   fitness record normalizers
 supabase/migrations/  SQL migrations (schema source of truth)
 types/           database.types.ts is generated
 ```
+
+`packages/core` is an npm workspace that ships TypeScript source; import it as `@luciddata/core/<path>`, for example `@luciddata/core/crypto/client-crypto`. It may not import Next.js, React, the Supabase clients, Node built-ins, or anything from the web app, and inside the package imports are relative. ESLint and `packages/core/src/__tests__/boundary.test.ts` enforce this. Code that touches the DOM, the server, or the environment stays in the web app. Read [packages/core/AGENTS.md](packages/core/AGENTS.md) before adding to it.
 
 ## Security rules that apply to every feature
 
@@ -127,13 +135,13 @@ Never log or expose (threat-model "never do" list):
 
 - Plaintext vault data, the master key, derived keys, DEKs, salts, passwords, or session tokens. Not in logs, errors, analytics, or responses.
 - Keep unencrypted metadata minimal. Columns like `label`, `category`, and `tags` are queryable and therefore visible to the server; never put sensitive content there.
-- Do not weaken PBKDF2 iterations, reuse IVs, or roll your own crypto. Use the helpers in `lib/crypto/`.
+- Do not weaken PBKDF2 iterations, reuse IVs, or roll your own crypto. Use the helpers in `packages/core/src/crypto/` and `lib/crypto/`.
 
 Encryption (client-side):
 
-- Encrypt vault data in the browser before it reaches the server. Use `lib/crypto/client-crypto.ts` (AES-GCM) and `lib/crypto/key-derivation.ts` (PBKDF2, 600k iterations).
+- Encrypt vault data in the browser before it reaches the server. Use `packages/core/src/crypto/client-crypto.ts` (AES-GCM) and `packages/core/src/crypto/key-derivation.ts` (PBKDF2, 600k iterations).
 - Use envelope encryption: encrypt data with a per-entry DEK, wrap the DEK with the user's master key, and send only `client_ciphertext`, `encrypted_dek`, and `dek_salt`.
-- Treat those three fields as required and non-empty for any write. Validate them in the action (Zod schema in `lib/validations/`) before calling the service. Never write a partial or plaintext row. Note: the current vault path accepts a typed payload without a Zod `parse`; new and refactored writes should add the schema check.
+- Treat those three fields as required and non-empty for any write. Validate them in the action (Zod schema in `packages/core/src/validations/`) before calling the service. Never write a partial or plaintext row. Note: the current vault path accepts a typed payload without a Zod `parse`; new and refactored writes should add the schema check.
 - Server-held keys exist only for issuer signing: Ed25519 private keys are AES-256-GCM-wrapped with `ISSUER_KEY_SECRET` (`lib/crypto/credential-signing.ts`).
 
 Audit logging:
@@ -151,7 +159,7 @@ Authentication and ownership:
 ## Conventions
 
 - Default to Server Components. Add `'use client'` only for state, effects, or event handlers.
-- Validate all input with Zod from `lib/validations/`. Use `.parse()` in actions and services (throws), `.safeParse()` in forms. Some existing actions accept typed payloads without parsing; treat Zod validation as the standard for new code and tighten old paths when you touch them.
+- Validate all input with Zod from `packages/core/src/validations/`. Use `.parse()` in actions and services (throws), `.safeParse()` in forms. Some existing actions accept typed payloads without parsing; treat Zod validation as the standard for new code and tighten old paths when you touch them.
 - Use the `cn()` helper for className merging and follow shadcn/ui patterns for new UI.
 - Naming: kebab-case files, PascalCase components and types, camelCase functions, UPPER_SNAKE_CASE constants, snake_case database columns.
 - Path alias `@/*` maps to the project root.
@@ -177,8 +185,8 @@ When you write or edit user-facing text (UI labels, buttons, empty states, error
 
 ## Testing
 
-- Unit and component tests run on Vitest. Crypto tests live in `lib/crypto/__tests__/` (`hashing`, `client-crypto`, and `key-derivation` are covered).
-- Any change to `lib/crypto/` must ship tests: round-trip encrypt/decrypt, key derivation determinism for a fixed password and salt, and audit-chain verification including a tamper case. Add known-answer vectors where practical so behavior cannot silently drift.
+- Unit and component tests run on Vitest. Vault crypto tests live in `packages/core/src/crypto/__tests__/` (round trips, key derivation, sealed ingestion, the runtime shims, and known-answer vectors), and server crypto tests in `lib/crypto/__tests__/` (hashing, signing, receipts).
+- Any change to `packages/core/src/crypto/` or `lib/crypto/` must ship tests: round-trip encrypt/decrypt, key derivation determinism for a fixed password and salt, and audit-chain verification including a tamper case. Add known-answer vectors where practical so behavior cannot silently drift.
 - End-to-end flows run on Playwright (`npm run test:e2e`), specs in `__tests__/e2e/`.
 
 ## Commit and pull request conventions

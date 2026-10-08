@@ -8,7 +8,7 @@ import {
   getEarnings,
   type EarningsSummary,
 } from '@/lib/services/contribution.service'
-import { contributeSchema } from '@/lib/validations/marketplace'
+import { contributeSchema } from '@luciddata/core/validations/marketplace'
 import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import type { PoolContribution } from '@/types/database.types'
 

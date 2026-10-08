@@ -1,0 +1,15 @@
+{
+  "name": "@luciddata/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Code shared by every LucidData client: vault encryption, schemas, validation, privacy classification, and import adapters. Pure TypeScript with no framework or server dependencies.",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    "./vault/adapters": "./src/vault/adapters/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "zod": "^4.3.5"
+  }
+}

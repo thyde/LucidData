@@ -14,13 +14,16 @@ import {
 } from '@/lib/constants/trust-disclosures'
 import { SIGNUP_SOURCES, type SignupSource } from '@/lib/utils/signup-source'
 
-const CRYPTO_DIR = join(process.cwd(), 'lib', 'crypto')
+const CRYPTO_DIRS = [join('lib', 'crypto'), join('packages', 'core', 'src', 'crypto')]
 const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations')
 
+/** Every crypto module, as a path from the repository root. */
 function cryptoModules(): string[] {
-  return readdirSync(CRYPTO_DIR, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
-    .map((entry) => entry.name)
+  return CRYPTO_DIRS.flatMap((dir) =>
+    readdirSync(join(process.cwd(), dir), { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
+      .map((entry) => join(dir, entry.name).replace(/\\/g, '/'))
+  )
 }
 
 /** The columns vault_data has after every migration, in file order. */
@@ -55,9 +58,10 @@ function vaultDataColumns(): string[] {
 }
 
 describe('trust disclosures', () => {
-  it('discloses every module in lib/crypto', () => {
+  it('discloses every crypto module, in lib/crypto and in the shared package', () => {
     const disclosed = new Set(KEY_CUSTODY.map((entry) => entry.module))
     const undisclosed = cryptoModules().filter((name) => !disclosed.has(name))
+    expect(cryptoModules().length).toBeGreaterThan(10)
     expect(undisclosed).toEqual([])
   })
 
@@ -79,10 +83,18 @@ describe('trust disclosures', () => {
   })
 
   it('states that the master key and per-entry keys stay in the browser', () => {
-    const master = KEY_CUSTODY.find((entry) => entry.module === 'key-derivation.ts')
-    const dek = KEY_CUSTODY.find((entry) => entry.module === 'client-crypto.ts')
+    const master = KEY_CUSTODY.find((entry) => entry.module.endsWith('/key-derivation.ts'))
+    const dek = KEY_CUSTODY.find((entry) => entry.module.endsWith('/client-crypto.ts'))
     expect(master?.heldBy).toBe('user_browser')
     expect(dek?.heldBy).toBe('user_browser')
+  })
+
+  it('keeps every module the person holds a key for in the shared package', () => {
+    // The phone app has to be able to open what the browser locked, so device
+    // key handling cannot live in the web app alone.
+    for (const entry of KEY_CUSTODY.filter((item) => item.heldBy === 'user_browser')) {
+      expect(entry.module, entry.material).toMatch(/^packages\/core\/src\/crypto\//)
+    }
   })
 
   it('discloses every readable vault_data column, derived from the migrations', () => {
@@ -95,8 +107,8 @@ describe('trust disclosures', () => {
   })
 
   it('states the PBKDF2 iteration count the code uses', () => {
-    const source = ['key-derivation.ts', 'recovery.ts']
-      .map((file) => readFileSync(join(CRYPTO_DIR, file), 'utf8'))
+    const source = KEY_CUSTODY.filter((entry) => /\/(key-derivation|recovery)\.ts$/.test(entry.module))
+      .map((entry) => readFileSync(join(process.cwd(), entry.module), 'utf8'))
       .join('\n')
     const used = new Set(
       [...source.matchAll(/iterations:\s*([\d_]+)/g)].map((match) => Number(match[1].replace(/_/g, '')))

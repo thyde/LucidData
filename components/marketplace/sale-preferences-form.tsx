@@ -11,7 +11,7 @@ import type { SalePreferences } from '@/types/database.types'
 import {
   MARKETPLACE_PURPOSE_LABELS,
   type MarketplacePurpose,
-} from '@/lib/validations/marketplace'
+} from '@luciddata/core/validations/marketplace'
 
 export function SalePreferencesForm({ initial }: { initial: SalePreferences | null }) {
   const { toast } = useToast()

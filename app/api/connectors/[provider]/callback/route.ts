@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { FITNESS_CONNECTORS } from '@/lib/connectors/fitness'
+import { FITNESS_CONNECTORS } from '@luciddata/core/connectors/fitness'
 import { isConnectorProvider, saveConnection } from '@/lib/services/connector.service'
 import { OAuthStateError, verifyState } from '@/lib/services/connector-tokens'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'

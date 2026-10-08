@@ -5,7 +5,7 @@ import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useVaultEntry, useUpdateVault } from '@/lib/hooks/useVault';
-import { vaultDataSchema } from '@/lib/validations/vault';
+import { vaultDataSchema } from '@luciddata/core/validations/vault';
 import { READABLE_FIELD_HINT } from '@/lib/constants/trust-disclosures';
 import {
   Dialog,

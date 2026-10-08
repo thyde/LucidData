@@ -11,8 +11,8 @@ import {
   fulfillCredentialRequestAction,
   denyCredentialRequestAction,
 } from '@/lib/actions/credential-request.actions'
-import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
-import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
+import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
+import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
 import type { CredentialRequest } from '@/types/database.types'
 import { unwrap } from '@/lib/actions/unwrap'
 

@@ -144,12 +144,12 @@ LucidData/
 │   └── org/              # Issuer setup and credential issuance
 ├── lib/                   # Application logic
 │   ├── actions/          # Server actions (vault, consent, audit, credential, issuer)
-│   ├── crypto/           # Client-side encryption, key derivation, credential signing
+│   ├── crypto/           # Server crypto: audit hashing, credential and receipt signing
 │   ├── repositories/     # Data access layer over Supabase
 │   ├── services/         # Business logic
 │   ├── hooks/            # React hooks (useVault, useConsent, useAudit)
-│   ├── supabase/         # Supabase server and browser clients
-│   └── validations/      # Zod schemas
+│   └── supabase/         # Supabase server and browser clients
+├── packages/core/         # @luciddata/core: vault encryption, schemas, Zod validation, import adapters
 ├── supabase/              # Local config and SQL migrations
 ├── test/                  # Unit and component test setup, fixtures, and mocks
 ├── __tests__/e2e/         # Playwright end-to-end tests

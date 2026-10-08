@@ -4,8 +4,8 @@ import { unwrap } from '@/lib/actions/unwrap'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEncryption } from '@/lib/context/encryption-context'
-import { openSealed, generateIngestionKeypair } from '@/lib/crypto/ingestion-keys'
-import { decryptWithKey, encryptWithKey } from '@/lib/crypto/client-crypto'
+import { openSealed, generateIngestionKeypair } from '@luciddata/core/crypto/ingestion-keys'
+import { decryptWithKey, encryptWithKey } from '@luciddata/core/crypto/client-crypto'
 import {
   clearPendingIngestAction,
   getIngestionKeyAction,

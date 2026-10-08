@@ -18,7 +18,7 @@ import {
   isMarketplaceCategoryAllowed,
   isSaleRestrictedContribution,
   type PurchasePoolInput,
-} from '@/lib/validations/marketplace'
+} from '@luciddata/core/validations/marketplace'
 
 /** A dataset was free / Stripe is off (completed now), or the buyer must pay via Checkout. */
 export type StartPurchaseResult =

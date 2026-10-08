@@ -40,13 +40,13 @@ These constrain every option below.
 
 ## 3. Current state
 
-- Crypto: `lib/crypto/key-derivation.ts` derives a non-extractable master key with PBKDF2
-  (600k iterations) from the password plus `users.key_salt`. `lib/crypto/client-crypto.ts`
+- Crypto: `packages/core/src/crypto/key-derivation.ts` derives a non-extractable master key with PBKDF2
+  (600k iterations) from the password plus `users.key_salt`. `packages/core/src/crypto/client-crypto.ts`
   uses envelope encryption: a random per-entry DEK encrypts the data, the DEK is wrapped
   with the master key, and only `client_ciphertext`, `encrypted_dek`, and `dek_salt` reach
   the server.
 - Vault row: `vault_data` stores those three ciphertext fields plus unencrypted metadata
-  (`label`, `category`, `tags`, `schema_type`). `lib/validations/vault.ts` already carries
+  (`label`, `category`, `tags`, `schema_type`). `packages/core/src/validations/vault.ts` already carries
   `schemaType` and `schemaVersion`, but `data` is an untyped record entered as raw JSON.
 - Marketplace: anonymization already runs in the browser at contribution time. The client
   decrypts approved fields, strips identifiers, and submits `pool_contributions.anonymized_payload`

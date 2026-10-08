@@ -25,13 +25,13 @@ import {
   unwrapToken,
   wrapToken,
 } from '@/lib/services/connector-tokens'
-import { sealToPublicKey } from '@/lib/crypto/ingestion-keys'
+import { sealToPublicKey } from '@luciddata/core/crypto/ingestion-keys'
 import {
   FITNESS_CONNECTORS,
   normalizeStravaActivity,
   type FitnessProvider,
   type StravaActivity,
-} from '@/lib/connectors/fitness'
+} from '@luciddata/core/connectors/fitness'
 import type { DataSource } from '@/types/database.types'
 
 export type ConnectorProvider = FitnessProvider

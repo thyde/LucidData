@@ -1,8 +1,8 @@
 // Browser-side orchestration for recovery codes, password change, and vault recovery.
 // Pure crypto runs in the browser; persistence goes through server actions.
 
-import { deriveMasterKey, deriveMasterKeyExtractable, generateKeySalt, importMasterKey } from '@/lib/crypto/key-derivation'
-import { rewrapDek } from '@/lib/crypto/client-crypto'
+import { deriveMasterKey, deriveMasterKeyExtractable, generateKeySalt, importMasterKey } from '@luciddata/core/crypto/key-derivation'
+import { rewrapDek } from '@luciddata/core/crypto/client-crypto'
 import {
   generateRecoveryCode,
   generateRecoverySalt,
@@ -10,7 +10,7 @@ import {
   deriveRecoveryKey,
   wrapMasterKeyForRecovery,
   unwrapMasterKeyForRecovery,
-} from '@/lib/crypto/recovery'
+} from '@luciddata/core/crypto/recovery'
 import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
 import { setRecoveryEscrowAction, rewrapVaultEntriesAction, claimKeySaltAction } from '@/lib/actions/account.actions'
 import { addRecoveryFactorAction } from '@/lib/actions/recovery.actions'

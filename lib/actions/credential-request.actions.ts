@@ -17,7 +17,7 @@ import {
 import {
   createCredentialRequestSchema,
   fulfillCredentialRequestSchema,
-} from '@/lib/validations/credential-request'
+} from '@luciddata/core/validations/credential-request'
 import { assertRateLimit } from '@/lib/services/rate-limit.service'
 import type { CredentialRequest } from '@/types/database.types'
 

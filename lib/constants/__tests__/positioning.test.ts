@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'fs'
 import { join, relative } from 'path'
 import { TIERS } from '@/components/marketing/pricing-table'
-import { MARKETPLACE_RESTRICTED_CATEGORIES } from '@/lib/validations/marketplace'
+import { MARKETPLACE_RESTRICTED_CATEGORIES } from '@luciddata/core/validations/marketplace'
 
 // LD-111: the public site leads with keeping health records, not with selling data.
 // These checks hold the copy to that position so it cannot drift back.

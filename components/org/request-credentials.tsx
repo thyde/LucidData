@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/lib/hooks/use-toast'
-import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
-import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
+import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
+import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
 import {
   createCredentialRequestAction,
   listOrgCredentialRequestsAction,

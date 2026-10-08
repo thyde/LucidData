@@ -17,7 +17,7 @@ import {
   type MarketSupplyRow,
   type OpenDataPool,
 } from '@/lib/services/marketplace.service'
-import { createPoolSchema } from '@/lib/validations/marketplace'
+import { createPoolSchema } from '@luciddata/core/validations/marketplace'
 import { evaluatePool, type PoolEvaluation } from '@/lib/services/pool-evaluation.service'
 import type { DataPool } from '@/types/database.types'
 

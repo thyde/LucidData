@@ -10,7 +10,7 @@ import {
   emailNotificationPreferenceSchema,
   claimKeySaltSchema,
   DELETE_CONFIRM_PHRASE,
-} from '@/lib/validations/account'
+} from '@luciddata/core/validations/account'
 import { consumeStepUp } from '@/lib/services/session-security.service'
 import { z } from 'zod'
 

@@ -11,6 +11,8 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // LD-609: shared code lives in packages/core and ships as TypeScript source.
+  transpilePackages: ["@luciddata/core"],
   async headers() {
     const headers = [
       {

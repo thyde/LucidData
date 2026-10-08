@@ -16,7 +16,7 @@ import {
 import { useVaultList } from '@/lib/hooks/useVault'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { useToast } from '@/lib/hooks/use-toast'
-import { toFieldEntries, buildAnonymizedPayload } from '@/lib/crypto/anonymize'
+import { toFieldEntries, buildAnonymizedPayload } from '@luciddata/core/crypto/anonymize'
 import { contributeAction } from '@/lib/actions/contribution.actions'
 import { unwrap } from '@/lib/actions/unwrap'
 import { formatCents } from '@/components/dashboard/chart-theme'
@@ -27,7 +27,7 @@ import {
   MARKETPLACE_PURPOSE_LABELS,
   SALE_RESTRICTED_STATEMENT,
   isSaleRestrictedEntry,
-} from '@/lib/validations/marketplace'
+} from '@luciddata/core/validations/marketplace'
 
 interface ContributeDialogProps {
   pool: OpenDataPool

@@ -14,8 +14,8 @@
  * a page sees the same sample and does not mistake variation for real data.
  */
 
-import { SCHEMA_FORM_FIELDS, type FormField } from '@/lib/schemas/form-fields'
-import { classifyField } from '@/lib/privacy/quasi-identifiers'
+import { SCHEMA_FORM_FIELDS, type FormField } from '@luciddata/core/schemas/form-fields'
+import { classifyField } from '@luciddata/core/privacy/quasi-identifiers'
 import { generalizeValue, type GeneralizedValue } from '@/lib/privacy/k-anonymity'
 
 /** Stated on every sample so it cannot be mistaken for real data. */

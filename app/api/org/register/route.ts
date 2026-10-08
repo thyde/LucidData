@@ -6,7 +6,7 @@ import { assertRateLimit, RateLimitError } from '@/lib/services/rate-limit.servi
 import { acceptOrganizationTerms } from '@/lib/services/legal.service'
 // LD-602: the OpenAPI document is generated from this exact schema, so the
 // specification cannot drift from what the handler accepts.
-import { organizationRegisterSchema as RegisterSchema } from '@/lib/validations/org-api'
+import { organizationRegisterSchema as RegisterSchema } from '@luciddata/core/validations/org-api'
 
 /**
  * LD-109: organization registration requires a signed-in account.

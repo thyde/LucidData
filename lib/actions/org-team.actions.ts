@@ -21,7 +21,7 @@ import {
   changeOrgMemberRoleSchema,
   inviteOrgMemberSchema,
   orgMemberTargetSchema,
-} from '@/lib/validations/org-team'
+} from '@luciddata/core/validations/org-team'
 import { assertRateLimit } from '@/lib/services/rate-limit.service'
 import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 

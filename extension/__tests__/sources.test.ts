@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { EXPORT_SOURCES, matchExportSource } from '@/extension/src/sources.js'
-import { EXPORT_ADAPTERS } from '@/lib/vault/adapters'
+import { EXPORT_ADAPTERS } from '@luciddata/core/vault/adapters'
 
 interface Source {
   id: string

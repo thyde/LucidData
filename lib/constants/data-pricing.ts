@@ -1,4 +1,4 @@
-import type { DataCategory } from '@/lib/validations/marketplace'
+import type { DataCategory } from '@luciddata/core/validations/marketplace'
 
 /**
  * Reference values for personal data by type. These inform the price a buyer is

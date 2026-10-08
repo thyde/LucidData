@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PLAN_CATALOG } from '@/lib/constants/billing-plans'
 import { EXPORT_WINDOW_DAYS } from '@/lib/constants/marketplace-economics'
-import { SALE_RESTRICTED_STATEMENT } from '@/lib/validations/marketplace'
+import { SALE_RESTRICTED_STATEMENT } from '@luciddata/core/validations/marketplace'
 
 interface Tier {
   name: string

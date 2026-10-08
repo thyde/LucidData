@@ -12,7 +12,7 @@ import {
   revokeOrgInvitationAction,
   transferOrgOwnershipAction,
 } from '@/lib/actions/org-team.actions'
-import { ORG_ROLE_DESCRIPTIONS } from '@/lib/validations/org-team'
+import { ORG_ROLE_DESCRIPTIONS } from '@luciddata/core/validations/org-team'
 import { unwrap } from '@/lib/actions/unwrap'
 import { formatDate } from '@/lib/utils/date-formatter'
 import type {

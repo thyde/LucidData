@@ -18,7 +18,7 @@ import {
   BULK_JOB_KIND_LABELS,
   MAX_BULK_ROWS,
   type BulkJobKind,
-} from '@/lib/validations/bulk'
+} from '@luciddata/core/validations/bulk'
 import type { BulkJobRowResult, BulkJobSummary } from '@/lib/services/bulk-job.service'
 import { unwrap } from '@/lib/actions/unwrap'
 

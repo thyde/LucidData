@@ -19,12 +19,12 @@ import {
   isOverdue,
   JURISDICTION_RULES,
   type RightsJurisdiction,
-} from '@/lib/utils/rights-deadlines'
+} from '@luciddata/core/utils/rights-deadlines'
 import {
   RIGHTS_TYPE_LABELS,
   type FileRightsRequestInput,
   type RightsRequestType,
-} from '@/lib/validations/rights'
+} from '@luciddata/core/validations/rights'
 import type { RightsCase, RightsCaseEvent } from '@/types/database.types'
 
 export interface RightsCaseView {

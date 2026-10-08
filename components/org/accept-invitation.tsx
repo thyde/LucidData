@@ -7,7 +7,7 @@ import {
   acceptInvitationAction,
   previewInvitationAction,
 } from '@/lib/actions/org-team.actions'
-import { ORG_ROLE_DESCRIPTIONS } from '@/lib/validations/org-team'
+import { ORG_ROLE_DESCRIPTIONS } from '@luciddata/core/validations/org-team'
 import { unwrap } from '@/lib/actions/unwrap'
 import type { InvitationPreview } from '@/lib/services/org-team.service'
 

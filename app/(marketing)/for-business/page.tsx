@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { BadgeCheck, ShieldCheck, Database, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { SALE_RESTRICTED_STATEMENT } from '@/lib/validations/marketplace'
+import { SALE_RESTRICTED_STATEMENT } from '@luciddata/core/validations/marketplace'
 
 export const metadata: Metadata = {
   title: 'For business | LucidData',

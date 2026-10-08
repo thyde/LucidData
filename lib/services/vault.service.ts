@@ -1,7 +1,7 @@
 import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertRecoveryReadyForFirstWrite } from '@/lib/services/recovery-factor.service'
-import { parseProvenance } from '@/lib/validations/provenance'
+import { parseProvenance } from '@luciddata/core/validations/provenance'
 import type { VaultData, InsertVaultData, UpdateVaultData } from '@/types/database.types'
 import { UserFacingError } from '@/lib/actions/action-result'
 import { assertHealthDataConsent } from '@/lib/services/legal.service'

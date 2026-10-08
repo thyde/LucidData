@@ -40,7 +40,7 @@ import { UserFacingError } from '@/lib/actions/action-result'
 import {
   SALE_RESTRICTED_SCHEMA_TYPES,
   isSaleRestrictedContribution,
-} from '@/lib/validations/marketplace'
+} from '@luciddata/core/validations/marketplace'
 
 export interface FieldCoverage {
   field: string

@@ -5,7 +5,7 @@ import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreateVault } from '@/lib/hooks/useVault';
-import { vaultDataSchema } from '@/lib/validations/vault';
+import { vaultDataSchema } from '@luciddata/core/validations/vault';
 import {
   Dialog,
   DialogContent,
@@ -25,8 +25,8 @@ import {
   FormTagsField,
   FormDateField,
 } from '@/components/common/form-fields';
-import { VAULT_SCHEMA_TYPES, type VaultSchemaType } from '@/lib/schemas/vault-schemas';
-import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields';
+import { VAULT_SCHEMA_TYPES, type VaultSchemaType } from '@luciddata/core/schemas/vault-schemas';
+import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields';
 import { SchemaForm } from './schema-form';
 import { KeyValueBuilder } from './key-value-builder';
 import { READABLE_FIELD_HINT } from '@/lib/constants/trust-disclosures';

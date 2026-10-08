@@ -6,8 +6,8 @@ import {
   buildSyntheticSamples,
   describeDeliverableFields,
 } from '@/lib/services/synthetic-samples'
-import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
-import { classifyField } from '@/lib/privacy/quasi-identifiers'
+import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
+import { classifyField } from '@luciddata/core/privacy/quasi-identifiers'
 
 /**
  * LD-503: samples must be synthetic. A preview drawn from real records leaks,

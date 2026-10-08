@@ -15,7 +15,7 @@ import {
   type BulkJobRowResult,
   type BulkJobSummary,
 } from '@/lib/services/bulk-job.service'
-import { bulkJobIdSchema, createBulkJobSchema } from '@/lib/validations/bulk'
+import { bulkJobIdSchema, createBulkJobSchema } from '@luciddata/core/validations/bulk'
 
 /**
  * LD-604 bulk operation actions.

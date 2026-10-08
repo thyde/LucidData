@@ -13,7 +13,7 @@ test.describe('Trust centre', () => {
 
     // Key custody, including the server-held signing keys, is disclosed by name.
     await expect(page.getByRole('heading', { name: 'Key custody' })).toBeVisible()
-    await expect(page.getByText('lib/crypto/key-derivation.ts')).toBeVisible()
+    await expect(page.getByText('packages/core/src/crypto/key-derivation.ts')).toBeVisible()
     await expect(page.getByText('lib/crypto/credential-signing.ts')).toBeVisible()
 
     // The unencrypted metadata columns are named so nobody puts secrets in them.

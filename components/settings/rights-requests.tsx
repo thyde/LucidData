@@ -17,8 +17,8 @@ import {
   RIGHTS_TYPE_DESCRIPTIONS,
   RIGHTS_TYPE_LABELS,
   type RightsRequestType,
-} from '@/lib/validations/rights'
-import { JURISDICTION_RULES, RIGHTS_JURISDICTIONS } from '@/lib/utils/rights-deadlines'
+} from '@luciddata/core/validations/rights'
+import { JURISDICTION_RULES, RIGHTS_JURISDICTIONS } from '@luciddata/core/utils/rights-deadlines'
 import type { RightsCaseView } from '@/lib/services/rights.service'
 
 const FILEABLE_TYPES: RightsRequestType[] = [

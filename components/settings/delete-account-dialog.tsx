@@ -12,7 +12,7 @@ import { useEncryption } from '@/lib/context/encryption-context'
 import { createClient } from '@/lib/supabase/client'
 import { deleteAccountAction } from '@/lib/actions/account.actions'
 import { StepUpDialog } from '@/components/auth/step-up-dialog'
-import { DELETE_CONFIRM_PHRASE } from '@/lib/validations/account'
+import { DELETE_CONFIRM_PHRASE } from '@luciddata/core/validations/account'
 import type { DeletionReceiptSummary } from '@/lib/services/account.service'
 import { unwrap } from '@/lib/actions/unwrap'
 

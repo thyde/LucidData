@@ -13,7 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
-import type { EmailConfirmationType } from '@/lib/validations/account'
+import type { EmailConfirmationType } from '@luciddata/core/validations/account'
 
 /** True when the link was valid and the address is now confirmed. */
 export async function confirmEmailAddress(

@@ -8,7 +8,8 @@ import { useEncryption } from '@/lib/context/encryption-context'
 import { createClient } from '@/lib/supabase/client'
 import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
 import { recordDataExportAction } from '@/lib/actions/account.actions'
-import { buildVaultExportDocument, downloadJson, type DecryptedExportEntry } from '@/lib/crypto/vault-export'
+import { buildVaultExportDocument, type DecryptedExportEntry } from '@luciddata/core/crypto/vault-export'
+import { downloadJson } from '@/lib/utils/download'
 import { unwrap } from '@/lib/actions/unwrap'
 
 // Exports the vault as a portable JSON-LD document. Entries are decrypted in the
