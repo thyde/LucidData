@@ -93,6 +93,10 @@ describe('isHealthEntry', () => {
   it('counts the health category or a health type, and nothing else', () => {
     expect(isHealthEntry({ category: 'health' })).toBe(true)
     expect(isHealthEntry({ category: 'personal', schema_type: 'fitness_daily' })).toBe(true)
+    // LD-209: the new shapes need consent wherever they are filed.
+    for (const schema_type of ['sleep_session', 'vitals_daily', 'body_measurement', 'nutrition_daily']) {
+      expect(isHealthEntry({ category: 'other', schema_type })).toBe(true)
+    }
     expect(isHealthEntry({ category: 'credentials', schema_type: 'education' })).toBe(false)
     expect(isHealthEntry({})).toBe(false)
   })

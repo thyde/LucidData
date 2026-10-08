@@ -105,7 +105,7 @@ describe('VaultEditDialog', () => {
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
       expect(screen.getByDisplayValue('My health information')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('MedicalRecord')).toBeInTheDocument();
+      expect(screen.getByText('MedicalRecord')).toBeInTheDocument();
     });
   });
 
@@ -270,11 +270,115 @@ describe('VaultEditDialog', () => {
       render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
       const categorySelect = screen.getByLabelText(/category/i) as HTMLSelectElement;
-      const dataTypeSelect = screen.getByLabelText(/data type/i) as HTMLSelectElement;
 
-      // Verify enum values are present
       expect(categorySelect.value).toBe('health');
-      expect(dataTypeSelect.value).toBe('json');
+    });
+
+    it('checks a typed entry against its schema before saving', async () => {
+      vi.mocked(useVaultEntry).mockReturnValue(
+        createMockQuery({
+          ...mockEntry,
+          schema_type: 'body_measurement',
+          data: { date: '2026-10-08', weight_kg: 72.4 },
+        })
+      );
+      const user = userEvent.setup();
+      render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
+
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.clear(dataInput);
+      await user.click(dataInput);
+      await user.paste('{"date": "2026-10-08", "weight_kg": 7240}');
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      expect(await screen.findByText('weight_kg: Enter 700 or less')).toBeInTheDocument();
+      expect(mockUpdateMutation.mutate).not.toHaveBeenCalled();
+    });
+
+    it('shows the type it was created with and does not send a new one', async () => {
+      vi.mocked(useVaultEntry).mockReturnValue(
+        createMockQuery({
+          ...mockEntry,
+          schema_type: 'body_measurement',
+          data: { date: '2026-10-08', weight_kg: 72.4 },
+        })
+      );
+      const user = userEvent.setup();
+      render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
+
+      expect(screen.getByText('Body measurement')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('body_measurement')).not.toBeInTheDocument();
+
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.clear(dataInput);
+      await user.click(dataInput);
+      await user.paste('{"date": "2026-10-08", "weight_kg": 71.9}');
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      await waitFor(() => expect(mockUpdateMutation.mutate).toHaveBeenCalled());
+      const [{ data }] = vi.mocked(mockUpdateMutation.mutate).mock.calls[0] as [
+        { data: Record<string, unknown> },
+        unknown,
+      ];
+      expect(data).not.toHaveProperty('schemaType');
+      expect(data.data).toEqual({ date: '2026-10-08', weight_kg: 71.9 });
+    });
+
+    it('keeps fields the schema does not name', async () => {
+      vi.mocked(useVaultEntry).mockReturnValue(
+        createMockQuery({
+          ...mockEntry,
+          schema_type: 'fitness_activity',
+          data: { name: 'Run', sport_type: 'Run', start_date: '2026-10-01', notes: 'felt great' },
+        })
+      );
+      const user = userEvent.setup();
+      render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
+
+      const dataInput = screen.getByRole('textbox', { name: /data/i });
+      await user.clear(dataInput);
+      await user.click(dataInput);
+      await user.paste(
+        '{"name": "Long run", "sport_type": "Run", "start_date": "2026-10-01", "notes": "felt great"}'
+      );
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      await waitFor(() => expect(mockUpdateMutation.mutate).toHaveBeenCalled());
+      const [{ data }] = vi.mocked(mockUpdateMutation.mutate).mock.calls[0] as [
+        { data: Record<string, unknown> },
+        unknown,
+      ];
+      expect(data.data).toEqual({
+        name: 'Long run',
+        sport_type: 'Run',
+        start_date: '2026-10-01',
+        notes: 'felt great',
+      });
+    });
+
+    it('lets an entry saved before these checks be renamed without fixing its data', async () => {
+      vi.mocked(useVaultEntry).mockReturnValue(
+        createMockQuery({
+          ...mockEntry,
+          schema_type: 'vitals_daily',
+          data: { date: '2026-10-08', blood_oxygen_pct: 140 },
+        })
+      );
+      const user = userEvent.setup();
+      render(<VaultEditDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
+
+      const labelInput = screen.getByLabelText(/label/i);
+      await user.clear(labelInput);
+      await user.type(labelInput, 'Renamed vitals');
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      await waitFor(() => expect(mockUpdateMutation.mutate).toHaveBeenCalled());
+      const [{ data }] = vi.mocked(mockUpdateMutation.mutate).mock.calls[0] as [
+        { data: Record<string, unknown> },
+        unknown,
+      ];
+      expect(data.label).toBe('Renamed vitals');
+      expect(data.data).toEqual({ date: '2026-10-08', blood_oxygen_pct: 140 });
     });
   });
 

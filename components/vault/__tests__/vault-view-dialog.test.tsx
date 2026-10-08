@@ -187,10 +187,10 @@ describe('VaultViewDialog', () => {
       expect(dataDisplay).toBeInTheDocument();
     });
 
-    it('displays schema type if set', () => {
+    it('displays the data type if set, by its key when it is not a known type', () => {
       render(<VaultViewDialog entryId="vault-123" open={true} onOpenChange={vi.fn()} />);
 
-      expect(screen.getByText(/schema type/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Data type' })).toBeInTheDocument();
       expect(screen.getByText('MedicalRecord')).toBeInTheDocument();
     });
 

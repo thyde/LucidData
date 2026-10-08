@@ -27,6 +27,7 @@ import {
 } from '@/components/common/form-fields';
 import { VAULT_SCHEMA_TYPES, type VaultSchemaType } from '@luciddata/core/schemas/vault-schemas';
 import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields';
+import { validateSchemaData } from '@luciddata/core/schemas/validate';
 import { SchemaForm } from './schema-form';
 import { KeyValueBuilder } from './key-value-builder';
 import { READABLE_FIELD_HINT } from '@/lib/constants/trust-disclosures';
@@ -49,6 +50,7 @@ export function VaultCreateDialog() {
   const [customMode, setCustomMode] = useState<'fields' | 'json'>('fields');
   const [customBuilderKey, setCustomBuilderKey] = useState(0);
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [schemaErrors, setSchemaErrors] = useState<Record<string, string>>({});
   const { mutate, isPending } = useCreateVault();
 
   const form = useForm<MetaFormValues>({
@@ -68,6 +70,7 @@ export function VaultCreateDialog() {
   const handleSchemaTypeChange = (type: VaultSchemaType) => {
     setSchemaType(type);
     setSchemaData({});
+    setSchemaErrors({});
     setCustomJson('{}');
     setCustomMode('fields');
     setCustomBuilderKey((k) => k + 1);
@@ -104,6 +107,15 @@ export function VaultCreateDialog() {
     let parsedData: Record<string, unknown>;
 
     if (schemaType !== 'custom') {
+      // The server only ever sees ciphertext, so a malformed record has to be
+      // caught here, before it is encrypted. What is saved is what was entered.
+      const checked = validateSchemaData(schemaType, schemaData);
+      if (!checked.success) {
+        setSchemaErrors(checked.fieldErrors);
+        setJsonError(checked.formError ?? 'Fix the fields marked below.');
+        return;
+      }
+      setSchemaErrors({});
       parsedData = schemaData;
     } else if (customMode === 'json') {
       try {
@@ -241,7 +253,19 @@ export function VaultCreateDialog() {
                 <SchemaForm
                   fields={SCHEMA_FORM_FIELDS[schemaType]}
                   value={schemaData}
-                  onChange={setSchemaData}
+                  onChange={(next) => {
+                    // A field's message goes once the person changes that field.
+                    setSchemaErrors((current) => {
+                      const stale = Object.keys(current).filter((key) => next[key] !== schemaData[key]);
+                      if (stale.length === 0) return current;
+                      const kept = { ...current };
+                      for (const key of stale) delete kept[key];
+                      return kept;
+                    });
+                    setJsonError(null);
+                    setSchemaData(next);
+                  }}
+                  errors={schemaErrors}
                 />
               ) : customMode === 'fields' ? (
                 <KeyValueBuilder
@@ -265,27 +289,7 @@ export function VaultCreateDialog() {
                 </>
               )}
               {jsonError && (
-                <p className="text-sm font-medium text-destructive">{jsonError}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="vault-datatype-field" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Data Type
-              </label>
-              <select
-                id="vault-datatype-field"
-                {...form.register('dataType')}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="json">JSON</option>
-                <option value="credential">Credential</option>
-                <option value="document">Document</option>
-              </select>
-              {form.formState.errors.dataType && (
-                <p className="text-sm font-medium text-destructive">
-                  {form.formState.errors.dataType.message}
-                </p>
+                <p role="alert" className="text-sm font-medium text-destructive">{jsonError}</p>
               )}
             </div>
 

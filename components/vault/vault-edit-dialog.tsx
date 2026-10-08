@@ -5,6 +5,8 @@ import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useVaultEntry, useUpdateVault } from '@/lib/hooks/useVault';
+import { summarizeSchemaErrors, validateSchemaData } from '@luciddata/core/schemas/validate';
+import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas';
 import { vaultDataSchema } from '@luciddata/core/validations/vault';
 import { READABLE_FIELD_HINT } from '@/lib/constants/trust-disclosures';
 import {
@@ -46,6 +48,10 @@ const formSchema = vaultDataSchema.omit({ expiresAt: true }).extend({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+function schemaTypeLabel(type: string): string {
+  return VAULT_SCHEMA_TYPES[type as keyof typeof VAULT_SCHEMA_TYPES]?.label ?? type;
+}
 
 interface VaultEditDialogProps {
   entryId: string;
@@ -90,8 +96,21 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
   }, [entry, form]);
 
   const onSubmit = (values: FormValues) => {
-    // Parse JSON string to object — hook handles re-encryption
+    // Parse the JSON; the hook handles re-encryption.
     const parsedData = JSON.parse(values.data) as Record<string, unknown>;
+
+    // The server only ever sees ciphertext, so changed data in a typed entry is
+    // checked here, before it is encrypted again. Data left as it was is not
+    // checked, so an entry saved before these checks existed can still be
+    // renamed or re-tagged.
+    const dataChanged = JSON.stringify(parsedData) !== JSON.stringify(entry?.data ?? null);
+    if (entry?.schema_type && dataChanged) {
+      const checked = validateSchemaData(entry.schema_type, parsedData);
+      if (!checked.success) {
+        form.setError('data', { message: summarizeSchemaErrors(checked) });
+        return;
+      }
+    }
 
     mutate(
       {
@@ -102,7 +121,6 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
           description: values.description || undefined,
           tags: values.tags || [],
           data: parsedData,
-          schemaType: values.schemaType || undefined,
           expiresAt: values.expiresAt ? new Date(values.expiresAt) : undefined,
         },
       },
@@ -185,32 +203,15 @@ export function VaultEditDialog({ entryId, open, onOpenChange }: VaultEditDialog
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="vault-datatype-field" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Data Type
-                  </label>
-                  <select
-                    id="vault-datatype-field"
-                    {...form.register('dataType')}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="json">JSON</option>
-                    <option value="credential">Credential</option>
-                    <option value="document">Document</option>
-                  </select>
-                  {form.formState.errors.dataType && (
-                    <p className="text-sm font-medium text-destructive">
-                      {form.formState.errors.dataType.message}
+                {entry.schema_type && entry.schema_type !== 'custom' && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium leading-none">Data type</p>
+                    <p className="text-sm">{schemaTypeLabel(entry.schema_type)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      An entry keeps the type it was created with.
                     </p>
-                  )}
-                </div>
-
-                <FormTextField
-                  control={form.control}
-                  name="schemaType"
-                  label="Schema Type"
-                  placeholder="Optional schema type"
-                />
+                  </div>
+                )}
 
                 <FormDateField
                   control={form.control}

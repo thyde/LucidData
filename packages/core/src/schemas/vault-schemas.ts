@@ -108,17 +108,142 @@ export const BrowsingInsightSchema = z.object({
 })
 export type BrowsingInsight = z.infer<typeof BrowsingInsightSchema>
 
+// --- LD-209 health shapes ---
+// Daily aggregates and sessions, the way the platforms' own statistics APIs
+// return them, rather than raw samples, so a year of data stays in the
+// thousands of entries. Bounds reject values no body produces, which is how a
+// unit mix-up or a malformed import gets caught. Reproductive and menstrual
+// data are left out on purpose: an entry's schema type is readable by the
+// server, so a dedicated type would itself say what the entry holds.
+
+/** A date and time, as an import supplies it or a datetime-local input produces it. */
+const timestamp = z
+  .string()
+  .min(1)
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'Enter a date and time')
+
+/** A calendar day, such as 2026-10-08. */
+const calendarDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter a date such as 2026-10-08')
+
+const minutesOfDay = z.number().min(0).max(1440)
+
+/** A day record with no measurement in it says nothing, so at least one is required. */
+function hasAnyOf(fields: readonly string[]) {
+  return (value: Record<string, unknown>) => fields.some((field) => typeof value[field] === 'number')
+}
+
+export const SleepSessionSchema = z
+  .object({
+    start: timestamp,
+    end: timestamp,
+    asleep_min: minutesOfDay.optional(),
+    awake_min: minutesOfDay.optional(),
+    light_min: minutesOfDay.optional(),
+    deep_min: minutesOfDay.optional(),
+    rem_min: minutesOfDay.optional(),
+    efficiency_pct: z.number().min(0).max(100).optional(),
+    source: z.string().optional(),
+  })
+  .refine((session) => Date.parse(session.end) > Date.parse(session.start), {
+    message: 'The end must be after the start',
+    path: ['end'],
+  })
+  .refine((session) => Date.parse(session.end) - Date.parse(session.start) <= 24 * 60 * 60 * 1000, {
+    message: 'A sleep session lasts a day at most',
+    path: ['end'],
+  })
+export type SleepSession = z.infer<typeof SleepSessionSchema>
+
+const VITALS = [
+  'resting_heart_rate',
+  'heart_rate_variability_ms',
+  'blood_oxygen_pct',
+  'respiratory_rate',
+  'body_temperature_c',
+  'blood_pressure_systolic',
+  'blood_pressure_diastolic',
+] as const
+
+export const VitalsDailySchema = z
+  .object({
+    date: calendarDay,
+    resting_heart_rate: z.number().min(20).max(250).optional(),
+    heart_rate_variability_ms: z.number().min(1).max(500).optional(),
+    blood_oxygen_pct: z.number().min(50).max(100).optional(),
+    respiratory_rate: z.number().min(2).max(80).optional(),
+    body_temperature_c: z.number().min(30).max(45).optional(),
+    blood_pressure_systolic: z.number().min(50).max(260).optional(),
+    blood_pressure_diastolic: z.number().min(20).max(200).optional(),
+    source: z.string().optional(),
+  })
+  .refine(hasAnyOf(VITALS), { message: 'Enter at least one reading' })
+  .refine(
+    (day) =>
+      day.blood_pressure_systolic === undefined ||
+      day.blood_pressure_diastolic === undefined ||
+      day.blood_pressure_systolic > day.blood_pressure_diastolic,
+    { message: 'Systolic pressure is the higher of the two', path: ['blood_pressure_systolic'] }
+  )
+export type VitalsDaily = z.infer<typeof VitalsDailySchema>
+
+const BODY = ['weight_kg', 'height_cm', 'body_fat_pct', 'lean_mass_kg', 'waist_cm', 'bmi'] as const
+
+export const BodyMeasurementSchema = z
+  .object({
+    date: calendarDay,
+    weight_kg: z.number().min(1).max(700).optional(),
+    height_cm: z.number().min(30).max(280).optional(),
+    body_fat_pct: z.number().min(1).max(80).optional(),
+    lean_mass_kg: z.number().min(1).max(300).optional(),
+    waist_cm: z.number().min(10).max(300).optional(),
+    bmi: z.number().min(5).max(150).optional(),
+    source: z.string().optional(),
+  })
+  .refine(hasAnyOf(BODY), { message: 'Enter at least one measurement' })
+export type BodyMeasurement = z.infer<typeof BodyMeasurementSchema>
+
+const NUTRIENTS = [
+  'energy_kcal',
+  'protein_g',
+  'carbohydrates_g',
+  'fat_g',
+  'fiber_g',
+  'sugar_g',
+  'sodium_mg',
+  'water_ml',
+] as const
+
+export const NutritionDailySchema = z
+  .object({
+    date: calendarDay,
+    energy_kcal: z.number().min(0).max(20000).optional(),
+    protein_g: z.number().min(0).max(2000).optional(),
+    carbohydrates_g: z.number().min(0).max(5000).optional(),
+    fat_g: z.number().min(0).max(2000).optional(),
+    fiber_g: z.number().min(0).max(500).optional(),
+    sugar_g: z.number().min(0).max(2000).optional(),
+    sodium_mg: z.number().min(0).max(100000).optional(),
+    water_ml: z.number().min(0).max(20000).optional(),
+    source: z.string().optional(),
+  })
+  .refine(hasAnyOf(NUTRIENTS), { message: 'Enter at least one amount' })
+export type NutritionDaily = z.infer<typeof NutritionDailySchema>
+
 // --- Schema registry ---
 export const VAULT_SCHEMA_TYPES = {
   custom: { label: 'Custom (JSON)', description: 'Free-form JSON data', category: 'personal' },
-  medical_basic: { label: 'Medical Record', description: 'Basic medical information', category: 'health' },
-  financial_summary: { label: 'Financial Summary', description: 'Bank and income overview', category: 'financial' },
-  identity: { label: 'Identity Document', description: 'ID and passport info', category: 'credentials' },
-  employment: { label: 'Employment Record', description: 'Work history entry', category: 'credentials' },
-  education: { label: 'Education Record', description: 'Academic credentials', category: 'credentials' },
-  fitness_activity: { label: 'Fitness Activity', description: 'A workout or activity (e.g. from Strava)', category: 'health' },
-  fitness_daily: { label: 'Daily Fitness Summary', description: 'A day of steps, calories, and activity (e.g. from Fitbit)', category: 'health' },
-  browsing_insight: { label: 'Tracker Summary', description: 'Who collected data as you browsed, counted on your device', category: 'other' },
+  medical_basic: { label: 'Medical record', description: 'Basic medical information', category: 'health' },
+  financial_summary: { label: 'Financial summary', description: 'Bank and income overview', category: 'financial' },
+  identity: { label: 'Identity document', description: 'ID and passport details', category: 'credentials' },
+  employment: { label: 'Employment record', description: 'One job in your work history', category: 'credentials' },
+  education: { label: 'Education record', description: 'A qualification you earned', category: 'credentials' },
+  fitness_activity: { label: 'Workout', description: 'One workout or activity, such as a run from Strava', category: 'health' },
+  fitness_daily: { label: 'Daily activity', description: 'A day of steps, calories, and active minutes', category: 'health' },
+  sleep_session: { label: 'Sleep session', description: 'One night or nap, with time in each sleep stage', category: 'health' },
+  vitals_daily: { label: 'Daily vitals', description: 'Resting heart rate, blood oxygen, blood pressure, and other readings for one day', category: 'health' },
+  body_measurement: { label: 'Body measurement', description: 'Weight, height, body fat, or waist on one day', category: 'health' },
+  nutrition_daily: { label: 'Daily nutrition', description: 'Energy, protein, carbohydrates, fat, and water for one day', category: 'health' },
+  browsing_insight: { label: 'Tracker summary', description: 'Who collected data as you browsed, counted on your device', category: 'other' },
 } as const
 
 export type VaultSchemaType = keyof typeof VAULT_SCHEMA_TYPES
@@ -131,5 +256,9 @@ export const SCHEMA_VALIDATORS: Record<string, z.ZodSchema> = {
   education: EducationSchema,
   fitness_activity: FitnessActivitySchema,
   fitness_daily: FitnessDailySchema,
+  sleep_session: SleepSessionSchema,
+  vitals_daily: VitalsDailySchema,
+  body_measurement: BodyMeasurementSchema,
+  nutrition_daily: NutritionDailySchema,
   browsing_insight: BrowsingInsightSchema,
 }

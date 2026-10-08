@@ -11,11 +11,15 @@ import {
 describe('sale restrictions', () => {
   it('names every schema type that holds restricted data', () => {
     expect(SALE_RESTRICTED_SCHEMA_TYPES).toEqual([
+      'body_measurement',
       'browsing_insight',
       'financial_summary',
       'fitness_activity',
       'fitness_daily',
       'medical_basic',
+      'nutrition_daily',
+      'sleep_session',
+      'vitals_daily',
     ])
   })
 

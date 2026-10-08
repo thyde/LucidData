@@ -29,6 +29,7 @@ import { VaultDataDisplay } from './vault-data-display';
 import { FieldMonetizationToggle } from './field-monetization-toggle';
 import { Share2 } from 'lucide-react';
 import { isSaleRestrictedEntry, SALE_RESTRICTED_STATEMENT } from '@luciddata/core/validations/marketplace';
+import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas';
 
 interface VaultViewDialogProps {
   entryId: string;
@@ -183,11 +184,13 @@ export function VaultViewDialog({ entryId, open, onOpenChange, onEditClick }: Va
                   </div>
                 )}
 
-                {/* Schema Type */}
-                {entry.schema_type && (
+                {entry.schema_type && entry.schema_type !== 'custom' && (
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Schema Type</h3>
-                    <p className="text-sm">{entry.schema_type}</p>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Data type</h3>
+                    <p className="text-sm">
+                      {VAULT_SCHEMA_TYPES[entry.schema_type as keyof typeof VAULT_SCHEMA_TYPES]?.label ??
+                        entry.schema_type}
+                    </p>
                   </div>
                 )}
 
