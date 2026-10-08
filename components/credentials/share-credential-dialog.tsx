@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/lib/hooks/use-toast'
 import { createShareAction } from '@/lib/actions/share.actions'
-import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
+import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
 import { unwrap } from '@/lib/actions/unwrap'
 
 interface ShareCredentialDialogProps {

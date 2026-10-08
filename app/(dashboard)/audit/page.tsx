@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { downloadJson } from '@/lib/crypto/vault-export';
+import { downloadJson } from '@/lib/utils/download';
 import { useAuditLogs } from '@/lib/hooks/useAudit';
 
 export default function AuditPage() {

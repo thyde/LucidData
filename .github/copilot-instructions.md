@@ -42,7 +42,7 @@ This file is self-contained: the patterns below live in its own sections. The ol
 **These rules apply to ALL features. Failure to follow results in security vulnerabilities.**
 
 ### Encryption (client-side, Web Crypto API)
-- **Encrypt vault data in the browser** before it reaches the server. Use `lib/crypto/client-crypto.ts` for AES-GCM and `lib/crypto/key-derivation.ts` for the PBKDF2 master key.
+- **Encrypt vault data in the browser** before it reaches the server. Use `packages/core/src/crypto/client-crypto.ts` for AES-GCM and `packages/core/src/crypto/key-derivation.ts` for the PBKDF2 master key.
 - **Use envelope encryption:** encrypt data with a per-entry DEK, wrap the DEK with the user's master key, and send only `client_ciphertext`, `encrypted_dek`, and `dek_salt`.
 - **Never send plaintext, the master key, or the password to the server.** There is no server-side `ENCRYPTION_KEY` or `getMasterKey()`.
 - **Validate the encrypted payload before persisting:** in the server action's Zod schema, require `client_ciphertext`, `encrypted_dek`, and `dek_salt` to be non-empty strings. Throw a validation error if any is absent; do not write a partial or plaintext row.
@@ -106,14 +106,14 @@ When generating or editing user-facing copy, apply the **humanizer** rules ([.gi
 - Use `cn()` utility for className merging (`clsx` + `tailwind-merge`)
 
 ### Forms & Validation
-- **React Hook Form** with **Zod** (schemas in `lib/validations/`). All inputs MUST be validated.
+- **React Hook Form** with **Zod** (schemas in `packages/core/src/validations/`). All inputs MUST be validated.
 - Use `.parse()` in server actions and services (throws), `.safeParse()` in forms (returns a result).
 
 ### Data Fetching
 - **TanStack Query** for client-side fetching and cache invalidation; hooks live in `lib/hooks/` (`useVault`, `useConsent`, `useAudit`).
 
 ### Security
-- **Client-side:** Web Crypto API for PBKDF2 key derivation and AES-GCM vault encryption (`lib/crypto/key-derivation.ts`, `lib/crypto/client-crypto.ts`).
+- **Client-side:** Web Crypto API for PBKDF2 key derivation and AES-GCM vault encryption (`packages/core/src/crypto/key-derivation.ts`, `packages/core/src/crypto/client-crypto.ts`).
 - **Server-side:** Node `crypto` for SHA-256 audit hash chains (`lib/crypto/hashing.ts`) and AES-256-GCM wrapping of issuer keys plus Ed25519 credential signing (`lib/crypto/credential-signing.ts`, `lib/crypto/credential-verify.ts`).
 
 ---
@@ -256,7 +256,7 @@ export default async function DashboardLayout({
 
 ## Zod Validation Schemas
 
-Use schemas from `lib/validations/`. Call `.parse()` in server actions and services (throws on invalid input) and `.safeParse()` in forms (returns a result).
+Use schemas from `packages/core/src/validations/`. Call `.parse()` in server actions and services (throws on invalid input) and `.safeParse()` in forms (returns a result).
 
 ---
 
@@ -309,14 +309,21 @@ lib/
   actions/         # Server actions ('use server')
   services/        # Business logic
   repositories/    # Supabase data access
-  crypto/          # Client-side encryption, key derivation, hashing, credential signing
+  crypto/          # Server crypto: audit hashing, credential and receipt signing
   supabase/        # Supabase server/client/middleware/service
   hooks/           # TanStack Query hooks
-  validations/     # Zod schemas
+packages/core/     # @luciddata/core: code shared with the phone app and extensions
+  src/crypto/      # Vault encryption, key derivation, recovery, sealed ingestion
+  src/schemas/     # Vault schema registry and form fields
+  src/validations/ # Zod schemas
+  src/privacy/     # Field classification for the privacy gate
+  src/vault/       # Import parsers and provider export adapters
 supabase/
   migrations/      # SQL migrations (source of truth for schema)
 types/             # TypeScript types (database.types.ts is generated)
 ```
+
+Import shared code as `@luciddata/core/<path>`. The package may not import Next.js, React, the Supabase clients, Node built-ins, or the `@/` alias; see `packages/core/AGENTS.md`.
 
 ### Import Order
 ```typescript
@@ -331,14 +338,14 @@ import { useForm } from 'react-hook-form';
 // 3. Internal utilities (@ alias)
 import { createClient } from '@/lib/supabase/server';
 import { getUserVaultData } from '@/lib/services/vault.service';
-import { encryptWithKey, decryptWithKey } from '@/lib/crypto/client-crypto';
+import { encryptWithKey, decryptWithKey } from '@luciddata/core/crypto/client-crypto';
 
 // 4. Components (@ alias)
 import { Button } from '@/components/ui/button';
 import { VaultCard } from '@/components/vault/vault-card';
 
 // 5. Types (@ alias)
-import type { VaultDataInput } from '@/lib/validations/vault';
+import type { VaultDataInput } from '@luciddata/core/validations/vault';
 ```
 
 ### TypeScript Rules
@@ -363,8 +370,8 @@ Vault, consent, and credential operations flow through four layers. Do not touch
 ### Client-side envelope encryption
 The browser does all vault encryption; the server only stores ciphertext.
 
-1. Derive the master key from the user's password and their `key_salt` with `deriveMasterKey()` (PBKDF2, 600k iterations) from `lib/crypto/key-derivation.ts`.
-2. Generate a per-entry data key (DEK) and encrypt the data with it using `lib/crypto/client-crypto.ts`.
+1. Derive the master key from the user's password and their `key_salt` with `deriveMasterKey()` (PBKDF2, 600k iterations) from `packages/core/src/crypto/key-derivation.ts`.
+2. Generate a per-entry data key (DEK) and encrypt the data with it using `packages/core/src/crypto/client-crypto.ts`.
 3. Wrap the DEK with the master key. Send only `client_ciphertext`, `encrypted_dek`, and `dek_salt` to the server.
 
 ```typescript
@@ -372,7 +379,7 @@ The browser does all vault encryption; the server only stores ciphertext.
 'use server'
 import { createClient } from '@/lib/supabase/server'
 import { createVaultData } from '@/lib/services/vault.service'
-import { createVaultSchema } from '@/lib/validations/vault'
+import { createVaultSchema } from '@luciddata/core/validations/vault'
 
 export async function createVaultEntryAction(input: unknown) {
   const supabase = await createClient()
@@ -412,9 +419,9 @@ The service appends the audit-log entry with `createAuditHash()` from `lib/crypt
 
 ### Code Reference
 - **Schema** - [supabase/migrations/](supabase/migrations/) and generated [types/database.types.ts](types/database.types.ts)
-- **Crypto** - [lib/crypto/key-derivation.ts](lib/crypto/key-derivation.ts), [lib/crypto/client-crypto.ts](lib/crypto/client-crypto.ts), [lib/crypto/hashing.ts](lib/crypto/hashing.ts), [lib/crypto/credential-signing.ts](lib/crypto/credential-signing.ts)
+- **Crypto** - [packages/core/src/crypto/key-derivation.ts](packages/core/src/crypto/key-derivation.ts), [packages/core/src/crypto/client-crypto.ts](packages/core/src/crypto/client-crypto.ts), [lib/crypto/hashing.ts](lib/crypto/hashing.ts), [lib/crypto/credential-signing.ts](lib/crypto/credential-signing.ts)
 - **Actions / services / repositories** - [lib/actions/](lib/actions/), [lib/services/](lib/services/), [lib/repositories/](lib/repositories/)
-- **Validations** - [lib/validations/](lib/validations/) for Zod schemas
+- **Validations** - [packages/core/src/validations/](packages/core/src/validations/) for Zod schemas
 
 ---
 

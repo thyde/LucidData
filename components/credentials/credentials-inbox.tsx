@@ -13,7 +13,7 @@ import {
   type MyCredential,
 } from '@/lib/actions/credential.actions'
 import { createVaultEntryAction } from '@/lib/actions/vault.actions'
-import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
+import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
 import { ShareCredentialDialog } from '@/components/credentials/share-credential-dialog'
 import { unwrap } from '@/lib/actions/unwrap'
 

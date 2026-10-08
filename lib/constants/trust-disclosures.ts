@@ -5,8 +5,8 @@
  * describe what is true today, not what is planned. If the code changes, this
  * file changes in the same pull request.
  *
- * A Vitest test asserts every module in lib/crypto/ has an entry here, so a new
- * piece of key handling cannot ship undisclosed.
+ * A Vitest test asserts every module in lib/crypto/ and packages/core/src/crypto/
+ * has an entry here, so a new piece of key handling cannot ship undisclosed.
  */
 
 export type KeyHolder = 'user_browser' | 'server' | 'nobody'
@@ -14,7 +14,7 @@ export type KeyHolder = 'user_browser' | 'server' | 'nobody'
 export interface KeyCustodyEntry {
   /** The key material or crypto responsibility being described. */
   material: string
-  /** The module in lib/crypto/ that implements it. */
+  /** The file that implements it, from the repository root. */
   module: string
   /** Where it is produced. */
   derivedOrGenerated: string
@@ -35,7 +35,7 @@ export const KEY_HOLDER_LABEL: Record<KeyHolder, string> = {
 export const KEY_CUSTODY: KeyCustodyEntry[] = [
   {
     material: 'Master key',
-    module: 'key-derivation.ts',
+    module: 'packages/core/src/crypto/key-derivation.ts',
     derivedOrGenerated:
       'Derived in your browser from your password and your key salt with PBKDF2-SHA256, 600,000 iterations',
     heldBy: 'user_browser',
@@ -44,7 +44,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Per-entry data key (DEK)',
-    module: 'client-crypto.ts',
+    module: 'packages/core/src/crypto/client-crypto.ts',
     derivedOrGenerated: 'Generated fresh in your browser for each vault entry (AES-GCM 256)',
     heldBy: 'user_browser',
     protects: 'The contents of one vault entry',
@@ -52,7 +52,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Recovery escrow key',
-    module: 'recovery.ts',
+    module: 'packages/core/src/crypto/recovery.ts',
     derivedOrGenerated:
       'Derived in your browser from your one-time recovery code with PBKDF2-SHA256, 600,000 iterations',
     heldBy: 'user_browser',
@@ -61,7 +61,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Vault export key',
-    module: 'vault-export.ts',
+    module: 'packages/core/src/crypto/vault-export.ts',
     derivedOrGenerated: 'Your master key, used in the browser during export',
     heldBy: 'user_browser',
     protects: 'The decrypted export you download',
@@ -69,7 +69,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Contribution anonymization',
-    module: 'anonymize.ts',
+    module: 'packages/core/src/crypto/anonymize.ts',
     derivedOrGenerated: 'No key. Direct identifiers are stripped in your browser',
     heldBy: 'nobody',
     protects: 'Marketplace contributions before they leave your device',
@@ -77,7 +77,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Audit chain hashes',
-    module: 'hashing.ts',
+    module: 'lib/crypto/hashing.ts',
     derivedOrGenerated: 'SHA-256 computed on the server over event metadata',
     heldBy: 'nobody',
     protects: 'The integrity of your audit trail',
@@ -85,7 +85,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Issuer signing key',
-    module: 'credential-signing.ts',
+    module: 'lib/crypto/credential-signing.ts',
     derivedOrGenerated:
       'Ed25519 keypair generated on the server, private half AES-256-GCM-wrapped with ISSUER_KEY_SECRET',
     heldBy: 'server',
@@ -94,7 +94,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Credential verification key',
-    module: 'credential-verify.ts',
+    module: 'lib/crypto/credential-verify.ts',
     derivedOrGenerated: 'The public half of an issuer key, published for verifiers',
     heldBy: 'server',
     protects: 'Nothing. It only checks signatures',
@@ -102,7 +102,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Consent receipt signing key',
-    module: 'consent-receipt.ts',
+    module: 'lib/crypto/consent-receipt.ts',
     derivedOrGenerated:
       'Ed25519 keypair generated on the server, private half AES-256-GCM-wrapped with ISSUER_KEY_SECRET',
     heldBy: 'server',
@@ -111,7 +111,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Deletion receipt signing key',
-    module: 'deletion-receipt.ts',
+    module: 'lib/crypto/deletion-receipt.ts',
     derivedOrGenerated:
       'Ed25519 keypair generated on the server, private half AES-256-GCM-wrapped with ISSUER_KEY_SECRET',
     heldBy: 'server',
@@ -120,7 +120,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'Ingestion keypair',
-    module: 'ingestion-keys.ts',
+    module: 'packages/core/src/crypto/ingestion-keys.ts',
     derivedOrGenerated:
       'ECDH P-256 keypair generated in your browser. The public half is published; the private half is wrapped with your master key',
     heldBy: 'user_browser',
@@ -129,7 +129,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
   },
   {
     material: 'No key material',
-    module: 'runtime.ts',
+    module: 'packages/core/src/crypto/runtime.ts',
     derivedOrGenerated:
       'Nothing is generated here. This module finds the encryption support your device provides and converts between raw bytes and text',
     heldBy: 'nobody',

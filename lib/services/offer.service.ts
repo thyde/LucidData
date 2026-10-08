@@ -1,7 +1,7 @@
 import * as offerRepo from '@/lib/repositories/offer.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import type { Offer, OfferClaim } from '@/types/database.types'
-import type { CreateOfferInput } from '@/lib/validations/marketplace'
+import type { CreateOfferInput } from '@luciddata/core/validations/marketplace'
 
 export async function listActiveOffers(): Promise<Offer[]> {
   return offerRepo.findActiveOffers()

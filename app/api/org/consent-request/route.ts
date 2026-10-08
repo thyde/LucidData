@@ -9,7 +9,7 @@ import { createNotification } from '@/lib/services/notification.service'
 import { assertRateLimit, RateLimitError } from '@/lib/services/rate-limit.service'
 import { NEUTRAL_LOOKUP_RESPONSE, withConstantTime } from '@/lib/utils/enumeration'
 // LD-602: the OpenAPI document is generated from this exact schema.
-import { organizationConsentRequestSchema as ConsentRequestSchema } from '@/lib/validations/org-api'
+import { organizationConsentRequestSchema as ConsentRequestSchema } from '@luciddata/core/validations/org-api'
 
 /**
  * Ask a person for access to their data.

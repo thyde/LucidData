@@ -11,7 +11,7 @@ import {
 import { LEGAL_DOCUMENTS, PRIVACY_CONTACT } from '@/lib/constants/legal'
 import { SUBPROCESSORS, VULNERABILITY_DISCLOSURE } from '@/lib/constants/trust-disclosures'
 import { RESIDUAL_DISCLOSURES } from '@/lib/constants/deletion-manifest'
-import { MARKETPLACE_RESTRICTED_CATEGORIES } from '@/lib/validations/marketplace'
+import { MARKETPLACE_RESTRICTED_CATEGORIES } from '@luciddata/core/validations/marketplace'
 import {
   BACKUP_RETENTION_DAYS,
   CONSENT_REQUEST_RETENTION_DAYS,

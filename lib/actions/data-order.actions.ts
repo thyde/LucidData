@@ -13,7 +13,7 @@ import {
   type StartPurchaseResult,
   type DatasetExport,
 } from '@/lib/services/data-order.service'
-import { purchasePoolSchema } from '@/lib/validations/marketplace'
+import { purchasePoolSchema } from '@luciddata/core/validations/marketplace'
 import type { DataOrder } from '@/types/database.types'
 
 async function getAuthenticatedUserId(): Promise<string> {

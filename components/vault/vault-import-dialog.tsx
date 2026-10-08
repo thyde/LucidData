@@ -20,10 +20,10 @@ import {
   applyFieldMapping,
   type ParsedImport,
   type FieldMapping,
-} from '@/lib/vault/import-parsers'
-import { parseWithAdapter } from '@/lib/vault/adapters'
-import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
-import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
+} from '@luciddata/core/vault/import-parsers'
+import { parseWithAdapter } from '@luciddata/core/vault/adapters'
+import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
+import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
 import {
   Dialog,
   DialogContent,

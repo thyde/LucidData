@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { confirmEmailAddress } from '@/lib/services/email-confirmation.service'
-import { confirmEmailSchema } from '@/lib/validations/account'
+import { confirmEmailSchema } from '@luciddata/core/validations/account'
 
 /**
  * LD-610: the confirm-email page's form action. It needs no session, because

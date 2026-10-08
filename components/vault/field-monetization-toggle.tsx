@@ -5,7 +5,7 @@ import { DollarSign, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/lib/hooks/use-toast'
-import { isIdentifierField } from '@/lib/crypto/anonymize'
+import { isIdentifierField } from '@luciddata/core/crypto/anonymize'
 import {
   getFieldMonetizationAction,
   setFieldMonetizationAction,

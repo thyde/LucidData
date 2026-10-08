@@ -4,7 +4,7 @@ import {
   ORG_API_VERSION,
   organizationConsentRequestSchema,
   organizationRegisterSchema,
-} from '@/lib/validations/org-api'
+} from '@luciddata/core/validations/org-api'
 
 /**
  * LD-602: a specification written by hand drifts from the implementation, and

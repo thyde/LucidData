@@ -28,7 +28,7 @@ import { ConsentCreateDialog } from '@/components/consent/consent-create-dialog'
 import { VaultDataDisplay } from './vault-data-display';
 import { FieldMonetizationToggle } from './field-monetization-toggle';
 import { Share2 } from 'lucide-react';
-import { isSaleRestrictedEntry, SALE_RESTRICTED_STATEMENT } from '@/lib/validations/marketplace';
+import { isSaleRestrictedEntry, SALE_RESTRICTED_STATEMENT } from '@luciddata/core/validations/marketplace';
 
 interface VaultViewDialogProps {
   entryId: string;

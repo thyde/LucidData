@@ -17,7 +17,7 @@ import {
   organizationRegisterSchema,
   organizationConsentRequestSchema,
   organizationCredentialIssueSchema,
-} from '@/lib/validations/org-api'
+} from '@luciddata/core/validations/org-api'
 import { WEBHOOK_API_VERSION, WEBHOOK_EVENTS } from '@/lib/services/webhook.service'
 
 type JsonSchema = Record<string, unknown>

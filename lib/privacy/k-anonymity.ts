@@ -18,7 +18,7 @@ import {
   classifyField,
   type GeneralizationKind,
   type PrivacyClass,
-} from '@/lib/privacy/quasi-identifiers'
+} from '@luciddata/core/privacy/quasi-identifiers'
 
 /** Below this, a "cohort" is a handful of people. */
 export const MIN_K = 2

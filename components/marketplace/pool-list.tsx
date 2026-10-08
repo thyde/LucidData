@@ -11,7 +11,7 @@ import { categoryLabel, formatCents } from '@/components/dashboard/chart-theme'
 import {
   MARKETPLACE_PURPOSE_LABELS,
   isMarketplaceCategoryAllowed,
-} from '@/lib/validations/marketplace'
+} from '@luciddata/core/validations/marketplace'
 import type { OpenDataPool } from '@/lib/services/marketplace.service'
 import type { SalePreferences } from '@/types/database.types'
 

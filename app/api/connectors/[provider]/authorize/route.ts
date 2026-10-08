@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { buildAuthorizeUrl, FITNESS_CONNECTORS } from '@/lib/connectors/fitness'
+import { buildAuthorizeUrl, FITNESS_CONNECTORS } from '@luciddata/core/connectors/fitness'
 import { isConnectorProvider } from '@/lib/services/connector.service'
 import { signState } from '@/lib/services/connector-tokens'
 import { hasHealthDataConsent } from '@/lib/services/legal.service'

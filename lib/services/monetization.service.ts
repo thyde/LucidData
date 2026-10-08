@@ -2,8 +2,8 @@ import * as monetizationRepo from '@/lib/repositories/monetization.repository'
 import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import type { VaultFieldMonetization, SalePreferences } from '@/types/database.types'
-import type { FieldMonetizationInput, SalePreferencesInput } from '@/lib/validations/marketplace'
-import { isSaleRestrictedEntry } from '@/lib/validations/marketplace'
+import type { FieldMonetizationInput, SalePreferencesInput } from '@luciddata/core/validations/marketplace'
+import { isSaleRestrictedEntry } from '@luciddata/core/validations/marketplace'
 
 export async function getFieldMonetization(
   vaultDataId: string,

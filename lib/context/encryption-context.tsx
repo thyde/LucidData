@@ -11,8 +11,8 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
-import { deriveMasterKey } from '@/lib/crypto/key-derivation'
-import { encryptVaultEntry, decryptVaultEntry, type EncryptedEntry } from '@/lib/crypto/client-crypto'
+import { deriveMasterKey } from '@luciddata/core/crypto/key-derivation'
+import { encryptVaultEntry, decryptVaultEntry, type EncryptedEntry } from '@luciddata/core/crypto/client-crypto'
 
 /**
  * LD-106: idle locking.

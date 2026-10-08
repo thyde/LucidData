@@ -8,7 +8,7 @@ import {
   getSalePreferences,
   setSalePreferences,
 } from '@/lib/services/monetization.service'
-import { fieldMonetizationSchema, salePreferencesSchema } from '@/lib/validations/marketplace'
+import { fieldMonetizationSchema, salePreferencesSchema } from '@luciddata/core/validations/marketplace'
 import type { VaultFieldMonetization, SalePreferences } from '@/types/database.types'
 
 async function getAuthenticatedUserId(): Promise<string> {

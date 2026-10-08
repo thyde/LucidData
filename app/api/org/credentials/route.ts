@@ -4,7 +4,7 @@ import { requireVerifiedOrg } from '@/lib/middleware/requireVerifiedOrg'
 import { assertRateLimit, RateLimitError } from '@/lib/services/rate-limit.service'
 import { issueCredential } from '@/lib/services/credential.service'
 // LD-602: the OpenAPI document is generated from this exact schema.
-import { organizationCredentialIssueSchema as IssueSchema } from '@/lib/validations/org-api'
+import { organizationCredentialIssueSchema as IssueSchema } from '@luciddata/core/validations/org-api'
 
 async function handler(req: NextRequest, ctx: OrgContext): Promise<NextResponse> {
   // Confirm the org is a verified issuer before signing anything.

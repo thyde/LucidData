@@ -8,7 +8,7 @@ import {
   appealRightsCaseSchema,
   fileRightsRequestSchema,
   withdrawRightsCaseSchema,
-} from '@/lib/validations/rights'
+} from '@luciddata/core/validations/rights'
 
 /**
  * LD-301 rights actions.

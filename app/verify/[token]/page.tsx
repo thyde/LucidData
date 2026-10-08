@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { resolveShareToken } from '@/lib/services/share.service'
-import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
-import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
+import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
+import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
 
 function fieldLabel(schemaType: string, key: string): string {
   const field = (SCHEMA_FORM_FIELDS[schemaType] ?? []).find((f) => f.name === key)

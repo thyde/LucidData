@@ -78,7 +78,7 @@ vi.mock('@/lib/supabase/service', () => ({
 const { syncSource, ensureFreshToken, availableConnectors, disconnectSource, TOKEN_REFRESH_MARGIN_MS } =
   await import('@/lib/services/connector.service')
 const { generateIngestionKeypair, openSealed } = await import(
-  '@/lib/crypto/ingestion-keys'
+  '@luciddata/core/crypto/ingestion-keys'
 )
 const { wrapToken } = await import('@/lib/services/connector-tokens')
 

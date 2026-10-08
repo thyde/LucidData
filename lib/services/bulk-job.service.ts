@@ -27,7 +27,7 @@ import {
   MAX_BULK_ROWS,
   type BulkJobKind,
   type CreateBulkJobInput,
-} from '@/lib/validations/bulk'
+} from '@luciddata/core/validations/bulk'
 import type { BulkJob, Json } from '@/types/database.types'
 import { UserFacingError } from '@/lib/actions/action-result'
 

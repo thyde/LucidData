@@ -96,8 +96,8 @@ export default function TrustPage() {
                 <tr key={entry.module} className="align-top">
                   <td className="px-4 py-3">
                     <p className="font-medium">{entry.material}</p>
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">
-                      lib/crypto/{entry.module}
+                    <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                      {entry.module}
                     </p>
                   </td>
                   <td className="px-4 py-3">

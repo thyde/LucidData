@@ -7,7 +7,7 @@ import {
   createCheckoutSession,
   createBillingPortalSession,
 } from '@/lib/services/stripe-billing.service'
-import { checkoutPlanSchema } from '@/lib/validations/billing'
+import { checkoutPlanSchema } from '@luciddata/core/validations/billing'
 
 export async function getBillingOverviewAction(organizationId: string): Promise<UsageSummary | ActionFailure> {
   return guarded(async () => {

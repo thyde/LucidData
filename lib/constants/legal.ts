@@ -11,7 +11,7 @@
  * move the version.
  */
 
-import { VAULT_SCHEMA_TYPES } from '@/lib/schemas/vault-schemas'
+import { VAULT_SCHEMA_TYPES } from '@luciddata/core/schemas/vault-schemas'
 
 export type LegalDocumentId = 'terms' | 'privacy' | 'health-privacy' | 'organization-terms'
 

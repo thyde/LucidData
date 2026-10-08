@@ -24,11 +24,11 @@ import {
   suggestedPerRecordCents,
   suggestedAccessFeeCents,
 } from '@/lib/constants/data-pricing'
-import type { DataCategory } from '@/lib/validations/marketplace'
+import type { DataCategory } from '@luciddata/core/validations/marketplace'
 import {
   MARKETPLACE_PURPOSE_LABELS,
   type MarketplacePurpose,
-} from '@/lib/validations/marketplace'
+} from '@luciddata/core/validations/marketplace'
 
 const CATEGORIES = ['personal', 'credentials', 'interests', 'other'] as const
 

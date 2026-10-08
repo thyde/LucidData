@@ -6,13 +6,13 @@ import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertNotUniversallyOptedOut } from '@/lib/services/privacy-signal.service'
 import type { PoolContribution, Json } from '@/types/database.types'
-import type { ContributeInput } from '@/lib/validations/marketplace'
+import type { ContributeInput } from '@luciddata/core/validations/marketplace'
 import {
   isMarketplaceCategoryAllowed,
   isSaleRestrictedEntry,
   SALE_RESTRICTED_STATEMENT,
-} from '@/lib/validations/marketplace'
-import { containsIdentifierField } from '@/lib/crypto/anonymize'
+} from '@luciddata/core/validations/marketplace'
+import { containsIdentifierField } from '@luciddata/core/crypto/anonymize'
 import { PLATFORM_FEE_BPS, splitEarnings } from '@/lib/constants/marketplace-economics'
 import { UserFacingError } from '@/lib/actions/action-result'
 import {

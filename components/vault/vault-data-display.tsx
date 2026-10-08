@@ -1,6 +1,6 @@
 'use client'
 
-import { SCHEMA_FORM_FIELDS } from '@/lib/schemas/form-fields'
+import { SCHEMA_FORM_FIELDS } from '@luciddata/core/schemas/form-fields'
 
 interface VaultDataDisplayProps {
   schemaType: string | null | undefined

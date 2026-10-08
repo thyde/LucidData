@@ -8,7 +8,7 @@ import {
   type Sensitivity,
 } from '@/lib/constants/data-pricing'
 import type { DataPool } from '@/types/database.types'
-import type { CreatePoolInput, DataCategory } from '@/lib/validations/marketplace'
+import type { CreatePoolInput, DataCategory } from '@luciddata/core/validations/marketplace'
 import type { Json } from '@/types/database.types'
 import type { OpenDataPool } from '@/lib/repositories/pool.repository'
 

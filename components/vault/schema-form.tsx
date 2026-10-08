@@ -2,7 +2,7 @@
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { FormField } from '@/lib/schemas/form-fields'
+import type { FormField } from '@luciddata/core/schemas/form-fields'
 
 interface SchemaFormProps {
   fields: FormField[]
