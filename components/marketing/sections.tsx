@@ -1,16 +1,13 @@
 import Link from 'next/link'
 import {
-  ShieldCheck,
   KeyRound,
   ScrollText,
-  Wallet,
+  HeartPulse,
+  Handshake,
+  ShieldCheck,
   Store,
-  BadgeCheck,
-  ShoppingBag,
-  Package,
   UploadCloud,
-  LayoutDashboard,
-  TrendingUp,
+  Lock,
   ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,22 +19,22 @@ export function Hero() {
     <section className="relative overflow-hidden border-b">
       <div className="container mx-auto px-4 py-20 text-center md:py-28">
         <p className="mb-4 inline-block rounded-full border bg-muted/50 px-4 py-1 text-sm text-muted-foreground">
-          The personal data bank
+          An encrypted vault for your health records
         </p>
         <h1 className="mx-auto max-w-4xl text-4xl font-bold tracking-tight md:text-6xl">
-          Banks manage your money. <span className="text-primary">Who manages your data?</span>
+          Your health history, in a vault{' '}
+          <span className="text-primary">only you can open.</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          The $200B data market runs on your information, yet you never see a cent or know where
-          it goes. LucidData gives you an encrypted vault and controls for deciding whether to
-          contribute supported data to a buyer request.
+          Bring in your Apple Health export and the records you keep yourself. Each entry is
+          encrypted in your browser before it reaches us, so you are the only one who can read it.
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <Link href="/for-individuals">Take control of your data</Link>
+            <Link href="/register">Create your vault</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link href="/for-business">For business</Link>
+            <Link href="/trust">How we protect it</Link>
           </Button>
         </div>
       </div>
@@ -48,23 +45,23 @@ export function Hero() {
 const FEATURES = [
   {
     icon: KeyRound,
-    title: 'You hold the keys',
-    body: 'Vault data is encrypted in your browser. We store only ciphertext, so we can never read or sell anything you do not approve.',
+    title: 'Only you hold the key',
+    body: 'Entries are encrypted in your browser with a key made from your password, which we never see, so we cannot read what is inside them. Labels and dates stay readable so your vault can list them, and the trust centre names every readable field.',
+  },
+  {
+    icon: HeartPulse,
+    title: 'Your history in one place',
+    body: 'Import an Apple Health export, and add workouts, daily activity, or medical details yourself.',
+  },
+  {
+    icon: Handshake,
+    title: 'Share only what is needed',
+    body: 'Share a credential, such as a diploma, through a link that shows only the fields you pick. Give the link an expiry, or revoke it whenever you like.',
   },
   {
     icon: ScrollText,
     title: 'Every access is logged',
-    body: 'An immutable, tamper-evident audit trail records who touched your data, when, and why.',
-  },
-  {
-    icon: Wallet,
-    title: 'Earn from your data',
-    body: 'Choose supported fields for a buyer pool and track completed payouts when a snapshot is purchased.',
-  },
-  {
-    icon: BadgeCheck,
-    title: 'Verifiable credentials',
-    body: 'Hold diplomas, IDs, and credentials issued by trusted organizations and share only what is needed.',
+    body: 'A tamper-evident log shows who used your data and when.',
   },
 ]
 
@@ -75,7 +72,8 @@ export function FeatureGrid() {
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight">Built so you stay in control</h2>
           <p className="mt-3 text-muted-foreground">
-            A transparent platform where your data is treated as property, not product.
+            We cannot open your entries, and we never sell your health data or use it for
+            advertising.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -109,13 +107,13 @@ export function AudienceSplit() {
           </CardHeader>
           <CardContent className="flex flex-1 flex-col">
             <p className="text-muted-foreground">
-              Store your data in an encrypted vault, see who wants it, and choose how and to whom
-              you contribute supported fields. Completed sales and payouts appear in your account.
+              Keep your health and personal records in an encrypted vault that only you can open,
+              and check every use of your data in your log.
             </p>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <li>• Encrypted personal data vault</li>
-              <li>• Marketplace to sell on your terms</li>
-              <li>• Track sources, buyers, and revenue</li>
+              <li>• Encrypted in your browser</li>
+              <li>• Apple Health import</li>
+              <li>• Health data is never sold</li>
             </ul>
             <div className="mt-6">
               <Button asChild>
@@ -136,13 +134,13 @@ export function AudienceSplit() {
           </CardHeader>
           <CardContent className="flex flex-1 flex-col">
             <p className="text-muted-foreground">
-              Issue verifiable credentials, validate the credentials people share with you, or
-              buy seller-approved snapshots of supported data, with a clear audit trail.
+              Issue verifiable credentials, verify the ones people share with you, and ask for
+              consent before you use someone&apos;s data.
             </p>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <li>• Issue diplomas, IDs, and credentials</li>
-              <li>• Verify what customers share</li>
-              <li>• Purchase time-limited dataset snapshots</li>
+              <li>• Issue diplomas, employment records, and other credentials</li>
+              <li>• Verify what people share</li>
+              <li>• Ask for consent with a stated purpose</li>
             </ul>
             <div className="mt-6">
               <Button asChild variant="outline">
@@ -159,11 +157,26 @@ export function AudienceSplit() {
 }
 
 const PIPELINE = [
-  { icon: ShoppingBag, title: 'Collect', body: 'Add data to your vault or claim credentials from trusted issuers.' },
-  { icon: Package, title: 'Choose & strip identifiers', body: 'Choose fields to share; known direct identifiers are removed in your browser before anything leaves.' },
-  { icon: UploadCloud, title: 'Contribute', body: 'Opt approved fields into buyer data pools you choose.' },
-  { icon: LayoutDashboard, title: 'Access', body: 'Buyers purchase only what you consented to share.' },
-  { icon: TrendingUp, title: 'Earn', body: 'Completed payouts show up on your dashboard after a buyer purchases a snapshot.' },
+  {
+    icon: UploadCloud,
+    title: 'Bring it in',
+    body: 'Import an Apple Health export, or add a record by hand.',
+  },
+  {
+    icon: Lock,
+    title: 'Encrypted on your device',
+    body: 'Your browser encrypts each entry before it is sent. We store only the encrypted copy.',
+  },
+  {
+    icon: Handshake,
+    title: 'Share what you choose',
+    body: "Send a credential link that shows only the fields you pick, or approve an organization's request for a stated purpose.",
+  },
+  {
+    icon: ScrollText,
+    title: 'See every access',
+    body: 'Your log shows who used your data and when, and you can revoke a link or an approval at any time.',
+  },
 ]
 
 export function DataPipeline() {
@@ -173,10 +186,10 @@ export function DataPipeline() {
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight">How it works</h2>
           <p className="mt-3 text-muted-foreground">
-            Your data&apos;s journey from collection to earnings, fully transparent.
+            Your records stay encrypted at every step, and nothing is shared until you say so.
           </p>
         </div>
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {PIPELINE.map((step, i) => (
             <div key={step.title} className="relative text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -204,16 +217,16 @@ export function CtaSection() {
     <section>
       <div className="container mx-auto px-4 py-20">
         <div className="rounded-2xl border bg-primary/5 px-6 py-14 text-center">
-          <h2 className="text-3xl font-bold tracking-tight">If you don&apos;t own your data, someone else profits from it.</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Start with the records you already have.</h2>
           {/* LD-108: muted grey sits at 4.6:1 on white and drops below AA on
               this tinted panel. Dimmed foreground keeps the hierarchy and the
               contrast. */}
           <p className="mx-auto mt-3 max-w-xl text-foreground/80">
-            Join LucidData and put yourself back in charge.
+            A vault for your own records is free.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">
-              <Link href="/register">Create your account</Link>
+              <Link href="/register">Create your vault</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link href="/for-business">I&apos;m a business</Link>

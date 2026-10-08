@@ -1,37 +1,43 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Wallet, Lock, Store, LineChart, ArrowRight } from 'lucide-react'
+import { Lock, HeartPulse, Handshake, ScrollText, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataPipeline } from '@/components/marketing/sections'
+import {
+  PAYOUT_THRESHOLD_CENTS,
+  formatFeePercent,
+} from '@/lib/constants/marketplace-economics'
 
 export const metadata: Metadata = {
   title: 'For individuals | LucidData',
-  description: 'Store encrypted data and choose whether to contribute supported fields to buyers.',
+  description: 'Bring your health records into one encrypted vault that only you can open.',
 }
 
 const POINTS = [
   {
     icon: Lock,
-    title: 'An encrypted vault',
-    body: 'Your data is encrypted in your browser before it ever reaches us. Only you hold the key.',
+    title: 'Encrypted before it leaves your device',
+    body: 'Your browser encrypts every entry with a key made from your password. We never hold that key, so we cannot read what is inside your entries.',
   },
   {
-    icon: Store,
-    title: 'Sell on your terms',
-    body: 'Choose supported fields, review the buyer and purpose, set a price floor, and approve each contribution.',
+    icon: HeartPulse,
+    title: 'Yours to take with you',
+    body: 'Import an Apple Health export and keep the credentials organizations issue to you. Export your whole vault as an open JSON-LD file whenever you like.',
   },
   {
-    icon: Wallet,
-    title: 'Get paid',
-    body: 'Track completed sales and payouts by category after buyers purchase eligible snapshots.',
+    icon: Handshake,
+    title: 'Share only what is needed',
+    body: 'Send a credential through a link that shows only the fields you pick, with an expiry if you want one. Revoke the link at any time.',
   },
   {
-    icon: LineChart,
-    title: 'Full transparency',
-    body: 'Review contributions, payouts, and a tamper-evident audit trail of actions inside LucidData.',
+    icon: ScrollText,
+    title: 'See every access',
+    body: 'A tamper-evident audit log records who used your data and when.',
   },
 ]
+
+const PAYOUT_THRESHOLD = `$${PAYOUT_THRESHOLD_CENTS / 100}`
 
 export default function ForIndividualsPage() {
   return (
@@ -39,10 +45,11 @@ export default function ForIndividualsPage() {
       <section className="border-b">
         <div className="container mx-auto px-4 py-20 text-center">
           <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-            Your data is an asset. Start treating it like one.
+            One encrypted place for your health records.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Store personal data privately and choose when supported fields may enter a buyer snapshot.
+            Bring in your Apple Health export, keep the credentials you are issued, and share only
+            what you choose.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">
@@ -75,11 +82,29 @@ export default function ForIndividualsPage() {
 
       <DataPipeline />
 
+      <section className="border-b">
+        <div className="container mx-auto max-w-3xl px-4 py-16">
+          <h2 className="text-2xl font-bold tracking-tight">What about selling data?</h2>
+          <p className="mt-3 text-muted-foreground">
+            LucidData never sells health data and never uses it for advertising. A separate,
+            optional marketplace lets you contribute some credential data, such as the degree on a
+            diploma, to a buyer&apos;s request. Before you agree, you see the buyer, the purpose,
+            and what you would receive after our {formatFeePercent()} fee.
+          </p>
+          <p className="mt-3 text-muted-foreground">
+            The amounts are small. We estimate a few dollars a year for most people, and we pay out
+            once a balance reaches {PAYOUT_THRESHOLD}, so many people will not be paid within a
+            year.
+          </p>
+        </div>
+      </section>
+
       <section>
         <div className="container mx-auto px-4 py-20 text-center">
-          <h2 className="text-3xl font-bold tracking-tight">You&apos;re in charge.</h2>
+          <h2 className="text-3xl font-bold tracking-tight">You decide what to share.</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Marketplace contributions require your explicit approval. Sensitive categories stay private.
+            Health data is never sold. Nobody else can open your entries, and you can revoke
+            anything you share at any time.
           </p>
           <div className="mt-8">
             <Button asChild size="lg">

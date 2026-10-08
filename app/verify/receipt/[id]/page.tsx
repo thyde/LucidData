@@ -32,7 +32,7 @@ export default async function VerifyConsentReceiptPage({
     <div className="min-h-screen bg-muted/20 flex items-center justify-center p-6">
       <div className="w-full max-w-lg space-y-6">
         <div className="text-center">
-          <span className="font-semibold text-lg">Lucid</span>
+          <span className="font-semibold text-lg">LucidData</span>
           <span className="text-muted-foreground text-sm"> · consent receipt</span>
         </div>
 

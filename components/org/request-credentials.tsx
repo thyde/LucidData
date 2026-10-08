@@ -86,7 +86,7 @@ export function RequestCredentials({ orgId }: { orgId: string }) {
       }))
       toast({
         title: 'Request sent',
-        description: `If ${subjectEmail} has a Lucid account, it now appears in their requests.`,
+        description: `If ${subjectEmail} has a LucidData account, it now appears in their requests.`,
       })
       setSubjectEmail('')
       setPurpose('')

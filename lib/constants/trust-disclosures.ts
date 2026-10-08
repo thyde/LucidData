@@ -295,7 +295,7 @@ export const THREAT_MODEL: ThreatModelRow[] = [
     mitigation:
       'Vault entries are encrypted in your browser under a key derived from your password. The database holds ciphertext and a wrapped data key.',
     residual:
-      'Unencrypted metadata (label, category, tags, schema type) is readable, along with consent terms and audit records.',
+      "Each entry's label, description, category, tags, dates, and import source are readable, along with consent terms and audit records. Someone with a copy of the database could also try to guess your password offline. Each guess costs 600,000 rounds of key derivation, which slows guessing but cannot protect a weak password.",
   },
   {
     threat: 'A LucidData operator abuses privileged access',

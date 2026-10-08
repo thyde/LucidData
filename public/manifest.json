@@ -1,7 +1,7 @@
 {
-  "name": "Lucid — Personal Data Bank",
-  "short_name": "Lucid",
-  "description": "Your personal data vault. Own your data.",
+  "name": "LucidData",
+  "short_name": "LucidData",
+  "description": "An encrypted vault for your health and personal records.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -15,6 +15,10 @@
       "purpose": "any"
     }
   ],
-  "categories": ["productivity", "finance", "security"],
+  "categories": [
+    "health",
+    "fitness",
+    "security"
+  ],
   "screenshots": []
 }

@@ -35,11 +35,11 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
   const steps: Step[] = [
     {
       icon: <Sparkles className="h-6 w-6 text-primary" />,
-      title: 'Welcome to Lucid',
+      title: 'Welcome to LucidData',
       body: (
         <p>
-          Lucid is your personal data bank. Your data is encrypted in your browser and only you hold
-          the key. Here is how to get started.
+          LucidData keeps your health and personal records encrypted in your browser, and only you
+          hold the key. Here is how to start.
         </p>
       ),
     },
@@ -68,14 +68,14 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
     },
     {
       icon: <Vault className="h-6 w-6 text-primary" />,
-      title: 'Add your first data',
+      title: 'Add your first records',
       body: (
         <p>
-          Store anything in your{' '}
+          Import an Apple Health export or add a record in your{' '}
           <Link href="/vault" className="text-primary underline">
             vault
-          </Link>{' '}
-          — identity, health, financial records. It is encrypted before it ever leaves your device.
+          </Link>
+          . It is encrypted before it leaves your device.
         </p>
       ),
     },
@@ -84,13 +84,9 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
       title: 'Share on your terms',
       body: (
         <p>
-          Grant time-bound access with{' '}
+          Grant access to the records you pick, for a purpose and a time you set, with{' '}
           <Link href="/consent" className="text-primary underline">
             consents
-          </Link>
-          , and choose what to license in the{' '}
-          <Link href="/marketplace" className="text-primary underline">
-            marketplace
           </Link>
           . Every access is written to your audit log.
         </p>
