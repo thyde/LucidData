@@ -3,10 +3,12 @@ import Link from 'next/link'
 import { BadgeCheck, ShieldCheck, Database, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SALE_RESTRICTED_STATEMENT } from '@/lib/validations/marketplace'
 
 export const metadata: Metadata = {
   title: 'For business | LucidData',
-  description: 'Issue credentials, verify selected claims, or buy seller-approved data snapshots.',
+  description:
+    'Issue and verify credentials, or buy de-identified datasets that each contributor approved.',
 }
 
 const PRODUCTS = [
@@ -14,21 +16,21 @@ const PRODUCTS = [
     icon: BadgeCheck,
     title: 'Issue credentials',
     body: 'Mint signed, verifiable credentials (diplomas, IDs, employment, and more) that recipients hold in their own vault.',
-    bullets: ['Ed25519-signed credentials', 'Domain verification', 'API + portal issuance'],
+    bullets: ['Ed25519-signed credentials', 'Domain verification', 'API and portal issuance'],
     cta: { label: 'Become an issuer', href: '/org/register' },
   },
   {
     icon: ShieldCheck,
     title: 'Verify credentials',
-    body: 'Instantly check the credentials people choose to share with you against the issuer signature.',
+    body: 'Check the credentials people choose to share with you against the issuer signature.',
     bullets: ['Selective disclosure', 'Cryptographic verification', 'No data retention required'],
     cta: { label: 'Become a verifier', href: '/org/register' },
   },
   {
     icon: Database,
-    title: 'Buy bulk data',
-    body: 'Purchase one-time snapshots of supported fields from sellers who approved the buyer, purpose, and retention terms.',
-    bullets: ['Minimum contributor cohorts', 'Expiring exports', 'Immutable purchase snapshots'],
+    title: 'Buy de-identified data',
+    body: 'Purchase one-time, de-identified snapshots of credential data from people who approved the buyer, the purpose, and the retention period.',
+    bullets: ['Minimum contributor cohorts', 'Expiring exports', SALE_RESTRICTED_STATEMENT],
     cta: { label: 'Become a buyer', href: '/org/register' },
   },
 ]
@@ -39,11 +41,12 @@ export default function ForBusinessPage() {
       <section className="border-b">
         <div className="container mx-auto px-4 py-20 text-center">
           <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-            Verifiable credentials and seller-approved data snapshots.
+            Issue and verify credentials, and buy data people agreed to share.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Issue verifiable credentials, validate selected claims, or buy supported dataset
-            snapshots with recorded seller approval and an audit trail.
+            Issue signed credentials, check the fields people choose to show you, or buy
+            de-identified datasets that each contributor approved, with the purpose and retention
+            period on record.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">

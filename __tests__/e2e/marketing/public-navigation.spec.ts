@@ -4,17 +4,19 @@ test.describe('Public site navigation', () => {
   test('routes every primary desktop CTA to its intended screen', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
-      'Banks manage your money'
+      'Your health history, in a vault only you can open'
     )
 
     await page.getByRole('link', { name: 'For individuals', exact: true }).first().click()
     await expect(page).toHaveURL('/for-individuals')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Your data is an asset')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      'One encrypted place for your health records'
+    )
 
     await page.getByRole('link', { name: 'For business', exact: true }).first().click()
     await expect(page).toHaveURL('/for-business')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
-      'Verifiable credentials and seller-approved data snapshots'
+      'Issue and verify credentials, and buy data people agreed to share'
     )
 
     await page.getByRole('link', { name: 'Pricing', exact: true }).first().click()

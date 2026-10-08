@@ -94,6 +94,25 @@ describe('trust disclosures', () => {
     expect(SERVER_VISIBLE_VAULT_METADATA.map((row) => row.column).sort()).toEqual(readable.sort())
   })
 
+  it('states the PBKDF2 iteration count the code uses', () => {
+    const source = ['key-derivation.ts', 'recovery.ts']
+      .map((file) => readFileSync(join(CRYPTO_DIR, file), 'utf8'))
+      .join('\n')
+    const used = new Set(
+      [...source.matchAll(/iterations:\s*([\d_]+)/g)].map((match) => Number(match[1].replace(/_/g, '')))
+    )
+    expect(used.size).toBe(1)
+    const [iterations] = [...used]
+    const stated = [
+      ...KEY_CUSTODY.map((entry) => entry.derivedOrGenerated),
+      ...THREAT_MODEL.map((row) => row.residual),
+    ]
+      .flatMap((text) => [...text.matchAll(/([\d,]+) (iterations|rounds)/g)])
+      .map((match) => Number(match[1].replace(/,/g, '')))
+    expect(stated.length).toBeGreaterThan(1)
+    for (const count of stated) expect(count).toBe(iterations)
+  })
+
   it('states that revocation cannot recall a delivered copy', () => {
     expect(REVOCATION_LIMIT).toMatch(/cannot recall/i)
   })

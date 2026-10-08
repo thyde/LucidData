@@ -1,6 +1,6 @@
-# Lucid
+# LucidData
 
-Personal data bank for storing, encrypting, and licensing access to your own data.
+An encrypted vault for your health and personal records, shared only on your terms.
 
 **Version:** 0.1 (MVP)
 **Author:** Terron Hyde
@@ -11,9 +11,9 @@ Personal data bank for storing, encrypting, and licensing access to your own dat
 
 ## Overview
 
-Lucid is a personal data bank. Individuals keep their data in an encrypted vault, then grant or deny specific organizations access to it under explicit, time-bound consent. The data stays the user's property; access is licensed rather than sold outright.
+LucidData keeps a person's health history and personal records in one encrypted vault. People bring in an Apple Health export, add records by hand, and hold credentials that organizations issue to them. They can share a credential through a link that shows only the fields they pick, and they answer organizations' access requests under explicit, time-bound consent.
 
-Encryption happens in the browser, so the server never sees plaintext data or the keys that protect it.
+Encryption happens in the browser, so the server never sees the contents of an entry or the keys that protect it. Labels, dates, and a few other fields stay readable so the vault can list entries; the trust centre names every one.
 
 ## Technology
 
@@ -26,31 +26,30 @@ The development and production build scripts use Webpack explicitly because the 
 
 ### Core philosophy
 
-- **User sovereignty**: the individual holds the keys and decides who sees what.
-- **Transparency**: every access and consent change is written to an append-only audit log.
-- **Portability**: data and credentials use open formats so they can move between systems.
+- The individual holds the keys and decides who sees what.
+- Every access and consent change is written to an append-only audit log.
+- Data and credentials use open formats so they can move between systems.
 
 ---
 
 ## Project vision
 
 ### The problem
-The digital economy runs on personal data, but the people who generate that data usually have little say over how it is used and receive nothing when it is sold.
+Health data is scattered across apps and devices, each with its own account and its own terms. The people it describes rarely hold a complete copy, and they have little say over where it goes.
 
 ### The approach
-Lucid gives the individual a vault they control and a consent system that decides who can use their data, for what, and for how long. Access can be priced and licensed over time instead of handed over permanently.
+LucidData gives the individual one vault they control, encrypted before anything leaves their device, and a consent system that records who may use which data, for what, and until when. Health data is never sold.
 
 ### Who it is for
 
-Individuals who hold data:
-- People who want to see and control how their data is used.
+Individuals:
+- People who want their health history in one place that only they can open.
 - Professionals who need to store and present verifiable credentials.
 
-Organizations that request data:
-- Research institutions that need consented participant data.
-- Healthcare providers that need compliant records.
-- Financial institutions that need verified data.
-- Employers that need to validate credentials.
+Organizations:
+- Issuers such as universities and employers that sign credentials.
+- Verifiers that check the credentials people choose to share.
+- Researchers and other buyers of de-identified credential data, under the purpose and retention each contributor approved.
 
 ---
 
@@ -59,6 +58,7 @@ Organizations that request data:
 | Feature | Description | Status |
 |---------|-------------|--------|
 | Encrypted data vault | Client-side encryption with the Web Crypto API. Keys are derived from the user's password with PBKDF2, and data is sealed with AES-GCM in the browser. | Built |
+| Health imports | Apple Health export import in the browser, with health data stored only after separate, withdrawable consent. | Built |
 | Consent-based access control | Granular, time-bound permissions that set who can access which data and for how long. | Built |
 | Consent requests | Organizations request access to a user's data, and the user approves or denies each request. | Built |
 | Immutable audit ledger | Hash-chained log of vault and consent events that can be checked for tampering. | Built |
@@ -66,7 +66,7 @@ Organizations that request data:
 | Passkey sign-in | WebAuthn passkeys alongside password sign-in. | Built |
 | Installable PWA | Progressive web app with realtime updates over Supabase. | Built |
 | Two-factor authentication | TOTP authenticator-app second factor, enforced at sign-in, with one-time backup codes for recovery. | Built |
-| Data marketplace | Individuals contribute anonymized data to buyer-defined pools and earn when it sells; buyers create pools and offers. | Built |
+| Data marketplace | Individuals can contribute de-identified credential data to buyer-defined pools for a small payment. Health, financial, location, and browsing data are never for sale. | Built |
 | Payments and payouts | Stripe Checkout for organization subscriptions and dataset purchases, and Stripe Connect payouts to contributors. | Built |
 | Vault data export | Export vault entries to open formats (JSON-LD). Entries are decrypted in the browser before download. | Built |
 | Account recovery and notifications | Recovery-code vault escrow, password change with re-encryption, and realtime in-app notifications with optional email. | Built |
@@ -93,8 +93,8 @@ Production rollout is an operational task rather than a feature. Hosted database
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/terronhyde/lucid-mvp.git
-cd lucid-mvp
+git clone https://github.com/thyde/LucidData.git
+cd LucidData
 
 # 2. Install dependencies
 npm install
@@ -128,7 +128,7 @@ new secret key format.
 ## Project structure
 
 ```
-lucid-mvp/
+LucidData/
 ├── app/                    # Next.js App Router
 │   ├── (auth)/            # Sign-in, register, passkey, and signup routes
 │   ├── (dashboard)/       # Vault, consent, audit, credentials, requests, settings

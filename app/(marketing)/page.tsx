@@ -8,9 +8,9 @@ import {
 } from '@/components/marketing/sections'
 
 export const metadata: Metadata = {
-  title: 'LucidData: Store and control your personal data',
+  title: 'LucidData: your health records, encrypted and in your control',
   description:
-    'LucidData is a privacy-first personal data bank for encrypted storage, consent, credentials, and seller-approved data snapshots.',
+    'Keep your health and personal records in a vault encrypted in your browser, and share only what you choose, for as long as you choose.',
 }
 
 export default function LandingPage() {

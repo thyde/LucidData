@@ -14,7 +14,7 @@ export const POST = withAuth(async (req, { userId, userEmail }) => {
     .eq('user_id', userId)
 
   const options = await generateRegistrationOptions({
-    rpName: 'Lucid Data Bank',
+    rpName: 'LucidData',
     rpID: process.env.NEXT_PUBLIC_RP_ID ?? 'localhost',
     userName: userEmail,
     attestationType: 'none',

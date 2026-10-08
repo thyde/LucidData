@@ -52,8 +52,7 @@ export function Footer() {
         <div className="md:col-span-2">
           <Logo />
           <p className="mt-3 max-w-sm text-sm text-muted-foreground">
-            Your data. Your bank. Your rules. Own, control, and earn from your personal data
-            under explicit, time-bound consent.
+            An encrypted vault for your health and personal records, shared only on your terms.
           </p>
         </div>
         {FOOTER_GROUPS.map((group) => (
@@ -77,7 +76,7 @@ export function Footer() {
       <div className="border-t">
         <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 py-6 text-sm text-muted-foreground md:flex-row">
           <p>© {new Date().getFullYear()} LucidData. All rights reserved.</p>
-          <p>Built privacy-first with client-side encryption.</p>
+          <p>Vault entries are encrypted in your browser before they reach us.</p>
         </div>
       </div>
     </footer>

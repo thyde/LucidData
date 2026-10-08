@@ -23,7 +23,7 @@ export default async function OrgLayout({ children }: { children: ReactNode }) {
       <header className="border-b bg-background px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
           <Link href="/org" className="flex items-center gap-3">
-            <span className="font-semibold text-lg">Lucid</span>
+            <span className="font-semibold text-lg">LucidData</span>
             <span className="text-muted-foreground text-sm">for Organizations</span>
           </Link>
           <SignOutButton className="text-sm text-muted-foreground hover:text-foreground" />
