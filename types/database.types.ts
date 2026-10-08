@@ -1041,6 +1041,30 @@ export type Database = {
         }
         Relationships: []
       }
+      metric_snapshots: {
+        Row: {
+          id: string
+          metrics: Json
+          period_end: string
+          period_start: string
+          refreshed_at: string
+        }
+        Insert: {
+          id?: string
+          metrics: Json
+          period_end: string
+          period_start: string
+          refreshed_at?: string
+        }
+        Update: {
+          id?: string
+          metrics?: Json
+          period_end?: string
+          period_start?: string
+          refreshed_at?: string
+        }
+        Relationships: []
+      }
       mfa_backup_codes: {
         Row: {
           code_hash: string
@@ -1854,6 +1878,42 @@ export type Database = {
           },
         ]
       }
+      pool_evaluations: {
+        Row: {
+          evaluated_at: string
+          id: string
+          organization_id: string
+          pool_id: string
+        }
+        Insert: {
+          evaluated_at?: string
+          id?: string
+          organization_id: string
+          pool_id: string
+        }
+        Update: {
+          evaluated_at?: string
+          id?: string
+          organization_id?: string
+          pool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_evaluations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_evaluations_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "data_pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_limit_counters: {
         Row: {
           bucket: string
@@ -2176,6 +2236,7 @@ export type Database = {
           recovery_codes_generated_at: string | null
           recovery_last_confirmed_at: string | null
           recovery_setup_declined_at: string | null
+          signup_source: string | null
           universal_opt_out: boolean
           universal_opt_out_at: string | null
           universal_opt_out_override_at: string | null
@@ -2199,6 +2260,7 @@ export type Database = {
           recovery_codes_generated_at?: string | null
           recovery_last_confirmed_at?: string | null
           recovery_setup_declined_at?: string | null
+          signup_source?: string | null
           universal_opt_out?: boolean
           universal_opt_out_at?: string | null
           universal_opt_out_override_at?: string | null
@@ -2222,6 +2284,7 @@ export type Database = {
           recovery_codes_generated_at?: string | null
           recovery_last_confirmed_at?: string | null
           recovery_setup_declined_at?: string | null
+          signup_source?: string | null
           universal_opt_out?: boolean
           universal_opt_out_at?: string | null
           universal_opt_out_override_at?: string | null
@@ -2470,6 +2533,7 @@ export type Database = {
           schema_type: string
         }[]
       }
+      product_metrics: { Args: { p_from: string; p_to: string }; Returns: Json }
       redeem_offer_claim_atomic: {
         Args: { p_organization_id: string; p_redemption_code: string }
         Returns: {

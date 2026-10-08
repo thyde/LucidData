@@ -25,6 +25,7 @@ export const mockUser: User = {
   ingest_public_key: null,
   wrapped_ingest_private_key: null,
   ingest_key_salt: null,
+  signup_source: 'direct',
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z',
 };
@@ -51,6 +52,7 @@ export const mockUsers: User[] = [
   ingest_public_key: null,
   wrapped_ingest_private_key: null,
   ingest_key_salt: null,
+  signup_source: 'direct',
     created_at: '2024-01-02T00:00:00.000Z',
     updated_at: '2024-01-02T00:00:00.000Z',
   },
@@ -74,6 +76,7 @@ export const mockUsers: User[] = [
   ingest_public_key: null,
   wrapped_ingest_private_key: null,
   ingest_key_salt: null,
+  signup_source: 'direct',
     created_at: '2024-01-03T00:00:00.000Z',
     updated_at: '2024-01-03T00:00:00.000Z',
   },
