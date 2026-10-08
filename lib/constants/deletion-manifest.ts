@@ -458,6 +458,15 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
     reason:
       'Weekly totals across every account, such as how many people connected a source. No row describes one person.',
   },
+  {
+    table: 'legal_acceptances',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: 'user_id',
+    strippedColumns: [],
+    reason:
+      'Which version of each legal document you accepted, and your consent to store health data. It is evidence about data we hold, so it goes when the account and that data go.',
+  },
 ]
 
 /**

@@ -1041,6 +1041,54 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_acceptances: {
+        Row: {
+          action: string
+          document: string
+          id: string
+          organization_id: string | null
+          recorded_at: string
+          source: string
+          user_id: string
+          version: string
+        }
+        Insert: {
+          action?: string
+          document: string
+          id?: string
+          organization_id?: string | null
+          recorded_at?: string
+          source: string
+          user_id: string
+          version: string
+        }
+        Update: {
+          action?: string
+          document?: string
+          id?: string
+          organization_id?: string | null
+          recorded_at?: string
+          source?: string
+          user_id?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_acceptances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_acceptances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metric_snapshots: {
         Row: {
           id: string
@@ -2845,3 +2893,4 @@ export type BulkJob = Database['public']['Tables']['bulk_jobs']['Row']
 export type BulkJobRow = Database['public']['Tables']['bulk_job_rows']['Row']
 export type DataSource = Database['public']['Tables']['data_sources']['Row']
 export type PendingIngest = Database['public']['Tables']['pending_ingest']['Row']
+export type LegalAcceptance = Database['public']['Tables']['legal_acceptances']['Row']
