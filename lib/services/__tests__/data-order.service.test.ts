@@ -163,6 +163,42 @@ describe('data order snapshots', () => {
     expect(orderRepo.createOrder).not.toHaveBeenCalled()
   })
 
+  it('never pays more for a record than the buyer pays for it', async () => {
+    // A contribution written directly, before the database refused that, could
+    // carry any payout. The service always recorded the pool's price.
+    vi.mocked(poolRepo.findPoolByOrg).mockResolvedValue({ ...pool, price_per_record_cents: 1000 })
+    vi.mocked(contributionRepo.findActiveContributionsByPool).mockResolvedValue(
+      contributions.map((contribution, index) => ({
+        ...contribution,
+        payout_cents: index === 0 ? 15000 : 1000,
+      }))
+    )
+
+    await startPoolPurchase(pool.buyer_org_id, 'buyer-1', {
+      pool_id: pool.id,
+      order_type: 'snapshot',
+    })
+
+    const records = vi.mocked(orderRepo.createOrderRecords).mock.calls[0][0]
+    expect(records.map((record) => record.payout_cents)).toEqual(
+      contributions.map(() => 1000)
+    )
+  })
+
+  it('pays nothing from a free pool, whatever a contribution claims', async () => {
+    vi.mocked(contributionRepo.findActiveContributionsByPool).mockResolvedValue(
+      contributions.map((contribution) => ({ ...contribution, payout_cents: 15000 }))
+    )
+
+    await startPoolPurchase(pool.buyer_org_id, 'buyer-1', {
+      pool_id: pool.id,
+      order_type: 'snapshot',
+    })
+
+    const records = vi.mocked(orderRepo.createOrderRecords).mock.calls[0][0]
+    expect(records.every((record) => record.payout_cents === 0)).toBe(true)
+  })
+
   it('judges a contribution by the vault entry it came from', async () => {
     // Before 2026-10-08 a contribution recorded the pool's category, so an
     // employment entry filed under financial looks like credentials data here.

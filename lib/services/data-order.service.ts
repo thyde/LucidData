@@ -108,7 +108,11 @@ interface GatedRelease {
  * excluded rather than passed through unchecked.
  */
 function gateRelease(
-  pool: { k_anonymity_target: number; epsilon_spent: number | string },
+  pool: {
+    k_anonymity_target: number
+    epsilon_spent: number | string
+    price_per_record_cents: number
+  },
   contributions: Awaited<ReturnType<typeof contributionRepo.findActiveContributionsByPool>>
 ): GatedRelease {
   const candidates = contributions.filter(
@@ -143,7 +147,10 @@ function gateRelease(
           userId: contribution.user_id,
           category: contribution.category,
           payload: record.payload,
-          payoutCents: contribution.payout_cents,
+          // The buyer pays the pool's price for each record, and the payout
+          // comes out of that. A stored payout above it was never written by
+          // the contribution service, so it is never honoured.
+          payoutCents: Math.min(contribution.payout_cents, pool.price_per_record_cents),
           contributedAt: contribution.created_at,
         },
       ]
