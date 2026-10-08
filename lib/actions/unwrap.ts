@@ -20,9 +20,18 @@ import { isActionFailure, type ActionFailure } from '@/lib/actions/action-result
 export async function unwrap<T>(promise: Promise<T | ActionFailure>): Promise<T> {
   const result = await promise
   if (isActionFailure(result)) {
-    const error = new Error(result.message)
+    const error: Error & { code?: string } = new Error(result.message)
     error.name = 'UserFacingError'
+    // A caller can branch on the code without matching on prose.
+    if (result.code) error.code = result.code
     throw error
   }
   return result
+}
+
+/** The stable code a user-facing failure carried, if it had one. */
+export function failureCode(error: unknown): string | undefined {
+  return typeof error === 'object' && error !== null && 'code' in error
+    ? ((error as { code?: unknown }).code as string | undefined)
+    : undefined
 }

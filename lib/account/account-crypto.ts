@@ -14,6 +14,7 @@ import {
 import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
 import { setRecoveryEscrowAction, rewrapVaultEntriesAction, claimKeySaltAction } from '@/lib/actions/account.actions'
 import { addRecoveryFactorAction } from '@/lib/actions/recovery.actions'
+import { recordRegistrationChoicesAction } from '@/lib/actions/legal.actions'
 import { unwrap } from '@/lib/actions/unwrap'
 
 export interface VaultSetup {
@@ -31,6 +32,10 @@ export interface VaultSetup {
 export async function setUpVault(password: string): Promise<VaultSetup> {
   const proposed = generateKeySalt()
   const keySalt = await unwrap(claimKeySaltAction({ keySalt: proposed }))
+  // LD-110: what the person agreed to on the registration form, recorded now
+  // that there is a session to record it with. Not fatal: anything missed is
+  // asked for again before the dashboard opens.
+  await recordRegistrationChoicesAction().catch(() => undefined)
   // Another tab won the race and has already shown its own recovery code.
   if (keySalt !== proposed) return { keySalt, recoveryCode: null }
   try {

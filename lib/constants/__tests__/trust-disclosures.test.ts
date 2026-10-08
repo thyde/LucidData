@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readdirSync } from 'fs'
+import { readdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import {
   KEY_CUSTODY,
@@ -15,11 +15,43 @@ import {
 import { SIGNUP_SOURCES, type SignupSource } from '@/lib/utils/signup-source'
 
 const CRYPTO_DIR = join(process.cwd(), 'lib', 'crypto')
+const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations')
 
 function cryptoModules(): string[] {
   return readdirSync(CRYPTO_DIR, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
     .map((entry) => entry.name)
+}
+
+/** The columns vault_data has after every migration, in file order. */
+function vaultDataColumns(): string[] {
+  const columns = new Set<string>()
+  const files = readdirSync(MIGRATIONS_DIR).filter((name) => name.endsWith('.sql')).sort()
+  const table = String.raw`(?:public\.)?"?vault_data"?`
+  const ignore = new Set(['constraint', 'primary', 'unique', 'check', 'foreign', 'exclude'])
+
+  for (const file of files) {
+    const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8').replace(/--[^\n]*/g, '')
+
+    const create = new RegExp(String.raw`CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?${table}\s*\(([\s\S]*?)\n\);`, 'i').exec(sql)
+    if (create) {
+      for (const line of create[1].split('\n')) {
+        const name = /^\s*"?([a-z_][a-z0-9_]*)"?\s+/i.exec(line)?.[1]?.toLowerCase()
+        if (name && !ignore.has(name)) columns.add(name)
+      }
+    }
+
+    const alters = new RegExp(String.raw`ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?${table}([\s\S]*?);`, 'gi')
+    for (const alter of sql.matchAll(alters)) {
+      for (const added of alter[1].matchAll(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z_][a-z0-9_]*)"?/gi)) {
+        columns.add(added[1].toLowerCase())
+      }
+      for (const dropped of alter[1].matchAll(/DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?"?([a-z_][a-z0-9_]*)"?/gi)) {
+        columns.delete(dropped[1].toLowerCase())
+      }
+    }
+  }
+  return [...columns]
 }
 
 describe('trust disclosures', () => {
@@ -53,13 +85,13 @@ describe('trust disclosures', () => {
     expect(dek?.heldBy).toBe('user_browser')
   })
 
-  it('lists exactly the unencrypted vault_data columns', () => {
-    expect(SERVER_VISIBLE_VAULT_METADATA.map((row) => row.column).sort()).toEqual([
-      'category',
-      'label',
-      'schema_type',
-      'tags',
-    ])
+  it('discloses every readable vault_data column, derived from the migrations', () => {
+    // Everything except the row's own identifiers and the encrypted envelope is
+    // readable by the server, so it has to appear on the trust centre.
+    const notMetadata = new Set(['id', 'user_id', 'client_ciphertext', 'encrypted_dek', 'dek_salt'])
+    const readable = vaultDataColumns().filter((column) => !notMetadata.has(column))
+    expect(readable).toContain('description')
+    expect(SERVER_VISIBLE_VAULT_METADATA.map((row) => row.column).sort()).toEqual(readable.sort())
   })
 
   it('states that revocation cannot recall a delivered copy', () => {

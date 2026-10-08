@@ -6,16 +6,20 @@
  * can be argued with in a test rather than inferred from database state.
  *
  * The rules differ by jurisdiction and they are not interchangeable:
- *   EU and UK  one month from receipt, extendable by two further months for a
- *              complex or numerous request (GDPR Article 12(3)).
- *   California 45 days, extendable by a further 45 (CCPA 1798.130).
+ *   EU and UK   one month from receipt, extendable by two further months for a
+ *               complex or numerous request (GDPR Article 12(3)).
+ *   California  45 days, extendable by a further 45 (CCPA 1798.130).
+ *   Washington  45 days, extendable once by 45 with notice (RCW 19.373.040).
+ *   Connecticut 45 days, extendable once by 45 with notice (CTDPA 42-518).
+ *   Nevada      30 days to delete consumer health data (NRS 603A.515). No
+ *               extension is relied on, so every Nevada request gets 30 days.
  *
  * "One month" means the same date in the next month, not 30 days. A request
  * received on 31 January is due 28 February, or 29 in a leap year. Getting this
  * wrong by a day is the difference between compliant and late.
  */
 
-export const RIGHTS_JURISDICTIONS = ['eu', 'uk', 'us_ca', 'other'] as const
+export const RIGHTS_JURISDICTIONS = ['eu', 'uk', 'us_ca', 'us_wa', 'us_nv', 'us_ct', 'other'] as const
 export type RightsJurisdiction = (typeof RIGHTS_JURISDICTIONS)[number]
 
 export interface JurisdictionRule {
@@ -50,6 +54,29 @@ export const JURISDICTION_RULES: Record<RightsJurisdiction, JurisdictionRule> = 
     extension: { days: 45 },
     stopsTheClock: false,
     citation: 'CCPA 1798.130(a)(2)',
+  },
+  us_wa: {
+    label: 'Washington',
+    base: { days: 45 },
+    extension: { days: 45 },
+    stopsTheClock: false,
+    citation: 'My Health My Data Act, RCW 19.373.040',
+  },
+  us_nv: {
+    // Nevada's 30-day deletion window is the strictest of the consumer health
+    // data laws, so every Nevada request is held to it.
+    label: 'Nevada',
+    base: { days: 30 },
+    extension: null,
+    stopsTheClock: false,
+    citation: 'NRS 603A.515',
+  },
+  us_ct: {
+    label: 'Connecticut',
+    base: { days: 45 },
+    extension: { days: 45 },
+    stopsTheClock: false,
+    citation: 'Connecticut Data Privacy Act, 42-518',
   },
   other: {
     // No local rule, so hold ourselves to the strictest common window rather

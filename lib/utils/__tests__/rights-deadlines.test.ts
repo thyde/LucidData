@@ -78,6 +78,30 @@ describe('computeDeadline', () => {
     expect(iso(result.dueAt)).toBe('2026-03-17')
   })
 
+  it('gives Washington and Connecticut 45 days, extendable once by 45', () => {
+    for (const jurisdiction of ['us_wa', 'us_ct'] as const) {
+      expect(iso(computeDeadline({ jurisdiction, receivedAt }).dueAt)).toBe('2026-03-17')
+      expect(iso(computeDeadline({ jurisdiction, receivedAt, extended: true }).dueAt)).toBe('2026-05-01')
+    }
+  })
+
+  it('holds Nevada to 30 days with no extension', () => {
+    const result = computeDeadline({ jurisdiction: 'us_nv', receivedAt, extended: true })
+    expect(iso(result.dueAt)).toBe('2026-03-02')
+    expect(result.extended).toBe(false)
+  })
+
+  it('never pauses the clock for the US health privacy states', () => {
+    for (const jurisdiction of ['us_wa', 'us_nv', 'us_ct'] as const) {
+      const result = computeDeadline({
+        jurisdiction,
+        receivedAt,
+        pauses: [{ pausedAt: receivedAt, resumedAt: new Date('2026-01-11T00:00:00.000Z') }],
+      })
+      expect(result.pausedMs).toBe(0)
+    }
+  })
+
   it('holds an unknown jurisdiction to the strictest window rather than none', () => {
     const result = computeDeadline({ jurisdiction: 'other', receivedAt })
     expect(iso(result.dueAt)).toBe('2026-02-28')

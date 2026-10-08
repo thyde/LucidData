@@ -6,7 +6,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { useToast } from '@/lib/hooks/use-toast'
 import { createVaultEntryAction } from '@/lib/actions/vault.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 import { VAULT_KEYS } from '@/lib/hooks/useVault'
+import {
+  HEALTH_CONSENT_DECLINED_MESSAGE,
+  useHealthConsent,
+  withHealthConsent,
+} from '@/lib/hooks/use-health-consent'
 import {
   parseImportFile,
   labelForRecord,
@@ -54,6 +60,7 @@ export const IMPORT_FILE_EVENT = 'lucid:import-file'
 export function VaultImportDialog() {
   const [open, setOpen] = useState(false)
   const { encrypt, isLocked } = useEncryption()
+  const { requestHealthConsent } = useHealthConsent()
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -175,25 +182,48 @@ export function VaultImportDialog() {
     setProgress({ done: 0, total: records.length })
 
     let failed = 0
+    let stopped = false
     for (let i = 0; i < records.length; i++) {
       const record = records[i]
       const data = fields ? applyFieldMapping(record, fields, mapping) : record
       try {
         const encrypted = await encrypt(JSON.stringify(data))
-        await createVaultEntryAction({
-          label: labelForRecord(record, `${labelPrefix} ${i + 1}`),
-          category,
-          tags,
-          schema_type: fields ? targetType : undefined,
-          ...encrypted,
-        })
-      } catch {
+        // unwrap turns a refused write into a throw, so it counts as a failure
+        // instead of being reported as imported. LD-110: a health import asks
+        // for consent on the first record and the rest follow.
+        await withHealthConsent(
+          () =>
+            unwrap(
+              createVaultEntryAction({
+                label: labelForRecord(record, `${labelPrefix} ${i + 1}`),
+                category,
+                tags,
+                schema_type: fields ? targetType : undefined,
+                ...encrypted,
+              })
+            ),
+          requestHealthConsent
+        )
+      } catch (error) {
+        if (error instanceof Error && error.message === HEALTH_CONSENT_DECLINED_MESSAGE) {
+          stopped = true
+          break
+        }
         failed++
       }
       setProgress({ done: i + 1, total: records.length })
     }
 
     await queryClient.invalidateQueries({ queryKey: VAULT_KEYS.lists() })
+    if (stopped) {
+      toast({
+        title: 'Import stopped',
+        description: HEALTH_CONSENT_DECLINED_MESSAGE,
+      })
+      setImporting(false)
+      setProgress(null)
+      return
+    }
     const imported = records.length - failed
     toast({
       title: 'Import complete',

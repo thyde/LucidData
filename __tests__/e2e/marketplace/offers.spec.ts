@@ -46,7 +46,8 @@ test.describe('Marketplace offers', () => {
       await buyerPage.getByLabel('Organization name').fill('Synthetic Offer Lab')
       await buyerPage.getByLabel('Contact email').fill(organizationEmail)
       await buyerPage.getByLabel('Organization type').selectOption('both')
-      await buyerPage.getByRole('checkbox').check()
+      await buyerPage.getByRole('checkbox', { name: /Enable bulk data purchasing/ }).check()
+      await buyerPage.getByRole('checkbox', { name: /Organization Terms/ }).check()
       await buyerPage.getByRole('button', { name: 'Register organization' }).click()
       await expect(
         buyerPage.getByRole('heading', { name: 'Organization created' })

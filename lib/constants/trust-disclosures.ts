@@ -140,12 +140,18 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
 
 /**
  * Columns on vault_data that are stored unencrypted so entries can be listed,
- * filtered, and searched. Must match the vault_data schema in the migrations.
+ * filtered, and synced. A test derives the table's columns from the migrations
+ * and fails if any readable column is missing here.
  */
 export const SERVER_VISIBLE_VAULT_METADATA = [
   {
     column: 'label',
     purpose: 'The name you give an entry, shown in your vault list',
+  },
+  {
+    column: 'description',
+    purpose:
+      'An optional note on an entry, shown and searched in your vault list. Keep sensitive details in the entry itself, which is encrypted',
   },
   {
     column: 'category',
@@ -159,7 +165,35 @@ export const SERVER_VISIBLE_VAULT_METADATA = [
     column: 'schema_type',
     purpose: 'Which structured form the entry uses, so it can be rendered and mapped',
   },
+  {
+    column: 'expires_at',
+    purpose: 'An optional date the entry stops being valid, such as a credential expiry',
+  },
+  {
+    column: 'source_provider',
+    purpose: 'For an imported entry, the service it came from, such as Strava',
+  },
+  {
+    column: 'source_record_id',
+    purpose: "The provider's own ID for an imported record, so a sync never imports it twice",
+  },
+  {
+    column: 'source_captured_at',
+    purpose: 'When the provider recorded an imported record, so your history shows the right date',
+  },
+  {
+    column: 'created_at',
+    purpose: 'When you added the entry',
+  },
+  {
+    column: 'updated_at',
+    purpose: 'When the entry last changed',
+  },
 ]
+
+/** Shown under vault fields stored without encryption, so nobody is surprised later. */
+export const READABLE_FIELD_HINT =
+  'Not encrypted, so LucidData can see it. Keep sensitive details in the entry data.'
 
 export interface CertificationStatus {
   standard: string

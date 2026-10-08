@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { UserFacingError } from '@/lib/actions/action-result'
 
 /**
  * LD-302 universal opt-out signal handling.
@@ -140,8 +141,10 @@ export async function restoreUniversalOptOut(userId: string): Promise<void> {
 export async function assertNotUniversallyOptedOut(userId: string): Promise<void> {
   const state = await getUniversalOptOut(userId)
   if (state.optedOut) {
-    throw new Error(
-      'Your browser sends a universal opt-out signal, so your data is not offered for sale or sharing. You can change this in settings.'
+    // Written for the person, so it must reach them in production.
+    throw new UserFacingError(
+      'Your browser sends a universal opt-out signal, so your data is not offered for sale or sharing. You can change this in settings.',
+      'universal_opt_out'
     )
   }
 }

@@ -66,6 +66,7 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/for-business') &&
     !request.nextUrl.pathname.startsWith('/pricing') &&
     !request.nextUrl.pathname.startsWith('/trust') &&
+    !request.nextUrl.pathname.startsWith('/legal') &&
     !request.nextUrl.pathname.startsWith('/api/auth') &&
     !request.nextUrl.pathname.startsWith('/api/org') &&
     !request.nextUrl.pathname.startsWith('/api/issuers') &&

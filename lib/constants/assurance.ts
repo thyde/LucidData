@@ -224,6 +224,30 @@ export const INCIDENT_STEPS: IncidentStep[] = [
     deadline: 'Without undue delay, per GDPR Article 34',
   },
   {
+    step: 'Notify affected people in the US',
+    detail:
+      'LucidData is a vendor of personal health records under the FTC Health Breach Notification Rule, and an unauthorized disclosure counts as a breach, not only an intrusion. Notify every affected person by email, which each person agreed to as our way of contacting them when they signed up, and by first-class mail where email fails. If contact details are out of date for 10 or more people, post a notice on the homepage for 90 days or use major print or broadcast media, with a toll-free number.',
+    deadline: 'Without unreasonable delay, and no later than 60 calendar days after discovery, per 16 CFR 318.4',
+  },
+  {
+    step: 'Notify the FTC',
+    detail:
+      'If 500 or more people are affected, notify the FTC at the same time as the people affected. Below 500, log the breach and report the year\'s log to the FTC.',
+    deadline: 'With the individual notices for 500 or more; otherwise within 60 days after the end of the calendar year, per 16 CFR 318.5(c)',
+  },
+  {
+    step: 'Notify the media',
+    detail:
+      'If 500 or more residents of one state or jurisdiction are affected, notify prominent media outlets serving that state or jurisdiction.',
+    deadline: 'No later than 60 calendar days after discovery, per 16 CFR 318.5(b)',
+  },
+  {
+    step: 'Check state breach laws',
+    detail:
+      'Check the breach notification law of every state with affected residents. Some require notice to the state attorney general, and some set shorter deadlines than the FTC rule.',
+    deadline: 'The shortest deadline that applies',
+  },
+  {
     step: 'Review',
     detail:
       'Write up what happened, what we changed, and what we would do differently. Publish the summary unless doing so would put people at further risk.',
@@ -243,11 +267,11 @@ Measures taken: [containment and mitigation, with timestamps]
 Contact: [name and role of the incident lead]`,
   user: `We need to tell you about a security incident affecting your LucidData account.
 
-What happened: [plain description]
-What this means for your data: [state whether vault contents were reachable. Vault entries are encrypted in your browser with a key we never hold, so [state plainly whether that protection held]]
-What we have done: [containment]
-What you should do: [specific action, or "no action is needed" if that is true]
-Where to ask: security@luciddatabank.com`,
+What happened: [plain description, including the date of the breach and the date we discovered it]
+What information was involved: [the types, for example your email address, vault metadata, or your use of a health app. Vault entries are encrypted in your browser with a key we never hold, so [state plainly whether that protection held]]
+What we are doing: [how we are investigating, limiting the harm, and preventing a repeat]
+What you should do: [specific steps, or "no action is needed" if that is true]
+Where to ask: email security@luciddatabank.com, or read the incident page at luciddatabank.com/trust`,
 }
 
 export interface ContinuityCommitment {
@@ -387,7 +411,7 @@ export const PROCESSING_TERMS: ProcessingTerm[] = [
   {
     clause: 'International transfers',
     position:
-      'Personal data is processed in the United States. Transfers from the EU or UK rely on Standard Contractual Clauses. There is no in-region processing option today.',
+      'Personal data is processed in the United States, and there is no in-region processing option. LucidData has not yet put Standard Contractual Clauses in place, so an organization that needs to transfer personal data from the EU, the UK, or Switzerland must contact legal@luciddatabank.com before it does.',
   },
   {
     clause: 'Deletion and return',

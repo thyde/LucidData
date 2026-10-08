@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Logo } from '@/components/marketing/logo'
+import { ACCOUNT_DELETION_PATH, LEGAL_DOCUMENTS } from '@/lib/constants/legal'
 
 const FOOTER_GROUPS = [
   {
@@ -27,12 +28,27 @@ const FOOTER_GROUPS = [
       { href: '/trust/extension', label: 'Browser extension' },
     ],
   },
+  {
+    // LD-110: Washington's My Health My Data Act wants the health policy linked
+    // from the homepage, and the footer is on every public page.
+    title: 'Legal',
+    links: [
+      { href: LEGAL_DOCUMENTS.terms.path, label: LEGAL_DOCUMENTS.terms.title },
+      { href: LEGAL_DOCUMENTS.privacy.path, label: LEGAL_DOCUMENTS.privacy.title },
+      {
+        href: LEGAL_DOCUMENTS['health-privacy'].path,
+        label: LEGAL_DOCUMENTS['health-privacy'].title,
+      },
+      { href: LEGAL_DOCUMENTS['organization-terms'].path, label: 'Organization terms' },
+      { href: ACCOUNT_DELETION_PATH, label: 'Delete your account' },
+    ],
+  },
 ]
 
 export function Footer() {
   return (
     <footer className="border-t bg-muted/30">
-      <div className="container mx-auto grid gap-8 px-4 py-12 md:grid-cols-5">
+      <div className="container mx-auto grid gap-8 px-4 py-12 md:grid-cols-6">
         <div className="md:col-span-2">
           <Logo />
           <p className="mt-3 max-w-sm text-sm text-muted-foreground">

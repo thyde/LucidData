@@ -17,7 +17,7 @@ test.describe('Trust centre', () => {
     await expect(page.getByText('lib/crypto/credential-signing.ts')).toBeVisible()
 
     // The unencrypted metadata columns are named so nobody puts secrets in them.
-    for (const column of ['label', 'category', 'tags', 'schema_type']) {
+    for (const column of ['label', 'description', 'category', 'tags', 'schema_type', 'source_provider']) {
       await expect(page.getByText(column, { exact: true })).toBeVisible()
     }
 

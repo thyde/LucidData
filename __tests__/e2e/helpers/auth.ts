@@ -86,7 +86,7 @@ export async function signup(
   page: Page,
   email: string = TEST_USER.email,
   password: string = TEST_USER.password,
-  options: { path?: string } = {}
+  options: { path?: string; healthConsent?: boolean } = {}
 ): Promise<void> {
   await page.goto(options.path ?? '/signup');
 
@@ -138,6 +138,13 @@ export async function signup(
     { timeout: 2000 }
   );
   await confirmPasswordInput.blur();
+
+  // LD-110: the terms are required, and health data consent is a separate,
+  // optional choice.
+  await page.locator('input[name="acceptTerms"]').check();
+  if (options.healthConsent) {
+    await page.locator('input[name="healthDataConsent"]').check();
+  }
 
   // Wait for validation to complete (increased from 500ms to 1000ms)
   await page.waitForTimeout(1000);
