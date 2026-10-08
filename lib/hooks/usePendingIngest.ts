@@ -1,10 +1,12 @@
 'use client'
 
-import { unwrap } from '@/lib/actions/unwrap'
+import { failureCode, unwrap } from '@/lib/actions/unwrap'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { openSealed, generateIngestionKeypair } from '@luciddata/core/crypto/ingestion-keys'
+import { entryFromIngested } from '@luciddata/core/connectors/ingest'
+import { ALREADY_STORED } from '@luciddata/core/validations/provenance'
 import { decryptWithKey, encryptWithKey } from '@luciddata/core/crypto/client-crypto'
 import {
   clearPendingIngestAction,
@@ -91,37 +93,29 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
       for (const record of pending) {
         try {
           const plaintext = await openSealed(privateKey, record.sealed_payload)
-          // The real label is sealed with the payload, because a provider's
-          // free-text name can carry places and people. Split it back out.
-          const { __label: sealedLabel, ...payload } = JSON.parse(plaintext) as Record<
-            string,
-            unknown
-          > & { __label?: string }
+          // The provider's name for the record stays in the encrypted data; the
+          // label, which is readable, comes from the type alone.
+          const { data, ...entry } = entryFromIngested(record, plaintext)
           // Re-encrypt under the normal vault envelope, per-entry DEK and all,
           // so an imported entry is indistinguishable from one typed by hand
           // and nothing reaches the server without its wrapped key.
-          const encrypted = await encrypt(JSON.stringify(payload))
+          const encrypted = await encrypt(JSON.stringify(data))
           // LD-110: connecting a source already required consent. If it has
           // since been withdrawn, ask once; a "no" leaves everything queued.
           await withHealthConsent(
-            () =>
-              unwrap(createVaultEntryAction({
-                label: sealedLabel ?? record.label,
-                category: record.category,
-                schema_type: record.schema_type,
-                // LD-202 provenance. Identifiers only, so it can sit outside the
-                // envelope and still answer "where did this come from".
-                ...(record.provider ? { source_provider: record.provider } : {}),
-                ...(record.provider ? { source_record_id: record.provider_record_id } : {}),
-                ...(record.captured_at ? { source_captured_at: record.captured_at } : {}),
-                ...encrypted,
-              })),
+            () => unwrap(createVaultEntryAction({ ...entry, ...encrypted })),
             requestHealthConsent
           )
           drained.push(record.id)
           imported += 1
         } catch (error) {
           if (error instanceof Error && error.message === HEALTH_CONSENT_DECLINED_MESSAGE) break
+          // An earlier drain stored this record and stopped before clearing
+          // the queue. It is in the vault, so it is done.
+          if (failureCode(error) === ALREADY_STORED) {
+            drained.push(record.id)
+            continue
+          }
           // A record we cannot open is left queued rather than dropped. It is
           // the person's data, and a failure here is ours to investigate.
         }

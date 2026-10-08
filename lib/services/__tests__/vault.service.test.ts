@@ -25,6 +25,7 @@ import { assertHealthDataConsent } from '@/lib/services/legal.service'
 import { UserFacingError } from '@/lib/actions/action-result'
 import { HEALTH_CONSENT_REQUIRED } from '@/lib/constants/legal'
 import { createVaultData, deleteVaultData, updateVaultData } from '@/lib/services/vault.service'
+import { ALREADY_STORED } from '@luciddata/core/validations/provenance'
 import type { VaultData } from '@/types/database.types'
 
 const envelope = { client_ciphertext: 'c', encrypted_dek: 'd', dek_salt: 's' }
@@ -144,5 +145,67 @@ describe('updateVaultData', () => {
     expect(assertHealthDataConsent).not.toHaveBeenCalled()
     expect(vaultRepo.updateVaultEntry).not.toHaveBeenCalled()
     expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+})
+
+describe('a vault write sets only the columns it should', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(assertHealthDataConsent).mockResolvedValue(undefined)
+    vi.mocked(vaultRepo.findVaultById).mockResolvedValue(entry)
+    vi.mocked(vaultRepo.createVaultEntry).mockResolvedValue(entry)
+    vi.mocked(vaultRepo.updateVaultEntry).mockResolvedValue(entry)
+  })
+
+  it('stores an entry for the session user, whatever the payload says', async () => {
+    await createVaultData('user-1', {
+      label: 'Private profile',
+      ...envelope,
+      user_id: 'user-2',
+      id: '00000000-0000-0000-0000-000000000001',
+      created_at: '2000-01-01T00:00:00Z',
+    } as Parameters<typeof createVaultData>[1])
+
+    const row = vi.mocked(vaultRepo.createVaultEntry).mock.calls[0][0] as Record<string, unknown>
+    expect(row.user_id).toBe('user-1')
+    expect(row).not.toHaveProperty('id')
+    expect(row).not.toHaveProperty('created_at')
+  })
+
+  it('changes only the fields an edit can change', async () => {
+    await updateVaultData(entry.id, 'user-1', {
+      label: 'Renamed',
+      schema_type: 'custom',
+      source_provider: 'strava',
+      user_id: 'user-2',
+    } as Parameters<typeof updateVaultData>[2])
+
+    expect(vi.mocked(vaultRepo.updateVaultEntry).mock.calls[0][2]).toEqual({ label: 'Renamed' })
+  })
+
+  it('reports a record the vault already holds from the same source', async () => {
+    vi.mocked(vaultRepo.createVaultEntry).mockRejectedValue({
+      code: '23505',
+      message: 'duplicate key value violates unique constraint "idx_vault_source_record_unique"',
+    })
+
+    const write = createVaultData('user-1', {
+      label: 'Workout',
+      category: 'health',
+      schema_type: 'fitness_activity',
+      source_provider: 'strava',
+      source_record_id: '111',
+      ...envelope,
+    })
+    await expect(write).rejects.toBeInstanceOf(UserFacingError)
+    await expect(write).rejects.toMatchObject({ code: ALREADY_STORED })
+    expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+
+  it('passes any other database failure through untouched', async () => {
+    const failure = { code: '23505', message: 'duplicate key value violates unique constraint "vault_data_pkey"' }
+    vi.mocked(vaultRepo.createVaultEntry).mockRejectedValue(failure)
+
+    await expect(createVaultData('user-1', { label: 'x', ...envelope })).rejects.toBe(failure)
   })
 })

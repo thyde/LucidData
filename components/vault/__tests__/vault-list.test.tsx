@@ -118,6 +118,31 @@ describe('VaultList', () => {
 
   // Rendering Tests (8 tests)
   describe('Rendering', () => {
+    it('describes an imported entry from its decrypted data, and finds it by that', async () => {
+      vi.mocked(useVaultList).mockReturnValue(
+        createMockQuery([
+          ...mockEntries,
+          {
+            ...mockEntries[0],
+            id: 'vault-4',
+            label: 'Workout',
+            description: null,
+            tags: [],
+            schema_type: 'fitness_activity',
+            data: { name: 'Run with Sam', sport_type: 'Run', start_date: '2026-01-15' },
+          },
+        ])
+      );
+      const user = userEvent.setup();
+      render(<VaultList />);
+
+      expect(screen.getByText('Run with Sam, 2026-01-15')).toBeInTheDocument();
+
+      await user.type(screen.getByPlaceholderText('Search entries...'), 'with sam');
+      expect(screen.getByRole('heading', { name: 'Workout' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Financial Data' })).not.toBeInTheDocument();
+    });
+
     it('renders empty state when no entries', () => {
       vi.mocked(useVaultList).mockReturnValue(createMockQuery([]));
 

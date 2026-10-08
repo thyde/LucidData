@@ -1,8 +1,9 @@
 'use server'
 
-import { guarded, type ActionFailure } from '@/lib/actions/action-result'
+import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import { createVaultData, getUserVaultData, getVaultDataById, updateVaultData, deleteVaultData } from '@/lib/services/vault.service'
+import { vaultEntryCreateSchema, vaultEntryUpdateSchema } from '@luciddata/core/validations/client-api'
 import type { VaultData } from '@/types/database.types'
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -10,6 +11,18 @@ async function getAuthenticatedUserId(): Promise<string> {
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) throw new Error('Unauthorized')
   return user.id
+}
+
+// The id shape the client API accepts. Anything else cannot name an entry.
+const ENTRY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isEntryId(id: unknown): id is string {
+  return typeof id === 'string' && ENTRY_ID.test(id)
+}
+
+function entryId(id: unknown): string {
+  if (!isEntryId(id)) throw new UserFacingError('Vault entry not found', 'not_found')
+  return id
 }
 
 export async function getVaultEntriesAction(): Promise<VaultData[] | ActionFailure> {
@@ -22,9 +35,14 @@ export async function getVaultEntriesAction(): Promise<VaultData[] | ActionFailu
 export async function getVaultEntryAction(id: string): Promise<VaultData | null | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
+    if (!isEntryId(id)) return null
     return getVaultDataById(id, userId)
   })
 }
+
+// Both writes parse with the client API's schemas, so the web app and the API
+// accept the same fields, the encrypted envelope is never empty, and nothing a
+// caller adds reaches the database.
 
 export async function createVaultEntryAction(payload: {
   label: string
@@ -43,7 +61,7 @@ export async function createVaultEntryAction(payload: {
 }): Promise<VaultData | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return createVaultData(userId, payload)
+    return createVaultData(userId, vaultEntryCreateSchema.parse(payload))
   })
 }
 
@@ -59,13 +77,13 @@ export async function updateVaultEntryAction(id: string, payload: {
 }): Promise<VaultData | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return updateVaultData(id, userId, payload)
+    return updateVaultData(entryId(id), userId, vaultEntryUpdateSchema.parse(payload))
   })
 }
 
 export async function deleteVaultEntryAction(id: string): Promise<void | ActionFailure> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    return deleteVaultData(id, userId)
+    return deleteVaultData(entryId(id), userId)
   })
 }

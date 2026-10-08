@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { VAULT_CATEGORIES } from '@/lib/constants/categories';
 import { formatDate } from '@/lib/utils/date-formatter';
+import { recordSummary } from '@luciddata/core/vault/labels';
 
 interface VaultListProps {
   onEntryClick?: (entryId: string) => void;
@@ -40,13 +41,15 @@ export function VaultList({ onEntryClick }: VaultListProps) {
       result = result.filter((entry) => entry.category === categoryFilter);
     }
 
-    // Search filter (case-insensitive on label and description)
+    // Search filter (case-insensitive on label, description, and the summary
+    // of the decrypted record, which never leaves the browser)
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         (entry) =>
           entry.label.toLowerCase().includes(term) ||
-          entry.description?.toLowerCase().includes(term)
+          entry.description?.toLowerCase().includes(term) ||
+          recordSummary(entry.data)?.toLowerCase().includes(term)
       );
     }
 
@@ -228,6 +231,11 @@ export function VaultList({ onEntryClick }: VaultListProps) {
                   <CardTitle role="heading" aria-level={2} className="text-lg">{entry.label}</CardTitle>
                   <Badge>{entry.category}</Badge>
                 </div>
+                {recordSummary(entry.data) && (
+                  <p className="text-sm text-muted-foreground" data-testid="vault-entry-summary">
+                    {recordSummary(entry.data)}
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-2">
                 {entry.description && (

@@ -1,10 +1,8 @@
 import { z } from 'zod'
-import { VAULT_SCHEMA_TYPES } from '../schemas/vault-schemas'
+import { CREDENTIAL_SCHEMA_TYPES } from '../schemas/vault-schemas'
 
-/** Credential schema types an organization may request (excludes free-form custom). */
-export const REQUESTABLE_SCHEMA_TYPES = Object.keys(VAULT_SCHEMA_TYPES).filter(
-  (key) => key !== 'custom'
-)
+/** Credential schema types an organization may request. */
+export const REQUESTABLE_SCHEMA_TYPES: readonly string[] = CREDENTIAL_SCHEMA_TYPES
 
 /** Input an organization submits to request credentials from a user. */
 export const createCredentialRequestSchema = z.object({

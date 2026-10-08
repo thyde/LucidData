@@ -205,6 +205,7 @@ describe('errors', () => {
     ['health_consent_required', 403],
     ['step_up_required', 403],
     ['recovery_required', 409],
+    ['already_stored', 409],
     [undefined, 400],
   ])('maps the %s code to %i', async (code, status) => {
     const response = await v1(async () => {

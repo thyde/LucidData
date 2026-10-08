@@ -193,6 +193,26 @@ test.describe('Client API v1', () => {
     expect((await unpaired.json()).issues).toEqual([
       expect.objectContaining({ path: 'entries.0.source_record_id' }),
     ])
+
+    // Running an import again stores nothing twice, and says why.
+    const sourced = {
+      ...ENTRY,
+      label: 'Synced run',
+      source_provider: 'strava',
+      source_record_id: 'run-2026-10-08',
+    }
+    const first = await request.post('/api/v1/vault', { headers: as(owner), data: sourced })
+    expect(first.status()).toBe(201)
+    const again = await request.post('/api/v1/vault', { headers: as(owner), data: sourced })
+    expect(again.status()).toBe(409)
+    expect((await again.json()).code).toBe('already_stored')
+    const batchAgain = await request.post('/api/v1/vault/batch', {
+      headers: as(owner),
+      data: { entries: [sourced] },
+    })
+    const repeated = (await batchAgain.json()).data
+    expect(repeated.stored).toBe(0)
+    expect(repeated.results[0].code).toBe('already_stored')
   })
 
   test('updates and deletes without recording a read that never happened', async ({ request }) => {
