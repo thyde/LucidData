@@ -124,6 +124,11 @@ describe('rewrapAllEntries', () => {
       id: 'new',
       encrypted_dek: underNew.encrypted_dek,
       dek_salt: underNew.dek_salt,
+      previous_encrypted_dek: underNew.encrypted_dek,
+    })
+    // Each envelope names the one it replaces, so the server can refuse an entry edited meanwhile.
+    expect(sent.entries.find((entry) => entry.id === 'old')).toMatchObject({
+      previous_encrypted_dek: underOld.encrypted_dek,
     })
   })
 

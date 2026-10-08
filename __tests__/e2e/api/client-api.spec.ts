@@ -351,12 +351,32 @@ test.describe('Client API v1', () => {
       encrypted_dek: string
       dek_salt: string
     }[]
-    const entries = vault.map(({ id, encrypted_dek, dek_salt }) => ({ id, encrypted_dek, dek_salt }))
+    const entries = vault.map(({ id, encrypted_dek, dek_salt }) => ({
+      id,
+      encrypted_dek,
+      dek_salt,
+      previous_encrypted_dek: encrypted_dek,
+    }))
     const ungranted = await request.post('/api/v1/vault/rewrap', {
       headers: as(owner),
       data: { reason: 'password_change', entries, step_up_token: 'made-up-grant' },
     })
     expect(ungranted.status()).toBe(403)
+
+    // A re-wrap computed from a read that is no longer current is refused whole.
+    const stale = await request.post('/api/v1/vault/rewrap', {
+      headers: as(owner),
+      data: {
+        reason: 'password_change',
+        entries: entries.map((entry, index) =>
+          index === 0 ? { ...entry, previous_encrypted_dek: 'cmVhZCBiZWZvcmUgYW4gZWRpdA' } : entry
+        ),
+        step_up_token: await grant('change_password'),
+      },
+    })
+    expect(stale.status()).toBe(409)
+    expect((await stale.json()).code).toBe('conflict')
+
     const rewrapped = await request.post('/api/v1/vault/rewrap', {
       headers: as(owner),
       data: {

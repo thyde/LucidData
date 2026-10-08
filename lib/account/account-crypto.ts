@@ -125,6 +125,8 @@ export interface RewrapEnvelope {
   id: string
   encrypted_dek: string
   dek_salt: string
+  /** The wrapped key as read, so the server can refuse an entry edited meanwhile. */
+  previous_encrypted_dek: string
 }
 
 /**
@@ -168,10 +170,15 @@ export async function prepareRewrap(
     entries.map(async (entry): Promise<RewrapEnvelope | null> => {
       try {
         const fields = await rewrapDek(oldMasterKey, newMasterKey, entry.encrypted_dek, entry.dek_salt)
-        return { id: entry.id, ...fields }
+        return { id: entry.id, ...fields, previous_encrypted_dek: entry.encrypted_dek }
       } catch {
         return (await opensDataKey(newMasterKey, entry))
-          ? { id: entry.id, encrypted_dek: entry.encrypted_dek, dek_salt: entry.dek_salt }
+          ? {
+              id: entry.id,
+              encrypted_dek: entry.encrypted_dek,
+              dek_salt: entry.dek_salt,
+              previous_encrypted_dek: entry.encrypted_dek,
+            }
           : null
       }
     })

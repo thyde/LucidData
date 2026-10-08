@@ -162,7 +162,8 @@ Keys and recovery:
 - Any change to how the vault's keys are wrapped or recovered needs a step-up grant, consumed in the service, never only checked in the browser. Re-wrapping entries after a password change or a recovery uses `change_password`, adding a kit or replacing the recovery code uses `add_recovery_factor`, and removing a factor uses `remove_recovery_factor`. Setting up the first recovery code needs none. `lib/services/__tests__/session-security.service.test.ts` fails if a listed action is consumed nowhere.
 - Do not add step-up to consent withdrawal. Withdrawing consent must stay as easy as giving it (GDPR Article 7(3)).
 - The key salt, the recovery escrow columns, and `recovery_factors` are written only by the services that guard them, through the service role and filtered to the caller. Never write them from the person's session client; the database refuses it, and `supabase/tests/database/recovery-writes.test.sql` holds that closed.
-- A new master key retires every recovery factor, because each one wraps the old key. Recovery checks a factor against one of the vault's own entries before it changes anything.
+- A new master key retires every recovery factor, because each one wraps the old key. Recovery checks a factor against one of the vault's own entries, or the connector key when there are none, before it changes anything.
+- Re-wrapping goes through `rewrap_vault_keys` only, called by the account service with the service role after the step-up check. Each entry carries the wrapped key it replaces, and the connector ingestion key moves in the same transaction, because it is wrapped under the master key too.
 
 Audit logging:
 

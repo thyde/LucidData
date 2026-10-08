@@ -723,11 +723,18 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
                   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                   "type": "string",
                 },
+                "previous_encrypted_dek": {
+                  "description": "The wrapped key this replaces, exactly as read. If the entry changed since, the whole re-wrap is refused with code conflict.",
+                  "maxLength": 4000,
+                  "minLength": 1,
+                  "type": "string",
+                },
               },
               "required": [
                 "id",
                 "encrypted_dek",
                 "dek_salt",
+                "previous_encrypted_dek",
               ],
               "type": "object",
             },
