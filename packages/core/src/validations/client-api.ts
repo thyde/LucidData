@@ -109,6 +109,9 @@ export const vaultRewrapSchema = z.object({
       id: z.string().uuid(),
       encrypted_dek: wrappedKey,
       dek_salt: dekSalt,
+      previous_encrypted_dek: wrappedKey.describe(
+        'The wrapped key this replaces, exactly as read. If the entry changed since, the whole re-wrap is refused with code conflict.'
+      ),
     })
   ),
   step_up_token: z

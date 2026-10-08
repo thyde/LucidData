@@ -5,12 +5,10 @@ import { notifySecurityEvent } from '@/lib/services/security-notification.servic
 import { flushOwedBalance } from '@/lib/services/payout.service'
 import { eraseUser, type DeletionOutcome } from '@/lib/services/deletion.service'
 import { consumeStepUp } from '@/lib/services/session-security.service'
-import { createClient } from '@/lib/supabase/server'
 import { UserFacingError } from '@/lib/actions/action-result'
 import { DELETE_CONFIRM_PHRASE } from '@luciddata/core/validations/account'
 import { retireRecoveryFactors, storeRecoveryCode } from '@/lib/services/recovery-factor.service'
 import { getUserVaultData } from '@/lib/services/vault.service'
-import { rewrapIngestionKey } from '@/lib/services/ingestion.service'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import type { VaultData } from '@/types/database.types'
 
@@ -63,37 +61,53 @@ export interface RewrapOutcome {
   retiredKits: number
 }
 
-// Persist re-wrapped DEK envelopes for every entry, then write a single summary
-// audit entry. client_ciphertext is never touched.
+/**
+ * One entry's data key under the new master key, and the wrapped key it
+ * replaces. A type rather than an interface, so it is assignable to Json.
+ */
+export type RewrapEntry = {
+  id: string
+  encrypted_dek: string
+  dek_salt: string
+  previous_encrypted_dek: string
+}
+
+// Persist re-wrapped DEK envelopes for every entry, and the connector key, then
+// write a single summary audit entry. client_ciphertext is never touched.
 export async function rewrapVaultEntries(
   userId: string,
   reason: 'password_change' | 'recovery',
-  entries: { id: string; encrypted_dek: string; dek_salt: string }[],
+  entries: RewrapEntry[],
   stepUpToken: string,
   ingestKey?: { previous: string; wrapped: string }
 ): Promise<RewrapOutcome> {
   // LD-106: re-wrapping replaces every entry's key envelope and retires every
   // recovery factor, so a warm session alone is not enough.
   await consumeStepUp(userId, 'change_password', stepUpToken)
-  const supabase = await createClient()
-  const { error } = await supabase.rpc('rewrap_vault_entries_atomic', { entries })
-  if (error) throw error
+
+  // Every envelope and the connector key move in one transaction, and each
+  // replaces only the exact value the device re-wrapped, so an entry edited on
+  // another device meanwhile is never overwritten with its old data key. The
+  // function is closed to the API roles; the server calls it for the caller.
+  const { error } = await createServiceClient().rpc('rewrap_vault_keys', {
+    p_user_id: userId,
+    p_entries: entries,
+    ...(ingestKey ? { p_ingest_key: ingestKey } : {}),
+  })
+  if (error) {
+    // PT409 is the function's compare-and-swap refusal, answered as HTTP 409.
+    if (error.code === 'PT409') {
+      throw new UserFacingError(
+        'Something in your vault changed while it was being re-encrypted. Try again.',
+        'conflict'
+      )
+    }
+    throw error
+  }
 
   // The new wrapping is stored. Nothing after this line may throw: a failure
   // reported now would make the browser roll the password back, leaving every
   // entry wrapped under a key that no password derives.
-  if (ingestKey) {
-    try {
-      if (!(await rewrapIngestionKey(userId, ingestKey))) {
-        errorLogger.log(new Error('The ingestion key changed during a re-wrap'), ErrorSeverity.HIGH, {
-          userId,
-          action: 'INGEST_KEY_REWRAP_SKIPPED',
-        })
-      }
-    } catch (ingestError) {
-      errorLogger.log(ingestError, ErrorSeverity.HIGH, { userId, action: 'INGEST_KEY_REWRAP_FAILED' })
-    }
-  }
   try {
     const noun = entries.length === 1 ? 'entry' : 'entries'
     await createAuditEntry({

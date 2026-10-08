@@ -7,10 +7,9 @@ const notifySecurityEvent = vi.fn()
 const retireRecoveryFactors = vi.fn()
 const getUserVaultData = vi.fn()
 const logError = vi.fn()
-const rewrapIngestionKey = vi.fn()
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ rpc }) }))
-vi.mock('@/lib/supabase/service', () => ({ createServiceClient: vi.fn() }))
+vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
+vi.mock('@/lib/supabase/service', () => ({ createServiceClient: () => ({ rpc }) }))
 vi.mock('@/lib/services/session-security.service', () => ({
   consumeStepUp: (...a: unknown[]) => consumeStepUp(...a),
 }))
@@ -31,9 +30,6 @@ vi.mock('@/lib/services/error-logger', () => ({
   errorLogger: { log: (...a: unknown[]) => logError(...a) },
   ErrorSeverity: { HIGH: 'high' },
 }))
-vi.mock('@/lib/services/ingestion.service', () => ({
-  rewrapIngestionKey: (...a: unknown[]) => rewrapIngestionKey(...a),
-}))
 vi.mock('@/lib/repositories/user.repository', () => ({}))
 vi.mock('@/lib/services/payout.service', () => ({ flushOwedBalance: vi.fn() }))
 vi.mock('@/lib/services/deletion.service', () => ({ eraseUser: vi.fn() }))
@@ -41,7 +37,12 @@ vi.mock('@/lib/services/deletion.service', () => ({ eraseUser: vi.fn() }))
 const { rewrapVaultEntries, getEntriesForExport } = await import('@/lib/services/account.service')
 
 const ENTRIES = [
-  { id: '7f1c6a52-5f0e-4b6e-9a43-0d3f4c1e2a11', encrypted_dek: 'bmV3LWRlaw==', dek_salt: 'bmV3LWl2' },
+  {
+    id: '7f1c6a52-5f0e-4b6e-9a43-0d3f4c1e2a11',
+    encrypted_dek: 'bmV3LWRlaw==',
+    dek_salt: 'bmV3LWl2',
+    previous_encrypted_dek: 'b2xkLWRlaw==',
+  },
 ]
 
 beforeEach(() => {
@@ -51,7 +52,6 @@ beforeEach(() => {
   createAuditEntry.mockResolvedValue(undefined)
   notifySecurityEvent.mockResolvedValue(undefined)
   retireRecoveryFactors.mockResolvedValue({ kits: 0 })
-  rewrapIngestionKey.mockResolvedValue(true)
 })
 
 describe('rewrapVaultEntries', () => {
@@ -66,12 +66,12 @@ describe('rewrapVaultEntries', () => {
     expect(retireRecoveryFactors).not.toHaveBeenCalled()
   })
 
-  it('stores the new wrapping, then retires the factors that wrap the old key', async () => {
+  it('stores every envelope for the caller in one call, then retires the factors', async () => {
     retireRecoveryFactors.mockResolvedValue({ kits: 2 })
 
     expect(await rewrapVaultEntries('user-1', 'recovery', ENTRIES, 'grant')).toEqual({ retiredKits: 2 })
 
-    expect(rpc).toHaveBeenCalledWith('rewrap_vault_entries_atomic', { entries: ENTRIES })
+    expect(rpc).toHaveBeenCalledWith('rewrap_vault_keys', { p_user_id: 'user-1', p_entries: ENTRIES })
     expect(retireRecoveryFactors).toHaveBeenCalledWith('user-1')
     expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(
       retireRecoveryFactors.mock.invocationCallOrder[0]
@@ -83,19 +83,43 @@ describe('rewrapVaultEntries', () => {
     expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'recovery_kits_retired')
   })
 
+  it('moves the connector key in the same transaction as the entries', async () => {
+    const ingestKey = { previous: 'b2xkLXdyYXA=', wrapped: 'bmV3LXdyYXA=' }
+
+    await rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant', ingestKey)
+
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('rewrap_vault_keys', {
+      p_user_id: 'user-1',
+      p_entries: ENTRIES,
+      p_ingest_key: ingestKey,
+    })
+  })
+
+  it('reports an entry edited meanwhile as a conflict, and keeps every factor', async () => {
+    rpc.mockResolvedValue({ error: { code: 'PT409', message: 'A vault entry changed after it was read' } })
+
+    await expect(rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant')).rejects.toMatchObject({
+      code: 'conflict',
+    })
+    expect(retireRecoveryFactors).not.toHaveBeenCalled()
+    expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+
+  it('keeps every factor when the re-wrap is refused for another reason', async () => {
+    rpc.mockResolvedValue({ error: { code: 'P0001', message: 'Every vault entry must be supplied exactly once' } })
+
+    await expect(rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant')).rejects.toMatchObject({
+      message: 'Every vault entry must be supplied exactly once',
+    })
+    expect(retireRecoveryFactors).not.toHaveBeenCalled()
+  })
+
   it('says nothing about kits when none were retired', async () => {
     await rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant')
 
     expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'password_changed')
     expect(notifySecurityEvent).not.toHaveBeenCalledWith('user-1', 'recovery_kits_retired')
-  })
-
-  it('keeps every factor when the re-wrap is refused', async () => {
-    rpc.mockResolvedValue({ error: new Error('Every vault entry must be supplied exactly once') })
-
-    await expect(rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant')).rejects.toThrow()
-    expect(retireRecoveryFactors).not.toHaveBeenCalled()
-    expect(createAuditEntry).not.toHaveBeenCalled()
   })
 
   it('never reports a failure once the new wrapping is stored', async () => {
@@ -108,49 +132,6 @@ describe('rewrapVaultEntries', () => {
       retiredKits: 0,
     })
     expect(logError).toHaveBeenCalledTimes(2)
-  })
-})
-
-describe('moving the connector ingestion key', () => {
-  const ingestKey = { previous: 'b2xkLXdyYXA=', wrapped: 'bmV3LXdyYXA=' }
-
-  it('stores it after the entries and before the factors are retired', async () => {
-    await rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant', ingestKey)
-
-    expect(rewrapIngestionKey).toHaveBeenCalledWith('user-1', ingestKey)
-    expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(rewrapIngestionKey.mock.invocationCallOrder[0])
-    expect(rewrapIngestionKey.mock.invocationCallOrder[0]).toBeLessThan(
-      retireRecoveryFactors.mock.invocationCallOrder[0]
-    )
-  })
-
-  it('leaves it alone when the re-wrap is refused', async () => {
-    consumeStepUp.mockRejectedValue(new Error('Confirm your password again to continue'))
-
-    await expect(
-      rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'used-grant', ingestKey)
-    ).rejects.toThrow()
-    expect(rewrapIngestionKey).not.toHaveBeenCalled()
-  })
-
-  it('records, rather than reports, a key that could not be moved', async () => {
-    rewrapIngestionKey.mockResolvedValueOnce(false)
-    await expect(
-      rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant', ingestKey)
-    ).resolves.toEqual({ retiredKits: 0 })
-
-    rewrapIngestionKey.mockRejectedValueOnce(new Error('update failed'))
-    await expect(
-      rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant', ingestKey)
-    ).resolves.toEqual({ retiredKits: 0 })
-
-    expect(logError).toHaveBeenCalledTimes(2)
-  })
-
-  it('does nothing when the account has no key to move', async () => {
-    await rewrapVaultEntries('user-1', 'password_change', ENTRIES, 'grant')
-
-    expect(rewrapIngestionKey).not.toHaveBeenCalled()
   })
 })
 

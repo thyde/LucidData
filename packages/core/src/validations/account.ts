@@ -23,6 +23,8 @@ export const rewrapEntriesSchema = z.object({
       id: z.string().uuid(),
       encrypted_dek: z.string().min(1),
       dek_salt: z.string().min(1),
+      /** The wrapped key this replaces, so the server can refuse one edited meanwhile. */
+      previous_encrypted_dek: z.string().min(1),
     })
   ),
 })
