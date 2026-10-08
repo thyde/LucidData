@@ -13,6 +13,7 @@ import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { createAdminClient } from '../helpers/supabase-admin'
 import { getUniqueEmail, TEST_USER } from '../helpers/auth'
+import { createAuditHash } from '@/lib/crypto/hashing'
 
 interface Person {
   id: string
@@ -96,6 +97,44 @@ test.describe('A vault past the first page of results', () => {
   })
 
   test('verifies an audit chain longer than one page', async ({ request }) => {
+    // An import writes one audit entry a batch, and the client API allows 120
+    // calls a minute, so the long chain is appended here the way the audit
+    // service appends: each entry hashes the one before it.
+    const admin = createAdminClient()
+    const { data: latest } = await admin
+      .from('audit_logs')
+      .select('current_hash, timestamp')
+      .eq('user_id', person.id)
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .single()
+    let previous: string | null = latest?.current_hash ?? null
+    const start = new Date(latest?.timestamp ?? Date.now()).getTime() + 1000
+    const rows = Array.from({ length: ENTRIES }, (_, n) => {
+      const timestamp = new Date(start + n * 1000)
+      const action = `Read entry ${n + 1}`
+      const current = createAuditHash(previous, { userId: person.id, eventType: 'data_accessed', action, timestamp })
+      const row = {
+        user_id: person.id,
+        event_type: 'data_accessed',
+        action,
+        previous_hash: previous,
+        current_hash: current,
+        timestamp: timestamp.toISOString(),
+      }
+      previous = current
+      return row
+    })
+    for (let at = 0; at < rows.length; at += 500) {
+      const { error } = await admin.from('audit_logs').insert(rows.slice(at, at + 500))
+      expect(error).toBeNull()
+    }
+    const { count } = await admin
+      .from('audit_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', person.id)
+    expect(count).toBeGreaterThan(1000)
+
     const response = await request.get('/api/v1/audit', { headers: as(person), timeout: 120_000 })
     const { chain_valid } = (await response.json()).data
 

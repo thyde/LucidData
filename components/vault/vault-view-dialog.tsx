@@ -59,7 +59,11 @@ function formatDateTime(date: Date | string): string {
 // LD-202 provenance holds a slug, not a display name, because it is
 // unencrypted metadata. Titling it here keeps the storage opaque.
 function sourceLabel(provider: string): string {
-  return provider.charAt(0).toUpperCase() + provider.slice(1);
+  return provider
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 function isExpired(expiresAt: Date | string | null): boolean {

@@ -6,21 +6,22 @@
  * back to the existing mapping wizard, which is the behaviour that keeps this
  * feature additive: a file that no adapter understands imports exactly as well
  * as it did before.
+ *
+ * Health exports (LD-210) are read elsewhere, in ../archive, because they are
+ * too large for a whole-file text pass and are imported in batches.
  */
 
 import { DETECTION_HEAD_BYTES, type AdapterResult, type ExportAdapter } from './types'
-import { appleHealthAdapter } from './apple-health'
 import { googleTakeoutAdapter } from './google-takeout'
 import { bankCsvAdapter } from './bank-csv'
 
 export const EXPORT_ADAPTERS: ExportAdapter[] = [
-  appleHealthAdapter,
   googleTakeoutAdapter,
   bankCsvAdapter,
 ]
 
 export type { AdapterResult, ExportAdapter } from './types'
-export { appleHealthAdapter, googleTakeoutAdapter, bankCsvAdapter }
+export { googleTakeoutAdapter, bankCsvAdapter }
 
 /** The adapter that recognises this file, or null to use the generic path. */
 export function detectAdapter(fileName: string, text: string): ExportAdapter | null {
