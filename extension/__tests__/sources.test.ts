@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { EXPORT_SOURCES, matchExportSource } from '@/extension/src/sources.js'
 import { EXPORT_ADAPTERS } from '@luciddata/core/vault/adapters'
+import { EXPORT_READERS } from '@luciddata/core/vault/archive'
 
 interface Source {
   id: string
@@ -32,12 +33,21 @@ describe('matchExportSource', () => {
     expect(match?.id).toBe('google-takeout')
   })
 
-  it('recognizes an Apple privacy export by its host', () => {
+  it('recognizes an Apple Health export by its file name', () => {
+    // The export is made on the phone, so it reaches the browser as an
+    // attachment or a shared file, from no particular host.
     const match = matchExportSource(
-      'https://privacy.apple.com/download/xyz',
-      '/home/me/Downloads/apple-data.zip'
+      'https://mail.example.test/attachment?id=1',
+      '/home/me/Downloads/export.zip'
     )
     expect(match?.id).toBe('apple-health')
+  })
+
+  it('does not take an Apple privacy download for a Health export', () => {
+    // privacy.apple.com does not include Health data.
+    expect(
+      matchExportSource('https://privacy.apple.com/download/xyz', '/home/me/Downloads/apple-data.zip')
+    ).toBeNull()
   })
 
   it('falls back to the file name when the host says nothing', () => {
@@ -115,8 +125,12 @@ describe('export walkthroughs', () => {
     // LD-203 closing the last LD-205 criterion. A walkthrough talks someone
     // through an export request that can take hours, and Google's takes days.
     // Doing that and then failing to read the file is worse than never having
-    // offered, so the link is checked rather than assumed.
-    const adapterIds = new Set(EXPORT_ADAPTERS.map((adapter) => adapter.id))
+    // offered, so the link is checked rather than assumed. LD-210 readers
+    // count too: they read the zip archives the adapters cannot.
+    const adapterIds = new Set([
+      ...EXPORT_ADAPTERS.map((adapter) => adapter.id),
+      ...EXPORT_READERS.map((reader) => reader.id),
+    ])
 
     for (const source of sources) {
       expect(adapterIds, `${source.id} has no adapter`).toContain(source.adapterId)

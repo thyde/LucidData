@@ -20,7 +20,12 @@ export interface PendingExport {
   filename: string
   provider: string
   providerLabel: string
-  text: string
+  /** The file's bytes, base64 encoded. */
+  base64?: string
+  /** What extension versions before LD-210 sent instead of bytes. */
+  text?: string
+  /** The file is over the size the extension hands over. */
+  tooLarge?: boolean
 }
 
 interface BridgeReply<T> {
@@ -65,13 +70,26 @@ export async function isExtensionPresent(): Promise<boolean> {
 
 /**
  * Ask for a detected export. Returns null when there is no extension, no
- * pending file, or the extension refused, all of which are ordinary.
+ * pending file, or the extension refused, all of which are ordinary. A file
+ * too large to hand over comes back with `tooLarge` and no contents.
  */
 export async function getPendingExport(): Promise<PendingExport | null> {
   const reply = await ask<PendingExport | { error: string } | null>('get-pending-export')
   if (!reply?.ok || !reply.payload) return null
   if ('error' in reply.payload) return null
   return reply.payload
+}
+
+/** The contents of a handed-over export, as a file the import dialog can read. */
+export function pendingExportFile(pending: PendingExport): File {
+  const name = pending.filename.split(/[\\/]/).pop() || 'export'
+  if (pending.base64 === undefined) {
+    return new File([pending.text ?? ''], name, { type: 'application/octet-stream' })
+  }
+  const binary = atob(pending.base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index)
+  return new File([bytes], name, { type: 'application/octet-stream' })
 }
 
 export async function clearPendingExport(): Promise<void> {

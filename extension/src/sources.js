@@ -3,8 +3,8 @@
  *
  * Which downloads count as a data export, and how to ask for one.
  *
- * Each source names the LD-203 adapter that reads its output. That link is
- * checked by a test rather than left as a comment, because a walkthrough that
+ * Each source names the LD-203 adapter or LD-210 reader that reads its output.
+ * That link is checked by a test rather than left as a comment, because a walkthrough that
  * talks someone through a multi-hour export request and then cannot read the
  * file is worse than not offering the walkthrough at all.
  */
@@ -30,14 +30,16 @@ export const EXPORT_SOURCES = [
     id: 'apple-health',
     label: 'Apple Health',
     adapterId: 'apple-health',
-    fileTypes: ['.xml'],
-    requestUrl: 'https://privacy.apple.com/',
-    urlPatterns: ['privacy.apple.com'],
-    filenamePatterns: ['apple', 'health', 'export.zip'],
+    fileTypes: ['.zip'],
+    // The export is made on the iPhone. Apple's privacy site does not include
+    // Health data, so a download from it is not this export.
+    requestUrl: null,
+    urlPatterns: [],
+    filenamePatterns: ['export.zip', 'apple_health_export'],
     steps: [
       'On iPhone, open Health, tap your picture, then Export All Health Data.',
       'Save the export to Files or send it to this computer.',
-      'Unzip it and open export.xml. It is large, and only the first records are read.',
+      'In your vault, choose Import file and pick export.zip. You do not need to unzip it.',
     ],
   },
   {
