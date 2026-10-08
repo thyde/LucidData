@@ -112,14 +112,19 @@ export async function recordOrderPayouts(order: DataOrder): Promise<void> {
 
   const pool = await poolRepo.findPoolById(order.pool_id)
   const poolName = pool?.name ?? 'a data pool'
+  // The buyer paid the pool's price for each record, and a payout comes out of
+  // that. An order snapshotted before releases were capped can hold a record
+  // worth more, so the cap is applied again here, where the money is owed.
+  const pricePerRecordCents = pool?.price_per_record_cents ?? 0
 
   const records = await orderRepo.findOrderRecords(order.id)
   const userIds = new Set<string>()
   for (const record of records) {
-    if (!record.source_user_id || record.payout_cents <= 0) continue
+    const grossCents = Math.min(record.payout_cents, pricePerRecordCents)
+    if (!record.source_user_id || grossCents <= 0) continue
     // LD-505: the fee is taken here, from the gross the buyer paid, and all three
     // numbers are recorded so the contributor sees what happened.
-    const split = splitEarnings(record.payout_cents, PLATFORM_FEE_BPS)
+    const split = splitEarnings(grossCents, PLATFORM_FEE_BPS)
     await payoutRepo.createPayout({
       user_id: record.source_user_id,
       contribution_id: record.source_contribution_id,

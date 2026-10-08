@@ -11,10 +11,12 @@ vi.mock('@/lib/repositories/payout.repository', () => ({
   findAccount: vi.fn(),
   findPendingPayouts: vi.fn(),
   findPayoutsByUser: vi.fn(),
+  findPayoutsByOrder: vi.fn(),
+  createPayout: vi.fn(),
   updatePayout: vi.fn(),
 }))
 
-vi.mock('@/lib/repositories/data-order.repository', () => ({}))
+vi.mock('@/lib/repositories/data-order.repository', () => ({ findOrderRecords: vi.fn() }))
 vi.mock('@/lib/repositories/pool.repository', () => ({ findPoolById: vi.fn() }))
 
 vi.mock('@/lib/stripe/client', () => ({
@@ -36,9 +38,11 @@ vi.mock('@/lib/services/marketplace-integrity.service', async () => {
 })
 
 import * as payoutRepo from '@/lib/repositories/payout.repository'
-import { processPendingPayouts, flushOwedBalance } from '../payout.service'
+import * as orderRepo from '@/lib/repositories/data-order.repository'
+import * as poolRepo from '@/lib/repositories/pool.repository'
+import { processPendingPayouts, flushOwedBalance, recordOrderPayouts } from '../payout.service'
 import { PAYOUT_REVIEW_THRESHOLD_CENTS } from '@/lib/constants/marketplace-integrity'
-import type { Payout, PayoutAccount } from '@/types/database.types'
+import type { DataOrder, DataOrderRecord, DataPool, Payout, PayoutAccount } from '@/types/database.types'
 
 function payout(amountCents: number, id = 'payout-1'): Payout {
   return {
@@ -128,5 +132,51 @@ describe('closing an account with money owed', () => {
     await flushOwedBalance('user-1')
 
     expect(transfersCreate).toHaveBeenCalledOnce()
+  })
+})
+
+describe('recording what an order owes', () => {
+  const order = { id: 'order-1', pool_id: 'pool-1' } as DataOrder
+
+  function record(id: string, payoutCents: number, userId: string | null = 'user-1'): DataOrderRecord {
+    return {
+      id,
+      order_id: order.id,
+      source_contribution_id: `contribution-${id}`,
+      source_user_id: userId,
+      payout_cents: payoutCents,
+    } as DataOrderRecord
+  }
+
+  beforeEach(() => {
+    vi.mocked(payoutRepo.findPayoutsByOrder).mockResolvedValue([])
+    vi.mocked(payoutRepo.findPendingPayouts).mockResolvedValue([])
+  })
+
+  it('never owes more for a record than the buyer paid for it', async () => {
+    // An order snapshotted before releases were capped can hold a forged value.
+    vi.mocked(poolRepo.findPoolById).mockResolvedValue({
+      name: 'Synthetic pool',
+      price_per_record_cents: 1000,
+    } as DataPool)
+    vi.mocked(orderRepo.findOrderRecords).mockResolvedValue([record('a', 15000), record('b', 1000)])
+
+    await recordOrderPayouts(order)
+
+    const created = vi.mocked(payoutRepo.createPayout).mock.calls.map(([row]) => row)
+    expect(created.map((row) => row.gross_cents)).toEqual([1000, 1000])
+    expect(created.map((row) => row.amount_cents)).toEqual([750, 750])
+  })
+
+  it('owes nothing for records in a free pool, whatever they claim', async () => {
+    vi.mocked(poolRepo.findPoolById).mockResolvedValue({
+      name: 'Free pool',
+      price_per_record_cents: 0,
+    } as DataPool)
+    vi.mocked(orderRepo.findOrderRecords).mockResolvedValue([record('a', 15000)])
+
+    await recordOrderPayouts(order)
+
+    expect(payoutRepo.createPayout).not.toHaveBeenCalled()
   })
 })
