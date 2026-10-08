@@ -1,3 +1,4 @@
+import { RECOVERY_REQUIRED } from '@luciddata/core/validations/refusals'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import * as userRepo from '@/lib/repositories/user.repository'
@@ -116,7 +117,7 @@ export async function assertRecoveryReadyForFirstWrite(userId: string): Promise<
   if (status.vaultWriteAllowed) return
   throw new UserFacingError(
     'Set up a recovery factor before storing data. Without one, forgetting your password makes your vault permanently unreadable, and nobody can restore it for you.',
-    'recovery_required'
+    RECOVERY_REQUIRED
   )
 }
 

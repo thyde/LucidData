@@ -4,6 +4,8 @@ vi.mock('@/lib/repositories/vault.repository', () => ({
   findVaultById: vi.fn(),
   deleteVaultEntry: vi.fn(),
   createVaultEntry: vi.fn(),
+  createVaultEntries: vi.fn(),
+  findStoredSourceRecordIds: vi.fn(),
   updateVaultEntry: vi.fn(),
 }))
 
@@ -19,12 +21,18 @@ vi.mock('@/lib/services/legal.service', () => ({
   assertHealthDataConsent: vi.fn(),
 }))
 
+vi.mock('@/lib/services/error-logger', () => ({
+  ErrorSeverity: { HIGH: 'high' },
+  errorLogger: { log: vi.fn() },
+}))
+
 import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertHealthDataConsent } from '@/lib/services/legal.service'
+import { assertRecoveryReadyForFirstWrite } from '@/lib/services/recovery-factor.service'
 import { UserFacingError } from '@/lib/actions/action-result'
 import { HEALTH_CONSENT_REQUIRED } from '@/lib/constants/legal'
-import { createVaultData, deleteVaultData, updateVaultData } from '@/lib/services/vault.service'
+import { createVaultData, createVaultDataBatch, deleteVaultData, updateVaultData } from '@/lib/services/vault.service'
 import { ALREADY_STORED } from '@luciddata/core/validations/provenance'
 import type { VaultData } from '@/types/database.types'
 
@@ -207,5 +215,109 @@ describe('a vault write sets only the columns it should', () => {
     vi.mocked(vaultRepo.createVaultEntry).mockRejectedValue(failure)
 
     await expect(createVaultData('user-1', { label: 'x', ...envelope })).rejects.toBe(failure)
+  })
+})
+
+describe('createVaultDataBatch', () => {
+  const entry = (n: number, extra: Record<string, unknown> = {}) => ({
+    label: `Entry ${n}`,
+    category: 'personal',
+    schema_type: 'custom',
+    client_ciphertext: `cipher-${n}`,
+    encrypted_dek: 'd',
+    dek_salt: 's',
+    ...extra,
+  })
+  const workout = (n: number) =>
+    entry(n, {
+      category: 'health',
+      schema_type: 'fitness_activity',
+      source_provider: 'apple-health',
+      source_record_id: `fitness_activity:2026-10-0${n}T07:00:00Z`,
+    })
+  const echo = (rows: Record<string, unknown>[]) =>
+    rows.map((row, i) => ({ ...row, id: `id-${i}-${String(row.client_ciphertext)}` }) as unknown as VaultData)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(assertRecoveryReadyForFirstWrite).mockResolvedValue(undefined)
+    vi.mocked(assertHealthDataConsent).mockResolvedValue(undefined)
+    vi.mocked(vaultRepo.findStoredSourceRecordIds).mockResolvedValue(new Set())
+    vi.mocked(vaultRepo.createVaultEntries).mockImplementation(async (rows) =>
+      // Returned in a different order, as nothing promises the database will not.
+      echo(rows as Record<string, unknown>[]).reverse()
+    )
+  })
+
+  it('stores each entry, answers each by its own index, and writes one audit entry', async () => {
+    const results = await createVaultDataBatch('user-1', [entry(1), entry(2), entry(3)])
+
+    expect(results.map((result) => ('data' in result ? result.data.client_ciphertext : result.code))).toEqual([
+      'cipher-1',
+      'cipher-2',
+      'cipher-3',
+    ])
+    expect(vaultRepo.createVaultEntries).toHaveBeenCalledTimes(1)
+    const rows = vi.mocked(vaultRepo.createVaultEntries).mock.calls[0][0] as Record<string, unknown>[]
+    expect(rows.every((row) => row.user_id === 'user-1')).toBe(true)
+    expect(createAuditEntry).toHaveBeenCalledTimes(1)
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'data_created', action: 'Imported 3 vault entries' })
+    )
+  })
+
+  it('answers a record the vault holds, or that repeats in the batch, without writing it', async () => {
+    vi.mocked(vaultRepo.findStoredSourceRecordIds).mockResolvedValue(new Set(['fitness_activity:2026-10-01T07:00:00Z']))
+
+    const results = await createVaultDataBatch('user-1', [workout(1), workout(2), workout(2)])
+
+    expect(results.map((result) => ('code' in result ? result.code : 'stored'))).toEqual([
+      ALREADY_STORED,
+      'stored',
+      ALREADY_STORED,
+    ])
+    expect((vi.mocked(vaultRepo.createVaultEntries).mock.calls[0][0] as unknown[]).length).toBe(1)
+  })
+
+  it('refuses health entries without consent, and stores the rest', async () => {
+    vi.mocked(assertHealthDataConsent).mockRejectedValue(new UserFacingError('consent needed', HEALTH_CONSENT_REQUIRED))
+
+    const results = await createVaultDataBatch('user-1', [entry(1), workout(2)])
+
+    expect('data' in results[0]).toBe(true)
+    expect(results[1]).toMatchObject({ index: 1, code: HEALTH_CONSENT_REQUIRED })
+  })
+
+  it('refuses the whole batch when the vault needs recovery set up first', async () => {
+    vi.mocked(assertRecoveryReadyForFirstWrite).mockRejectedValue(new UserFacingError('Set up recovery', 'recovery_required'))
+
+    const results = await createVaultDataBatch('user-1', [entry(1), entry(2)])
+
+    expect(results.map((result) => ('code' in result ? result.code : 'stored'))).toEqual([
+      'recovery_required',
+      'recovery_required',
+    ])
+    expect(vaultRepo.createVaultEntries).not.toHaveBeenCalled()
+    expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+
+  it('stores one at a time when the insert is refused as a whole, so each entry gets its own answer', async () => {
+    vi.mocked(vaultRepo.createVaultEntries).mockRejectedValue({ code: '23505', message: 'duplicate key' })
+    vi.mocked(vaultRepo.createVaultEntry)
+      .mockResolvedValueOnce({ id: 'v1', client_ciphertext: 'cipher-1' } as VaultData)
+      .mockRejectedValueOnce({
+        code: '23505',
+        message: 'duplicate key value violates unique constraint "idx_vault_source_record_unique"',
+      })
+      .mockRejectedValueOnce(new Error('connection reset'))
+
+    const results = await createVaultDataBatch('user-1', [entry(1), workout(2), entry(3)])
+
+    expect(results.map((result) => ('code' in result ? result.code : 'stored'))).toEqual([
+      'stored',
+      ALREADY_STORED,
+      'internal',
+    ])
+    expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({ action: 'Imported 1 vault entry' }))
   })
 })

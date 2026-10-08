@@ -2,8 +2,21 @@
 
 import { guarded, UserFacingError, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
-import { createVaultData, getUserVaultData, getVaultDataById, updateVaultData, deleteVaultData } from '@/lib/services/vault.service'
-import { vaultEntryCreateSchema, vaultEntryUpdateSchema } from '@luciddata/core/validations/client-api'
+import {
+  createVaultData,
+  createVaultDataBatch,
+  getUserVaultData,
+  getVaultDataById,
+  listStoredSourceRecordIds,
+  updateVaultData,
+  deleteVaultData,
+} from '@/lib/services/vault.service'
+import {
+  vaultEntryBatchCreateSchema,
+  vaultEntryCreateSchema,
+  vaultEntryUpdateSchema,
+} from '@luciddata/core/validations/client-api'
+import { sourceProviderSchema } from '@luciddata/core/validations/provenance'
 import type { VaultData } from '@/types/database.types'
 import type { z } from 'zod'
 
@@ -77,6 +90,34 @@ export async function createVaultEntryAction(payload: {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     return createVaultData(userId, parseEntry(vaultEntryCreateSchema, payload))
+  })
+}
+
+/** One entry's answer: its new id, or why it was not stored. */
+export type StoredEntryResult = { index: number; id: string } | { index: number; code: string; error: string }
+
+/** Store up to 100 entries an import encrypted. Each is answered on its own. */
+export async function createVaultEntriesAction(
+  entries: Parameters<typeof createVaultEntryAction>[0][]
+): Promise<StoredEntryResult[] | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const parsed = parseEntry(vaultEntryBatchCreateSchema, { entries })
+    const results = await createVaultDataBatch(userId, parsed.entries)
+    // The browser needs to know what was stored, not to receive the ciphertext back.
+    return results.map((result) =>
+      'data' in result
+        ? { index: result.index, id: result.data.id }
+        : { index: result.index, code: result.code, error: result.error }
+    )
+  })
+}
+
+/** The record ids already stored from a source, so an import that stopped can carry on. */
+export async function getStoredSourceRecordIdsAction(provider: string): Promise<string[] | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return listStoredSourceRecordIds(userId, parseEntry(sourceProviderSchema, provider))
   })
 }
 
