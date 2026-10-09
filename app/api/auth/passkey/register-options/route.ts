@@ -1,6 +1,11 @@
 import { generateRegistrationOptions } from '@simplewebauthn/server'
 import { withAuth } from '@/lib/middleware/withAuth'
 import { createClient } from '@/lib/supabase/server'
+import {
+  issuePasskeyChallenge,
+  PASSKEY_CHALLENGE_COOKIE,
+  PASSKEY_CHALLENGE_COOKIE_OPTIONS,
+} from '@/lib/services/passkey-challenge.service'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
@@ -27,14 +32,9 @@ export const POST = withAuth(async (req, { userId, userEmail }) => {
     },
   })
 
+  const challengeId = await issuePasskeyChallenge(userId, 'registration', options.challenge)
   const cookieStore = await cookies()
-  cookieStore.set('passkey_challenge', options.challenge, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 300,
-    path: '/',
-    sameSite: 'strict',
-  })
+  cookieStore.set(PASSKEY_CHALLENGE_COOKIE, challengeId, PASSKEY_CHALLENGE_COOKIE_OPTIONS)
 
   return NextResponse.json({ options })
 })

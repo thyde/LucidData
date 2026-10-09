@@ -10,6 +10,7 @@
  *   consent_expiry   mark consent grants whose window has closed
  *   share_expiry     mark credential share tokens whose window has closed
  *   rate_limit_purge drop counters from windows that can no longer be consulted
+ *   passkey_challenge_purge drop passkey challenges nobody answered in time
  *   retention_purge  destroy records past their stated retention window
  *   webhook_delivery send queued organization webhooks, with backoff
  *   bulk_operations  resume interrupted bulk jobs and purge finished ones
@@ -34,6 +35,7 @@ import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import { transferRefused } from '@/lib/utils/payout-transfer'
 import { sendPayoutTransfer } from '@/lib/services/payout.service'
 import { purgeExpiredRateLimits } from '@/lib/services/rate-limit.service'
+import { purgeExpiredPasskeyChallenges } from '@/lib/services/passkey-challenge.service'
 import { runRetentionPurges } from '@/lib/services/retention.service'
 import { dispatchDueDeliveries } from '@/lib/services/webhook.service'
 import { runBulkJobs, purgeOldBulkJobs } from '@/lib/services/bulk-job.service'
@@ -46,6 +48,7 @@ export const JOB_NAMES = [
   'consent_expiry',
   'share_expiry',
   'rate_limit_purge',
+  'passkey_challenge_purge',
   'retention_purge',
   'webhook_delivery',
   'bulk_operations',
@@ -311,6 +314,12 @@ export async function runRateLimitPurge(): Promise<JobResult> {
   return { job: 'rate_limit_purge', processed, failed: 0 }
 }
 
+/** Drop passkey challenges nobody answered in time. Used ones are deleted as they are used. */
+export async function runPasskeyChallengePurge(): Promise<JobResult> {
+  const processed = await purgeExpiredPasskeyChallenges()
+  return { job: 'passkey_challenge_purge', processed, failed: 0 }
+}
+
 /**
  * LD-607: destroy records past their stated retention window. Turns pool
  * retention_days and export windows from claims into enforced rules.
@@ -366,6 +375,7 @@ const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   consent_expiry: runConsentExpiry,
   share_expiry: runShareExpiry,
   rate_limit_purge: runRateLimitPurge,
+  passkey_challenge_purge: runPasskeyChallengePurge,
   retention_purge: runRetentionPurge,
   webhook_delivery: runWebhookDelivery,
   bulk_operations: runBulkOperations,

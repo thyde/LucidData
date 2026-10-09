@@ -4,7 +4,10 @@ const cookieValues = new Map<string, string>()
 const verifyAuthenticationResponse = vi.fn()
 const generateLink = vi.fn()
 
-/** The fake database: one account per email, and the passkeys each owns. */
+/** Challenges the server has issued and not yet used, by id. */
+const issued = new Map<string, { challenge: string; userId: string; purpose: string }>()
+
+/** The fake database: two accounts, each with its own passkey. */
 const db = {
   users: [
     { id: 'victim-id', email: 'victim@example.com' },
@@ -15,7 +18,15 @@ const db = {
     { id: 'pk-victim', user_id: 'victim-id', credential_id: 'victim-cred', public_key: 'cHVi', counter: 4 },
   ],
 }
-const updates: { table: string; payload: Record<string, unknown>; filters: Record<string, unknown> }[] = []
+const updates: { payload: Record<string, unknown>; filters: Record<string, unknown> }[] = []
+
+function find(name: 'users' | 'passkeys', filters: Record<string, unknown>) {
+  return (
+    (db[name] as Record<string, unknown>[]).find((row) =>
+      Object.entries(filters).every(([column, value]) => row[column] === value)
+    ) ?? null
+  )
+}
 
 function table(name: 'users' | 'passkeys') {
   const filters: Record<string, unknown> = {}
@@ -30,16 +41,14 @@ function table(name: 'users' | 'passkeys') {
       filters[column] = value
       return chain
     },
-    maybeSingle: async () => ({
-      data:
-        (db[name] as Record<string, unknown>[]).find((row) =>
-          Object.entries(filters).every(([column, value]) => row[column] === value)
-        ) ?? null,
-      error: null,
-    }),
-    then(resolve: (value: unknown) => unknown) {
-      if (payload) updates.push({ table: name, payload, filters: { ...filters } })
-      return Promise.resolve({ error: null }).then(resolve)
+    async maybeSingle() {
+      const row = find(name, filters)
+      if (payload && row) {
+        updates.push({ payload, filters: { ...filters } })
+        Object.assign(row, payload)
+      }
+      // A copy, as a real read would return.
+      return { data: row ? (payload ? { id: row.id } : { ...row }) : null, error: null }
     },
   }
   return chain
@@ -53,6 +62,16 @@ vi.mock('next/headers', () => ({
 }))
 vi.mock('@simplewebauthn/server', () => ({
   verifyAuthenticationResponse: (...a: unknown[]) => verifyAuthenticationResponse(...a),
+}))
+vi.mock('@/lib/services/passkey-challenge.service', () => ({
+  PASSKEY_CHALLENGE_COOKIE: 'passkey_challenge_id',
+  // Deleted as it is read, like the real one.
+  consumePasskeyChallenge: async (id: string, purpose: string) => {
+    const entry = issued.get(id)
+    if (!entry || entry.purpose !== purpose) return null
+    issued.delete(id)
+    return { challenge: entry.challenge, userId: entry.userId }
+  },
 }))
 vi.mock('@/lib/supabase/service', () => ({
   createServiceClient: () => ({
@@ -75,9 +94,12 @@ function post(credentialId: string) {
 beforeEach(() => {
   vi.clearAllMocks()
   updates.length = 0
+  db.passkeys[0].counter = 1
+  db.passkeys[1].counter = 4
+  issued.clear()
+  issued.set('challenge-1', { challenge: 'Y2hhbGxlbmdl', userId: 'victim-id', purpose: 'authentication' })
   cookieValues.clear()
-  cookieValues.set('passkey_challenge', 'challenge-1')
-  cookieValues.set('passkey_email', 'victim@example.com')
+  cookieValues.set('passkey_challenge_id', 'challenge-1')
   verifyAuthenticationResponse.mockResolvedValue({ verified: true, authenticationInfo: { newCounter: 5 } })
   generateLink.mockResolvedValue({ data: { properties: { hashed_token: 'hashed-token' } }, error: null })
 })
@@ -101,20 +123,55 @@ describe('passkey sign-in verification', () => {
     expect(await res.json()).toEqual({ verified: true, token_hash: 'hashed-token' })
     expect(verifyAuthenticationResponse).toHaveBeenCalledWith(
       expect.objectContaining({
-        expectedChallenge: 'challenge-1',
+        expectedChallenge: 'Y2hhbGxlbmdl',
         credential: expect.objectContaining({ id: 'victim-cred', counter: 4 }),
       })
     )
     expect(generateLink).toHaveBeenCalledWith({ type: 'magiclink', email: 'victim@example.com' })
     expect(updates).toEqual([
       {
-        table: 'passkeys',
         payload: expect.objectContaining({ counter: 5, last_used_at: expect.any(String) }),
-        filters: { id: 'pk-victim', user_id: 'victim-id' },
+        filters: { id: 'pk-victim', user_id: 'victim-id', counter: 4 },
       },
     ])
-    // The challenge works once.
     expect(cookieValues.size).toBe(0)
+  })
+
+  it('refuses the same request a second time, even with the cookie put back', async () => {
+    expect((await post('victim-cred')).status).toBe(200)
+
+    cookieValues.set('passkey_challenge_id', 'challenge-1')
+    const replay = await post('victim-cred')
+
+    expect(replay.status).toBe(400)
+    expect(await replay.json()).not.toHaveProperty('token_hash')
+    expect(generateLink).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores the old cookies, which carried the challenge and the email themselves', async () => {
+    cookieValues.clear()
+    cookieValues.set('passkey_challenge', 'Y2hhbGxlbmdl')
+    cookieValues.set('passkey_email', 'victim@example.com')
+
+    expect((await post('victim-cred')).status).toBe(400)
+    expect(verifyAuthenticationResponse).not.toHaveBeenCalled()
+  })
+
+  it('refuses a challenge issued for registering a passkey', async () => {
+    issued.set('challenge-1', { challenge: 'Y2hhbGxlbmdl', userId: 'victim-id', purpose: 'registration' })
+
+    expect((await post('victim-cred')).status).toBe(400)
+    expect(verifyAuthenticationResponse).not.toHaveBeenCalled()
+  })
+
+  it('refuses when another sign-in moved the counter on first', async () => {
+    verifyAuthenticationResponse.mockImplementation(async () => {
+      db.passkeys[1].counter = 6
+      return { verified: true, authenticationInfo: { newCounter: 5 } }
+    })
+
+    expect((await post('victim-cred')).status).toBe(400)
+    expect(generateLink).not.toHaveBeenCalled()
   })
 
   it('refuses a signature that does not verify', async () => {
@@ -131,15 +188,8 @@ describe('passkey sign-in verification', () => {
     expect(generateLink).not.toHaveBeenCalled()
   })
 
-  it('refuses an email with no account', async () => {
-    cookieValues.set('passkey_email', 'nobody@example.com')
-
-    expect((await post('victim-cred')).status).toBe(400)
-    expect(verifyAuthenticationResponse).not.toHaveBeenCalled()
-  })
-
   it('refuses without a challenge from this browser', async () => {
-    cookieValues.delete('passkey_challenge')
+    cookieValues.clear()
 
     expect((await post('victim-cred')).status).toBe(400)
     expect(verifyAuthenticationResponse).not.toHaveBeenCalled()

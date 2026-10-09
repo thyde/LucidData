@@ -3451,7 +3451,7 @@ remain. Treat an unchecked row as a reason to hold the affected specs rather tha
 
 ### Defects found during validation
 
-These were live defects in the codebase rather than missing features. Status updated 2026-10-08.
+These were live defects in the codebase rather than missing features. Status updated 2026-10-09.
 
 | Defect | Evidence | Owned by | Status |
 |---|---|---|---|
@@ -3498,6 +3498,8 @@ These were live defects in the codebase rather than missing features. Status upd
 | The extension corrupted any zip it handed over | `readPendingExport` in [background.js](../extension/src/background.js) read the file as text, and a file over the hand-over limit was dropped without telling the person | LD-205 | **Fixed** 2026-10-08. The extension sends the file's bytes, and the vault page says when a file is too large to hand over |
 | The Apple Health walkthrough pointed at the wrong place | The extension sent people to privacy.apple.com and treated its downloads as Health exports, but Apple's privacy export does not include Health data | LD-205 | **Fixed** 2026-10-08. The walkthrough starts in the Health app, and the extension knows the export by its file name |
 | A payout could be sent twice | The payout retry job created the Stripe transfer, marked the payout paid, then wrote the audit entry and the notice in the same `try`; if either failed, the `catch` set the payout back to pending and the next hourly run sent another transfer, with no idempotency key. The order webhook marked an order paid and then threw on its audit entry, so Stripe's redelivery skipped the paid order without recording what contributors were owed | LD-505 | **Fixed** 2026-10-09. Every transfer carries the payout's transfer group, and each attempt first looks for one an earlier attempt sent. Only a refusal from Stripe counts as an attempt and moves to a new idempotency key; a timeout or server error leaves the outcome unknown, and the retry repeats the same request. Nothing after a recorded payment can return it to the queue, a run that lost a race to another changes nothing, and a paid order records its payouts first and repairs them on redelivery. Found while reviewing the single-chain audit migration, which made these paths reachable |
+| Any registered passkey could sign in to any account | `login-verify` found the passkey by its credential id alone, then issued a magic-link token for whichever email the sign-in had started with. A genuine signature from a person's own passkey, on a challenge issued for someone else's account, returned a token that opened that account. Passkey sign-in had also never worked for anyone, because the browser sent the token to `verifyOtp` as a one-time code | LD-106 | **Fixed** 2026-10-09. The passkey is looked up within the account being signed in to, and one registered elsewhere is refused before anything is verified. `passkey-signin.spec.ts` runs the attack, and it fails against the old route |
+| A copied passkey sign-in request could be sent again | The challenge lived only in a cookie, so the server could not tell whether it had issued one or whether it had been used. Anyone holding a copy of one sign-in request could set the cookie by hand and get a new sign-in link each time. Synced passkeys keep their signature counter at zero, so the counter never caught it | LD-106 | **Fixed** 2026-10-09. Challenges are held in `passkey_challenges`, each for one account and one ceremony, deleted as it is used and refused after five minutes. The cookie only names one. An end-to-end test sends a real sign-in request a second time and gets a 400, where the old route returned a new link |
 
 Every defect found during validation is fixed. The two GDPR Article 17 defects, where a deleted
 account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
@@ -3525,6 +3527,12 @@ exposed them, because the same requests that the API refused had been passing th
 The rows on large vaults and on the audit log were found the same day while planning LD-210, which makes
 vaults of thousands of entries routine. Both had been latent: no production vault had yet passed 1,000
 entries, but every active account passes 100 audit events.
+
+The two passkey rows were found on 2026-10-09 while building LD-112, whose end-to-end test was the first
+to sign in with a passkey. Nothing had exercised that path, which is how a sign-in that never worked
+could also let anyone in. Whether the first one was used in production is not yet known. Every passkey
+that passed the old check had its `last_used_at` set, including the attacker's own, and Supabase's
+auth logs show each magic-link sign-in, so the two together would show any use.
 
 ### Before this spec is considered final
 
