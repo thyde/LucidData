@@ -47,6 +47,20 @@ describe('readHealthExport', () => {
     expect(unzipped).toEqual(zipped)
   })
 
+  it('finds the export in a phone set to another language, by what the file holds', async () => {
+    // Norwegian phones name it eksport.xml, beside eksport_cda.xml.
+    const localized = await readHealthExport(file('apple-health', 'apple-health-eksport.zip'))
+    const english = await readHealthExport(file('apple-health', 'apple-health-export.zip'))
+    expect(localized).toEqual(english)
+  })
+
+  it('stops reading when asked to', async () => {
+    const controller = new AbortController()
+    const reading = readHealthExport(file('apple-health', 'apple-health-export.zip'), undefined, controller.signal)
+    controller.abort()
+    await expect(reading).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
   it('leaves any other file to the ordinary import', async () => {
     expect(await readHealthExport(blob('[{"label":"Not a health export"}]'))).toBeNull()
     expect(await readHealthExport(file('zip', 'basic.zip'))).not.toBeNull()

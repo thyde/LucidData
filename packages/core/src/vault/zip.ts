@@ -359,6 +359,7 @@ async function* entryChunks(
   const reader = stream.getReader()
   let unpacked = 0
   let crc = 0
+  let finished = false
   try {
     for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
@@ -368,7 +369,10 @@ async function* entryChunks(
         if (error instanceof ZipError) throw error
         throw corrupt(`${entry.name} could not be unpacked`)
       }
-      if (chunk.done) break
+      if (chunk.done) {
+        finished = true
+        break
+      }
       unpacked += chunk.value.byteLength
       // Caught as it happens, so an entry that lies about its size cannot run on.
       if (unpacked > entry.size) {
@@ -381,6 +385,9 @@ async function* entryChunks(
       yield chunk.value
     }
   } finally {
+    // A reader that stopped early, to look at an entry's start or because it
+    // was cancelled, stops the unpacking too rather than leaving it running.
+    if (!finished) await reader.cancel().catch(() => undefined)
     reader.releaseLock()
   }
   if (unpacked !== entry.size) throw corrupt(`${entry.name} is shorter than it declares`)

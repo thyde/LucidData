@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import * as vaultRepo from '@/lib/repositories/vault.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import { assertRecoveryReadyForFirstWrite } from '@/lib/services/recovery-factor.service'
@@ -172,7 +173,12 @@ export async function createVaultDataBatch(
         source_record_id: entry.source_record_id,
         source_captured_at: entry.source_captured_at,
       })
-      pending.push({ index, row: { ...pick(entry, CREATE_FIELDS), ...provenance, user_id: userId } as InsertVaultData })
+      // The id is chosen here so each stored row can be matched to the entry
+      // it came from, whatever the entries hold.
+      pending.push({
+        index,
+        row: { ...pick(entry, CREATE_FIELDS), ...provenance, id: randomUUID(), user_id: userId } as InsertVaultData,
+      })
     } catch {
       refuse(index, 'This entry is not valid.', 'invalid_input')
     }
@@ -217,10 +223,9 @@ export async function createVaultDataBatch(
       // gets its own answer.
     }
     if (inserted) {
-      // Each envelope is unique, because every entry has its own random key.
-      const byCiphertext = new Map(inserted.map((row) => [row.client_ciphertext, row]))
+      const byId = new Map(inserted.map((row) => [row.id, row]))
       for (const item of fresh) {
-        const row = byCiphertext.get(item.row.client_ciphertext)
+        const row = byId.get(item.row.id!)
         if (row) {
           results[item.index] = { index: item.index, data: row }
           created.push(row)

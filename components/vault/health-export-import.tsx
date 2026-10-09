@@ -41,6 +41,12 @@ function dayOf(iso: string | undefined): string | null {
   return Number.isNaN(time) ? null : new Date(time).toLocaleDateString(undefined, { dateStyle: 'medium' })
 }
 
+/** A calendar day such as 2026-10-08, shown as that day wherever the reader is. */
+function calendarDay(day: string): string {
+  const [year, month, date] = day.split('-').map(Number)
+  return new Date(year, month - 1, date).toLocaleDateString(undefined, { dateStyle: 'medium' })
+}
+
 /**
  * LD-210: import a health export that was read in the browser.
  *
@@ -151,6 +157,12 @@ export function HealthExportImport({ result, onDone, onBusyChange }: HealthExpor
         {first && last && (
           <p className="mt-1 text-muted-foreground">
             {first === last ? `From ${first}.` : `From ${first} to ${last}.`}
+          </p>
+        )}
+        {result.unfinishedDay && (
+          <p className="mt-1 text-muted-foreground">
+            {calendarDay(result.unfinishedDay)} is left out because the export was made before the day
+            ended. Importing a later export adds it.
           </p>
         )}
         {skipped.length > 0 && (
