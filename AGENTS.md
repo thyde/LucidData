@@ -165,7 +165,7 @@ Keys and recovery:
 - Do not add step-up to consent withdrawal. Withdrawing consent must stay as easy as giving it (GDPR Article 7(3)).
 - The key salt, the recovery escrow columns, and `recovery_factors` are written only by the services that guard them, through the service role and filtered to the caller. Never write them from the person's session client; the database refuses it, and `supabase/tests/database/recovery-writes.test.sql` holds that closed.
 - A new master key retires every recovery factor, because each one wraps the old key. Recovery checks a factor against one of the vault's own entries, or the connector key when there are none, before it changes anything.
-- Re-wrapping goes through `rewrap_vault_keys` only, called by the account service with the service role after the step-up check. Each entry carries the wrapped key it replaces, and the connector ingestion key moves in the same transaction, because it is wrapped under the master key too.
+- Re-wrapping goes through `apply_vault_rewrap` only. The account service starts a re-wrap after the step-up check, the device sends the envelopes in parts of up to 5,000 because a large vault's do not fit in one request, and one call applies them all in a transaction. Each entry carries the wrapped key it replaces, and the connector ingestion key moves in the same transaction, because it is wrapped under the master key too.
 
 Audit logging:
 
