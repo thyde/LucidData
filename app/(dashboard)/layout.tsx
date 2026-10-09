@@ -93,10 +93,6 @@ export default async function DashboardLayout({
               <Settings className="h-5 w-5" />
             </Link>
             <NotificationBell />
-            {/* The primary links need the width below 1536px. */}
-            <span className="hidden max-w-[16rem] truncate text-sm text-muted-foreground 2xl:inline" title={user.email}>
-              {user.email}
-            </span>
             <SignOutButton className="whitespace-nowrap text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" />
           </div>
         </div>

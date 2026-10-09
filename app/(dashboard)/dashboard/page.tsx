@@ -60,6 +60,8 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold">Welcome back</h1>
         <p className="mt-1 text-muted-foreground">Your personal data bank at a glance</p>
+        {/* The header leaves the address out, because the links need the room. */}
+        <p className="text-sm text-muted-foreground">Signed in as {user.email}</p>
       </div>
 
       {/* LD-214: worked out in the browser from decrypted entries, so it is a
