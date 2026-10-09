@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import {
   getAllAuditLogs,
   getAuditLogs,
+  getOwnChainHead,
   verifyAuditChain,
   verifyUserAuditChain,
 } from '@/lib/services/audit.service'
@@ -26,6 +27,8 @@ export async function getAuditLogsAction(): Promise<{ logs: AuditLog[]; chainVal
 /** Every entry, for the person to keep, with the result of checking them. */
 export async function exportAuditLogAction(): Promise<{ logs: AuditLog[]; chainValid: boolean }> {
   const userId = await getAuthenticatedUserId()
+  // The head first, as verifyUserAuditChain reads it.
+  const head = await getOwnChainHead(userId)
   const logs = await getAllAuditLogs(userId)
-  return { logs, chainValid: verifyAuditChain(logs) }
+  return { logs, chainValid: verifyAuditChain(logs, head) }
 }

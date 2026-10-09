@@ -128,11 +128,12 @@ export default function AuditPage() {
                   className="flex items-start space-x-4 border-l-2 border-blue-500 pl-4 py-2"
                 >
                   <div className="flex-1">
-                    <p className="font-medium">{log.action}</p>
+                    {/* A sealing entry lists hashes, which have no place to wrap. */}
+                    <p className="font-medium [overflow-wrap:anywhere]">{log.action}</p>
                     <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                       <span>{new Date(log.timestamp).toLocaleString()}</span>
                       <span>•</span>
-                      <span className="capitalize">{log.event_type.replace('_', ' ')}</span>
+                      <span className="capitalize">{log.event_type.replaceAll('_', ' ')}</span>
                       <span>•</span>
                       <span className="capitalize">{log.actor_type}</span>
                     </div>
