@@ -170,6 +170,9 @@ describe('parseStravaDate', () => {
     expect(parseStravaDate('24 Aug 2024, 10:47:26 pm')).toBe('2024-08-24T22:47:26Z')
     expect(parseStravaDate('4 Sept 2024, 10:47:26')).toBe('2024-09-04T10:47:26Z')
     expect(parseStravaDate('4 Sept 2024, 10:47:26 pm')).toBe('2024-09-04T22:47:26Z')
+    // Australian English writes these two in full.
+    expect(parseStravaDate('5 June 2023, 06:40:41 am')).toBe('2023-06-05T06:40:41Z')
+    expect(parseStravaDate('5 July 2023, 06:40:41 pm')).toBe('2023-07-05T18:40:41Z')
   })
 
   it('takes the narrow space newer locale data puts before AM and PM', () => {
