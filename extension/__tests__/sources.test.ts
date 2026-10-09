@@ -50,6 +50,11 @@ describe('matchExportSource', () => {
     ).toBeNull()
   })
 
+  it('recognizes a Strava archive by its host', () => {
+    const match = matchExportSource('https://www.strava.com/athlete/export/download', '/home/me/Downloads/export_123.zip')
+    expect(match?.id).toBe('strava')
+  })
+
   it('falls back to the file name when the host says nothing', () => {
     const match = matchExportSource(
       'https://secure.examplebank.test/download',
