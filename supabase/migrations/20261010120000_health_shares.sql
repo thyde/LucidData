@@ -64,6 +64,42 @@ CREATE INDEX idx_health_shares_expiring ON public.health_shares(expires_at) WHER
 COMMENT ON TABLE public.health_shares IS
   'Health summaries shared by link. The browser encrypts each one with a key carried only in the link fragment; the server holds ciphertext and terms.';
 
+-- A share stands on the consent made for it: one that names this share as its
+-- recipient, is in force, and ends when the share does. Reading the consent
+-- FOR SHARE makes a revocation racing this insert wait for it, so that
+-- revocation's trigger then finds the share and clears it.
+CREATE FUNCTION public.check_health_share_consent()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  grant_row public.consents%ROWTYPE;
+BEGIN
+  SELECT * INTO grant_row FROM public.consents WHERE id = NEW.consent_id FOR SHARE;
+  -- A consent that does not exist is the foreign key's to refuse.
+  IF NOT FOUND THEN
+    RETURN NEW;
+  END IF;
+  IF grant_row.revoked
+    OR grant_row.granted_to IS DISTINCT FROM 'link:' || NEW.id::text
+    OR grant_row.end_date IS DISTINCT FROM NEW.expires_at
+  THEN
+    RAISE EXCEPTION 'A shared health summary needs the consent made for it, in force and ending when the share does.'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.check_health_share_consent() FROM PUBLIC, anon, authenticated;
+
+CREATE TRIGGER check_health_share_consent
+  BEFORE INSERT ON public.health_shares
+  FOR EACH ROW
+  EXECUTE FUNCTION public.check_health_share_consent();
+
 -- A consent behind a share changes only by being revoked. Its terms are what
 -- the receipt states and what the link enforces, so neither may drift. The
 -- expiry job may still mark it expired.
@@ -132,9 +168,9 @@ CREATE TRIGGER clear_revoked_health_share
   EXECUTE FUNCTION public.clear_revoked_health_share();
 
 -- Opening a share from its link. Returns the ciphertext only while the share
--- is neither revoked nor expired, and counts the view in the same statement.
--- previous_view_at lets the caller record a view in the owner's audit trail
--- without recording every reload.
+-- and its consent are neither revoked nor expired, and counts the view in the
+-- same statement. previous_view_at lets the caller record a view in the
+-- owner's audit trail without recording every reload.
 CREATE FUNCTION public.open_health_share(p_id uuid)
 RETURNS TABLE (
   state text,
@@ -150,6 +186,7 @@ SET search_path = ''
 AS $$
 DECLARE
   share public.health_shares%ROWTYPE;
+  consent_revoked boolean;
 BEGIN
   SELECT * INTO share FROM public.health_shares s WHERE s.id = p_id FOR UPDATE;
   IF NOT FOUND THEN
@@ -157,7 +194,10 @@ BEGIN
       NULL::uuid, NULL::uuid, NULL::timestamptz;
     RETURN;
   END IF;
-  IF share.revoked_at IS NOT NULL THEN
+  -- The share's own state is cleared with its consent; the consent is read too,
+  -- so the two can never disagree in the share's favour.
+  SELECT c.revoked INTO consent_revoked FROM public.consents c WHERE c.id = share.consent_id;
+  IF share.revoked_at IS NOT NULL OR consent_revoked IS NOT FALSE THEN
     RETURN QUERY SELECT 'revoked'::text, NULL::text, share.expires_at, share.created_at,
       share.user_id, share.consent_id, share.last_viewed_at;
     RETURN;
