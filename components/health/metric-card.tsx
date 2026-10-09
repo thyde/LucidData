@@ -49,9 +49,9 @@ export function drawnWeekly(from: string, to: string): boolean {
 /**
  * One point a day across the range, or one a week for a long range, null where
  * nothing was recorded so a chart shows the gap. A week's point is the average
- * of its days with a value.
+ * of its days with a value, or its total where a quiet day counts as zero.
  */
-export function pointsFor(days: readonly DayValue[], from: string, to: string): Point[] {
+export function pointsFor(days: readonly DayValue[], from: string, to: string, weeklyTotal = false): Point[] {
   const points: Point[] = []
   const byDate = new Map(days.map((day) => [day.date, day]))
   if (!drawnWeekly(from, to)) {
@@ -68,9 +68,10 @@ export function pointsFor(days: readonly DayValue[], from: string, to: string): 
   }
   for (let week = weekOf(from); week <= to; week = addDays(week, 7)) {
     const values = weeks.get(week)
+    const total = values ? values.reduce((sum, value) => sum + value, 0) : null
     points.push({
       date: week,
-      value: values ? values.reduce((total, value) => total + value, 0) / values.length : null,
+      value: values && total !== null ? (weeklyTotal ? total : total / values.length) : null,
       source: null,
     })
   }
@@ -100,7 +101,7 @@ function PointTooltip({
       <p className="font-medium">{weekly ? `Week of ${formatDay(point.date, true)}` : formatDay(point.date, true)}</p>
       <p>
         {formatValue(metric, point.value)}
-        {weekly && ' a day on average'}
+        {weekly && (metric.absentIsZero ? ' that week' : ' a day on average')}
       </p>
       {point.source && <p className="text-muted-foreground">From {sourceLabel(point.source)}</p>}
     </div>
@@ -116,7 +117,7 @@ interface MetricCardProps {
 export function MetricCard({ series, from, to }: MetricCardProps) {
   const { metric, days, latest, trend } = series
   const [showNumbers, setShowNumbers] = useState(false)
-  const points = useMemo(() => pointsFor(days, from, to), [days, from, to])
+  const points = useMemo(() => pointsFor(days, from, to, metric.absentIsZero), [days, from, to, metric.absentIsZero])
   const weekly = drawnWeekly(from, to)
   const asLine = LINE_METRICS.has(metric.id)
   const tickFormat = (day: string) => formatDay(day, weekly)

@@ -50,6 +50,12 @@ export interface MetricDefinition {
   decimals: number
   /** How a source's several values for one day become one. */
   combine: 'max' | 'mean' | 'latest' | 'sum'
+  /**
+   * Whether a day with nothing recorded counts as zero. A day without a
+   * workout had none, so workouts compare weekly totals; a day without a
+   * heart rate reading was simply not measured, so readings compare averages.
+   */
+  absentIsZero?: boolean
 }
 
 export const METRICS: readonly MetricDefinition[] = [
@@ -57,7 +63,7 @@ export const METRICS: readonly MetricDefinition[] = [
   { id: 'active_minutes', label: 'Active minutes', unit: 'min', decimals: 0, combine: 'max' },
   { id: 'distance_km', label: 'Distance', unit: 'km', decimals: 1, combine: 'max' },
   { id: 'active_calories', label: 'Active energy', unit: 'kcal', decimals: 0, combine: 'max' },
-  { id: 'workout_minutes', label: 'Workouts', unit: 'min', decimals: 0, combine: 'sum' },
+  { id: 'workout_minutes', label: 'Workouts', unit: 'min', decimals: 0, combine: 'sum', absentIsZero: true },
   { id: 'sleep_hours', label: 'Sleep', unit: 'h', decimals: 1, combine: 'sum' },
   { id: 'resting_heart_rate', label: 'Resting heart rate', unit: 'bpm', decimals: 0, combine: 'mean' },
   { id: 'heart_rate_variability', label: 'Heart rate variability', unit: 'ms', decimals: 0, combine: 'mean' },
@@ -133,6 +139,21 @@ export function bySourcePriority(a: string, b: string): number {
 const DAY = /^\d{4}-\d{2}-\d{2}$/
 const OFFSET = /^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?[+-]\d{2}:?\d{2}$/
 
+// Building a formatter costs far more than using one, and a vault has
+// thousands of timestamps, so there is one per time zone.
+const FORMATTERS = new Map<string, Intl.DateTimeFormat>()
+
+/** The calendar day an instant falls on in a time zone, the runtime's by default. */
+export function dayInZone(ms: number, timeZone?: string): string {
+  const key = timeZone ?? ''
+  let formatter = FORMATTERS.get(key)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    FORMATTERS.set(key, formatter)
+  }
+  return formatter.format(ms)
+}
+
 /**
  * The calendar day something happened on, where it happened. A timestamp with
  * its own offset keeps the date it was written with; one in UTC is placed in
@@ -146,7 +167,7 @@ export function dayOf(value: unknown, timeZone?: string): string | null {
   if (local) return local[1]
   const ms = Date.parse(text)
   if (Number.isNaN(ms)) return null
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms)
+  return dayInZone(ms, timeZone)
 }
 
 const numberOf = (value: unknown): number | null =>
@@ -162,9 +183,12 @@ export interface DayValue {
 }
 
 export interface Trend {
-  /** The mean of the days with a value in the last seven. */
+  /**
+   * The last seven days: their total for a metric where a quiet day counts as
+   * zero, otherwise the mean of the days with a value.
+   */
   recent: number
-  /** The mean of the days with a value in the seven before those. */
+  /** The same for the seven days before those. */
   previous: number
   /** The difference as a fraction of the earlier mean, such as 0.06 for six percent more. */
   change: number
@@ -212,7 +236,9 @@ const TEN_MINUTES = 10 * 60 * 1000
 
 function sameEvent(a: Event, b: Event): boolean {
   if (a.metric !== b.metric || a.source === b.source || a.start === null || b.start === null) return false
-  if (a.metric === 'workout_minutes') return a.day === b.day && Math.abs(a.start - b.start) <= TEN_MINUTES
+  // Start times are instants, so the copies match even when the two sources
+  // place the workout on different calendar days.
+  if (a.metric === 'workout_minutes') return Math.abs(a.start - b.start) <= TEN_MINUTES
   if (a.end === null || b.end === null) return false
   const overlap = Math.min(a.end, b.end) - Math.max(a.start, b.start)
   return overlap > 0 && overlap >= Math.min(a.end - a.start, b.end - b.start) / 2
@@ -233,13 +259,27 @@ export function addDays(day: string, days: number): string {
   return new Date(Date.UTC(year, month - 1, date + days)).toISOString().slice(0, 10)
 }
 
-function trendOf(days: DayValue[], today: string): Trend | null {
-  const mean = (from: string, to: string) => {
-    const values = days.filter((day) => day.date > from && day.date <= to).map((day) => day.value)
-    return values.length >= 2 ? values.reduce((total, value) => total + value, 0) / values.length : null
+function trendOf(metric: MetricDefinition, days: DayValue[], today: string, covered: string): Trend | null {
+  let end = today
+  if (metric.absentIsZero) {
+    // A total counts every day without a record as zero, which is only true
+    // up to the last day the data reaches. An export stops on the day it was
+    // made, so the weeks end there, and there is no trend once that is more
+    // than a day ago.
+    if (covered < addDays(today, -1)) return null
+    if (covered < today) end = covered
   }
-  const recent = mean(addDays(today, -7), today)
-  const previous = mean(addDays(today, -14), addDays(today, -7))
+  const window = (from: string, to: string) =>
+    days.filter((day) => day.date > from && day.date <= to).map((day) => day.value)
+  // Totals where a quiet day counts as zero, needing a day of activity in each
+  // week; otherwise the mean of the days measured, needing two in each.
+  const summarise = (values: number[]) => {
+    const total = values.reduce((sum, value) => sum + value, 0)
+    if (metric.absentIsZero) return values.length >= 1 ? total : null
+    return values.length >= 2 ? total / values.length : null
+  }
+  const recent = summarise(window(addDays(end, -7), end))
+  const previous = summarise(window(addDays(end, -14), addDays(end, -7)))
   if (recent === null || previous === null || previous === 0) return null
   return { recent, previous, change: (recent - previous) / previous }
 }
@@ -265,13 +305,22 @@ export function buildTimeline(entries: readonly TimelineEntry[], options: Timeli
     const at = Date.parse(entry.capturedAt ?? '') || 0
 
     if (entry.schemaType === 'fitness_activity') {
-      // Strava's records carry a date only; the entry's capture time has the start.
       const written = typeof data.start_date === 'string' ? data.start_date : null
-      const start = written && written.length > 10 ? written : (entry.capturedAt ?? written)
-      const day = dayOf(start, options.timeZone)
+      let day: string | null
+      let startMs = NaN
+      if (written && written.length > 10) {
+        day = dayOf(written, options.timeZone)
+        startMs = Date.parse(written)
+      } else {
+        // Strava's records carry a date only, in UTC; the entry's capture time
+        // has the start. It comes back from the database as UTC with an
+        // offset of +00:00, which says nothing about where the person was, so
+        // it is placed in the reader's time zone rather than kept as written.
+        startMs = Date.parse(entry.capturedAt ?? '')
+        day = Number.isNaN(startMs) ? dayOf(written, options.timeZone) : dayInZone(startMs, options.timeZone)
+      }
       const minutes = numberOf(data.duration_min)
       if (day && minutes !== null && minutes > 0) {
-        const startMs = start && start.length > 10 ? Date.parse(start) : NaN
         events.push({ metric: 'workout_minutes', day, source, start: Number.isNaN(startMs) ? null : startMs, end: null, value: minutes })
       }
       continue
@@ -313,7 +362,10 @@ export function buildTimeline(entries: readonly TimelineEntry[], options: Timeli
   const inRange = readings.filter(
     (reading) => (!options.from || reading.day >= options.from) && (!options.to || reading.day <= options.to)
   )
-  const today = options.to ?? inRange.reduce((latest, reading) => (reading.day > latest ? reading.day : latest), '')
+  // The last day anything was recorded, by any source, which is as far as
+  // the data is known to reach.
+  const covered = inRange.reduce((latest, reading) => (reading.day > latest ? reading.day : latest), '')
+  const today = options.to ?? covered
 
   return METRICS.map((metric) => {
     const byDay = new Map<string, Map<string, Reading[]>>()
@@ -332,6 +384,6 @@ export function buildTimeline(entries: readonly TimelineEntry[], options: Timeli
         const values = metric.combine === 'sum' ? [...sources.values()].flat() : sources.get(chosen)!
         return { date, value: round(combine(values, metric.combine), metric.decimals), source: chosen, sources: ranked }
       })
-    return { metric, days, latest: days.at(-1) ?? null, trend: today ? trendOf(days, today) : null }
+    return { metric, days, latest: days.at(-1) ?? null, trend: today ? trendOf(metric, days, today, covered) : null }
   })
 }
