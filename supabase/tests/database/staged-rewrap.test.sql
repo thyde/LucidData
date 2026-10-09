@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(16);
+SELECT plan(23);
 
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-0000000002a1', 'mover@example.com'),
@@ -142,6 +142,36 @@ SELECT throws_ok(
   'An ingestion key that changed since it was read stops the whole re-wrap'
 );
 
+SELECT throws_ok(
+  $$ SELECT public.apply_vault_rewrap('00000000-0000-4000-8000-0000000002a1', '00000000-0000-4000-8000-0000000002b1',
+       '{"previous": null}'::jsonb) $$,
+  'PT409',
+  'The ingestion key changed after it was read',
+  'A key published after the device read none stops the whole re-wrap'
+);
+
+SELECT throws_ok(
+  $$ SELECT public.apply_vault_rewrap('00000000-0000-4000-8000-0000000002a1', '00000000-0000-4000-8000-0000000002b1',
+       '{"previous": "old-ingest", "wrapped": ""}'::jsonb) $$,
+  'P0001',
+  'The ingestion key must name the wrap that was read, and a new wrap only for a key that exists',
+  'An empty new wrap is refused rather than clearing the key'
+);
+
+SELECT throws_ok(
+  $$ SELECT public.apply_vault_rewrap('00000000-0000-4000-8000-0000000002a1', '00000000-0000-4000-8000-0000000002b1',
+       '{"wrapped": "new-ingest"}'::jsonb) $$,
+  'P0001',
+  'The ingestion key must name the wrap that was read, and a new wrap only for a key that exists',
+  'A new wrap without the one it replaces is refused'
+);
+
+SELECT is(
+  (SELECT wrapped_ingest_private_key FROM public.users WHERE id = '00000000-0000-4000-8000-0000000002a1'),
+  'old-ingest',
+  'and none of those touched the stored key'
+);
+
 -- 3. A complete re-wrap moves everything at once ----------------------------
 
 SELECT is(
@@ -151,10 +181,19 @@ SELECT is(
   'A re-wrap that matches what is stored goes through and counts every entry'
 );
 
-SELECT ok(
-  (SELECT bool_and(encrypted_dek LIKE 'new-dek-%') FROM public.vault_data WHERE user_id = '00000000-0000-4000-8000-0000000002a1')
-    AND (SELECT wrapped_ingest_private_key FROM public.users WHERE id = '00000000-0000-4000-8000-0000000002a1') = 'new-ingest',
-  'and moves every envelope and the ingestion key together'
+SELECT results_eq(
+  $$ SELECT id::text, encrypted_dek, dek_salt FROM public.vault_data
+     WHERE user_id = '00000000-0000-4000-8000-0000000002a1' ORDER BY id $$,
+  $$ VALUES ('00000000-0000-4000-8000-0000000002f1', 'new-dek-1', 'n1'),
+            ('00000000-0000-4000-8000-0000000002f2', 'new-dek-2', 'n2'),
+            ('00000000-0000-4000-8000-0000000002f3', 'new-dek-3', 'n3') $$,
+  'and stores every new envelope with its own salt'
+);
+
+SELECT is(
+  (SELECT wrapped_ingest_private_key FROM public.users WHERE id = '00000000-0000-4000-8000-0000000002a1'),
+  'new-ingest',
+  'and moves the ingestion key in the same transaction'
 );
 
 SELECT is(
@@ -169,6 +208,27 @@ SELECT throws_ok(
   'PT410',
   'The re-wrap has expired or does not exist',
   'A re-wrap applies once'
+);
+
+-- A key the device read and does not move is checked, and left as it is.
+INSERT INTO public.vault_rewraps (id, user_id, reason) VALUES
+  ('00000000-0000-4000-8000-0000000002b4', '00000000-0000-4000-8000-0000000002a1', 'recovery');
+INSERT INTO public.vault_rewrap_entries (rewrap_id, vault_data_id, encrypted_dek, dek_salt, previous_encrypted_dek) VALUES
+  ('00000000-0000-4000-8000-0000000002b4', '00000000-0000-4000-8000-0000000002f1', 'newer-dek-1', 'm1', 'new-dek-1'),
+  ('00000000-0000-4000-8000-0000000002b4', '00000000-0000-4000-8000-0000000002f2', 'newer-dek-2', 'm2', 'new-dek-2'),
+  ('00000000-0000-4000-8000-0000000002b4', '00000000-0000-4000-8000-0000000002f3', 'newer-dek-3', 'm3', 'new-dek-3');
+
+SELECT is(
+  public.apply_vault_rewrap('00000000-0000-4000-8000-0000000002a1', '00000000-0000-4000-8000-0000000002b4',
+    '{"previous": "new-ingest", "wrapped": null}'::jsonb),
+  3,
+  'A re-wrap that leaves the ingestion key goes through when the key is as read'
+);
+
+SELECT is(
+  (SELECT wrapped_ingest_private_key FROM public.users WHERE id = '00000000-0000-4000-8000-0000000002a1'),
+  'new-ingest',
+  'and leaves the key as it was'
 );
 
 RESET ROLE;
