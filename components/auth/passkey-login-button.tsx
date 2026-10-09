@@ -40,27 +40,25 @@ export function PasskeyLoginButton({ email, onSuccess, onNeedEncryptionPassword 
       // Perform WebAuthn ceremony
       const credential = await startAuthentication({ optionsJSON: options })
 
-      // Verify and get token
+      // The server checks the passkey belongs to this account and, if it
+      // does, returns a single-use link for it.
       const verifyRes = await fetch('/api/auth/passkey/login-verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential }),
       })
-      const { verified, token, email: verifiedEmail } = await verifyRes.json()
-      if (!verified || !token) {
+      const { verified, token_hash: tokenHash } = await verifyRes.json()
+      if (!verifyRes.ok || !verified || !tokenHash) {
         setError('Passkey verification failed')
         return
       }
 
-      // Exchange token for Supabase session
-      const supabase = createClient()
-      const { error: otpError } = await supabase.auth.verifyOtp({
-        email: verifiedEmail,
-        token,
+      const { error: sessionError } = await createClient().auth.verifyOtp({
+        token_hash: tokenHash,
         type: 'magiclink',
       })
-      if (otpError) {
-        setError(otpError.message)
+      if (sessionError) {
+        setError('Passkey verification failed')
         return
       }
 
@@ -92,7 +90,11 @@ export function PasskeyLoginButton({ email, onSuccess, onNeedEncryptionPassword 
       >
         {loading ? 'Authenticating...' : 'Sign in with passkey'}
       </Button>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   )
 }
