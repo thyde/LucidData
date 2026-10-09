@@ -26,6 +26,16 @@ SELECT columns_are(
   'A counter row holds a day, a name, and a count, and nothing about a person'
 );
 
+-- Today's count may already hold visits from a local run, so the test reads
+-- what is there first and checks what the calls add.
+CREATE TEMP TABLE before_today AS
+SELECT coalesce(
+  (SELECT count FROM public.daily_counters
+   WHERE counter = 'timeline_visit' AND day = (NOW() AT TIME ZONE 'UTC')::date),
+  0
+) AS count;
+GRANT SELECT ON before_today TO service_role;
+
 SET LOCAL ROLE service_role;
 
 SELECT lives_ok(
@@ -36,7 +46,7 @@ SELECT lives_ok(
 SELECT is(
   (SELECT count FROM public.daily_counters
    WHERE counter = 'timeline_visit' AND day = (NOW() AT TIME ZONE 'UTC')::date),
-  2,
+  (SELECT count FROM before_today) + 2,
   'Each call adds one to the same row'
 );
 

@@ -150,6 +150,14 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
       'The hash chain is per user, so removing one person leaves every other chain intact and verifiable.',
   },
   {
+    table: 'audit_chain_heads',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: 'user_id',
+    strippedColumns: [],
+    reason: 'The hash the person\'s next audit entry must link to. It goes with their audit log.',
+  },
+  {
     table: 'notifications',
     personalData: true,
     behaviour: 'cascade',
