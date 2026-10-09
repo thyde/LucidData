@@ -1,5 +1,6 @@
 import { verifyAuthenticationResponse } from '@simplewebauthn/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { consumePasskeyChallenge, PASSKEY_CHALLENGE_COOKIE } from '@/lib/services/passkey-challenge.service'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
@@ -7,14 +8,16 @@ const refused = () => NextResponse.json({ error: 'Passkey verification failed' }
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
-  const challenge = cookieStore.get('passkey_challenge')?.value
-  const email = cookieStore.get('passkey_email')?.value
-
-  if (!challenge || !email) {
-    return NextResponse.json({ error: 'Missing challenge or email' }, { status: 400 })
+  const challengeId = cookieStore.get(PASSKEY_CHALLENGE_COOKIE)?.value
+  if (!challengeId) {
+    return NextResponse.json({ error: 'Missing challenge' }, { status: 400 })
   }
-  cookieStore.delete('passkey_challenge')
-  cookieStore.delete('passkey_email')
+  cookieStore.delete(PASSKEY_CHALLENGE_COOKIE)
+
+  // Used up here, whatever happens next, so the same request cannot be sent
+  // twice. It also names the account the sign-in was started for.
+  const issued = await consumePasskeyChallenge(challengeId, 'authentication')
+  if (!issued) return refused()
 
   const body = await req.json().catch(() => null)
   const credential = body?.credential
@@ -22,10 +25,9 @@ export async function POST(req: NextRequest) {
 
   const service = createServiceClient()
 
-  // The account the person asked to sign in to. Only a passkey registered to
-  // that account can open it: a valid signature from someone else's passkey
-  // proves nothing about this one.
-  const { data: account } = await service.from('users').select('id, email').eq('email', email).maybeSingle()
+  // Only a passkey registered to that account can open it: a valid signature
+  // from someone else's passkey proves nothing about this one.
+  const { data: account } = await service.from('users').select('id, email').eq('id', issued.userId).maybeSingle()
   if (!account?.email) return refused()
 
   const { data: passkey } = await service
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
   try {
     verification = await verifyAuthenticationResponse({
       response: credential,
-      expectedChallenge: challenge,
+      expectedChallenge: issued.challenge,
       expectedOrigin: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
       expectedRPID: process.env.NEXT_PUBLIC_RP_ID ?? 'localhost',
       credential: {
@@ -55,11 +57,17 @@ export async function POST(req: NextRequest) {
 
   if (!verification.verified) return refused()
 
-  await service
+  // Only from the counter this check read: if another sign-in moved it on in
+  // the meantime, this one is refused.
+  const { data: advanced } = await service
     .from('passkeys')
     .update({ counter: verification.authenticationInfo.newCounter, last_used_at: new Date().toISOString() })
     .eq('id', passkey.id)
     .eq('user_id', account.id)
+    .eq('counter', passkey.counter)
+    .select('id')
+    .maybeSingle()
+  if (!advanced) return refused()
 
   // A single-use link for the passkey's owner, and only them. It goes to the
   // browser that has just proved it holds this account's passkey, which

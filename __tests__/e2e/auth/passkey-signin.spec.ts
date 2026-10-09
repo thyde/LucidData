@@ -82,6 +82,54 @@ test.describe('Passkey sign-in', () => {
     }
   })
 
+  test('refuses a sign-in request sent a second time', async ({ page, request }) => {
+    test.setTimeout(240000)
+    const email = getUniqueEmail('passkey-replay')
+    let userId: string | null = null
+
+    try {
+      userId = await accountWithPasskey(page, email)
+
+      await page.locator('input[name="email"]').fill(email)
+      const verifying = page.waitForRequest('**/api/auth/passkey/login-verify')
+      await page.getByRole('button', { name: 'Sign in with passkey' }).click()
+      const original = await verifying
+      const cookie = (await original.allHeaders()).cookie ?? ''
+      const body = JSON.parse(original.postData() ?? '{}') as {
+        credential: { response: { clientDataJSON: string } }
+      }
+      expect(cookie).toContain('passkey_challenge_id=')
+      expect((await original.response())?.status()).toBe(200)
+      await expect(page.getByRole('dialog', { name: 'Unlock your vault' })).toBeVisible()
+
+      // Synced passkeys keep their counter at zero, so the counter cannot catch
+      // a replay for them. Put this one in the same state.
+      const { error: counterError } = await createAdminClient()
+        .from('passkeys')
+        .update({ counter: 0 })
+        .eq('user_id', userId)
+      if (counterError) throw counterError
+
+      // Someone with a copy of the request and its cookie sends it again.
+      const replay = await request.post('/api/auth/passkey/login-verify', { data: body, headers: { cookie } })
+      expect(replay.status()).toBe(400)
+      expect(await replay.json()).not.toHaveProperty('token_hash')
+
+      // The cookies the server used to trust, rebuilt from the request itself.
+      const { challenge } = JSON.parse(
+        Buffer.from(body.credential.response.clientDataJSON, 'base64url').toString('utf8')
+      ) as { challenge: string }
+      const forged = await request.post('/api/auth/passkey/login-verify', {
+        data: body,
+        headers: { cookie: `passkey_challenge=${challenge}; passkey_email=${encodeURIComponent(email)}` },
+      })
+      expect(forged.status()).toBe(400)
+      expect(await forged.json()).not.toHaveProperty('token_hash')
+    } finally {
+      if (userId) await createAdminClient().auth.admin.deleteUser(userId).catch(() => undefined)
+    }
+  })
+
   test('refuses a passkey that belongs to a different account', async ({ page }) => {
     test.setTimeout(240000)
     const service = createAdminClient()

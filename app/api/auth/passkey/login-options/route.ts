@@ -1,5 +1,10 @@
 import { generateAuthenticationOptions } from '@simplewebauthn/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import {
+  issuePasskeyChallenge,
+  PASSKEY_CHALLENGE_COOKIE,
+  PASSKEY_CHALLENGE_COOKIE_OPTIONS,
+} from '@/lib/services/passkey-challenge.service'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
@@ -40,22 +45,11 @@ export async function POST(req: NextRequest) {
     userVerification: 'preferred',
   })
 
+  // The server keeps the challenge and the account it is for. The cookie only
+  // names it, so the verification step can use it once and know whose it is.
+  const challengeId = await issuePasskeyChallenge(user.id, 'authentication', options.challenge)
   const cookieStore = await cookies()
-  cookieStore.set('passkey_challenge', options.challenge, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 300,
-    path: '/',
-    sameSite: 'strict',
-  })
-  // Store email in cookie for verification step
-  cookieStore.set('passkey_email', email, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 300,
-    path: '/',
-    sameSite: 'strict',
-  })
+  cookieStore.set(PASSKEY_CHALLENGE_COOKIE, challengeId, PASSKEY_CHALLENGE_COOKIE_OPTIONS)
 
   return NextResponse.json({ options })
 }
