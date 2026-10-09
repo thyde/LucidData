@@ -235,8 +235,8 @@ describe('createVaultDataBatch', () => {
       source_provider: 'apple-health',
       source_record_id: `fitness_activity:2026-10-0${n}T07:00:00Z`,
     })
-  const echo = (rows: Record<string, unknown>[]) =>
-    rows.map((row, i) => ({ ...row, id: `id-${i}-${String(row.client_ciphertext)}` }) as unknown as VaultData)
+  // The database stores the id the service chose.
+  const echo = (rows: Record<string, unknown>[]) => rows.map((row) => ({ ...row }) as unknown as VaultData)
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -263,6 +263,20 @@ describe('createVaultDataBatch', () => {
     expect(createAuditEntry).toHaveBeenCalledTimes(1)
     expect(createAuditEntry).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'data_created', action: 'Imported 3 vault entries' })
+    )
+  })
+
+  it('answers each entry with its own row, even when two carry the same envelope', async () => {
+    const twin = { client_ciphertext: 'same-envelope' }
+    const results = await createVaultDataBatch('user-1', [entry(1, twin), entry(2, twin), entry(3, twin)])
+
+    const stored = results.map((result) => ('data' in result ? result.data : null))
+    expect(stored.map((row) => row?.label)).toEqual(['Entry 1', 'Entry 2', 'Entry 3'])
+    const ids = stored.map((row) => row?.id)
+    expect(new Set(ids).size).toBe(3)
+    // The audit entry lists every stored row once.
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ vault_data_ids: ids }) })
     )
   })
 

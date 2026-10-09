@@ -24,6 +24,11 @@
  * Every record is checked against its schema. A reading no body produces is
  * dropped from the record and counted, and a record with nothing left is
  * skipped, so nothing implausible is stored.
+ *
+ * An export is made part way through a day. That day's totals, and a night of
+ * sleep that may not have ended, are left out: a record's key stays the same
+ * across exports, so storing a partial day now would make a later export skip
+ * the full one as already imported.
  */
 
 import { scanTags } from '../xml-scan'
@@ -320,7 +325,19 @@ function sleepRecord(session: Session): ImportedRecord {
 
 interface OpenWorkout {
   attributes: Record<string, string>
+  /** The workout's own totals. */
   statistics: Record<string, string>[]
+  /** Each activity's totals. Newer exports split a workout into activities, a multisport one into several. */
+  activityStatistics: Record<string, string>[]
+}
+
+const sumOf = (statistics: Record<string, string>[], pick: (statistic: Record<string, string>) => number | null) => {
+  let total: number | null = null
+  for (const statistic of statistics) {
+    const value = pick(statistic)
+    if (value !== null && Number.isFinite(value)) total = (total ?? 0) + value
+  }
+  return total
 }
 
 function workoutRecord(workout: OpenWorkout): ImportedRecord | null {
@@ -337,23 +354,43 @@ function workoutRecord(workout: OpenWorkout): ImportedRecord | null {
   const duration = a.duration === undefined ? null : toMinutes(Number(a.duration), a.durationUnit ?? 'min')
   if (duration !== null && Number.isFinite(duration)) data.duration_min = round(duration, 1)
 
-  // Older exports put totals on the workout; newer ones put them in its statistics.
-  let distance = a.totalDistance === undefined ? null : toKilometres(Number(a.totalDistance), a.totalDistanceUnit)
-  let energy =
-    a.totalEnergyBurned === undefined ? null : toKilocalories(Number(a.totalEnergyBurned), a.totalEnergyBurnedUnit)
-  for (const statistic of workout.statistics) {
-    if (distance === null && WORKOUT_DISTANCES.has(statistic.type)) {
-      distance = toKilometres(Number(statistic.sum), statistic.unit)
-    }
-    if (energy === null && statistic.type === 'HKQuantityTypeIdentifierActiveEnergyBurned') {
-      energy = toKilocalories(Number(statistic.sum), statistic.unit)
-    }
-    if (statistic.type === 'HKQuantityTypeIdentifierHeartRate' && statistic.unit === 'count/min') {
-      const average = Number(statistic.average)
-      const maximum = Number(statistic.maximum)
-      if (Number.isFinite(average)) data.average_heartrate = Math.round(average)
-      if (Number.isFinite(maximum)) data.max_heartrate = Math.round(maximum)
-    }
+  // Older exports put totals on the workout. Newer ones put them in statistics,
+  // the workout's own after one set for each activity, and the workout's own
+  // are the totals: an activity's are only its part.
+  const distanceOf = (statistic: Record<string, string>) =>
+    WORKOUT_DISTANCES.has(statistic.type) ? toKilometres(Number(statistic.sum), statistic.unit) : null
+  const energyOf = (statistic: Record<string, string>) =>
+    statistic.type === 'HKQuantityTypeIdentifierActiveEnergyBurned'
+      ? toKilocalories(Number(statistic.sum), statistic.unit)
+      : null
+  const heartRates = (statistics: Record<string, string>[]) =>
+    statistics.filter(
+      (statistic) => statistic.type === 'HKQuantityTypeIdentifierHeartRate' && statistic.unit === 'count/min'
+    )
+
+  const distance =
+    (a.totalDistance === undefined ? null : toKilometres(Number(a.totalDistance), a.totalDistanceUnit)) ??
+    sumOf(workout.statistics, distanceOf) ??
+    sumOf(workout.activityStatistics, distanceOf)
+  const energy =
+    (a.totalEnergyBurned === undefined
+      ? null
+      : toKilocalories(Number(a.totalEnergyBurned), a.totalEnergyBurnedUnit)) ??
+    sumOf(workout.statistics, energyOf) ??
+    sumOf(workout.activityStatistics, energyOf)
+
+  const [overall] = heartRates(workout.statistics)
+  const parts = heartRates(workout.activityStatistics)
+  if (overall || parts.length === 1) {
+    const rate = overall ?? parts[0]
+    const average = Number(rate.average)
+    const maximum = Number(rate.maximum)
+    if (Number.isFinite(average)) data.average_heartrate = Math.round(average)
+    if (Number.isFinite(maximum)) data.max_heartrate = Math.round(maximum)
+  } else if (parts.length > 1) {
+    // Activities' averages cannot be combined without their durations, but the highest is the highest.
+    const maximum = Math.max(...parts.map((rate) => Number(rate.maximum)).filter(Number.isFinite))
+    if (Number.isFinite(maximum)) data.max_heartrate = Math.round(maximum)
   }
   if (distance !== null && Number.isFinite(distance)) data.distance_km = round(distance, 2)
   if (energy !== null && Number.isFinite(energy)) data.calories = Math.round(energy)
@@ -393,10 +430,12 @@ function keepPlausible(record: ImportedRecord, skip: (reason: string) => void): 
 
 async function* counted(
   chunks: AsyncIterable<string> | Iterable<string>,
-  onProgress: ReadOptions['onProgress']
+  { onProgress, signal }: ReadOptions
 ): AsyncGenerator<string> {
   let read = 0
+  signal?.throwIfAborted()
   for await (const chunk of chunks) {
+    signal?.throwIfAborted()
     read += chunk.length
     onProgress?.(read)
     yield chunk
@@ -426,7 +465,9 @@ export async function readAppleHealth(
   const sleep: SleepSample[] = []
   const workouts: ImportedRecord[] = []
   let insideCorrelation = 0
+  let insideActivity = 0
   let workout: OpenWorkout | null = null
+  let exportedAt: Moment | null = null
 
   const finishWorkout = () => {
     if (!workout) return
@@ -436,12 +477,18 @@ export async function readAppleHealth(
     workout = null
   }
 
-  for await (const tag of scanTags(counted(chunks, options.onProgress), [
+  for await (const tag of scanTags(counted(chunks, options), [
+    'ExportDate',
     'Record',
     'Correlation',
     'Workout',
+    'WorkoutActivity',
     'WorkoutStatistics',
   ])) {
+    if (tag.name === 'ExportDate') {
+      if (!tag.closing) exportedAt = parseAppleDate(tag.attributes.value) ?? exportedAt
+      continue
+    }
     if (tag.name === 'Correlation') {
       if (tag.closing) insideCorrelation = Math.max(0, insideCorrelation - 1)
       else if (!tag.selfClosing) insideCorrelation++
@@ -451,13 +498,21 @@ export async function readAppleHealth(
       if (tag.closing) finishWorkout()
       else {
         finishWorkout()
-        workout = { attributes: tag.attributes, statistics: [] }
+        workout = { attributes: tag.attributes, statistics: [], activityStatistics: [] }
+        insideActivity = 0
         if (tag.selfClosing) finishWorkout()
       }
       continue
     }
+    if (tag.name === 'WorkoutActivity') {
+      if (tag.closing) insideActivity = Math.max(0, insideActivity - 1)
+      else if (!tag.selfClosing) insideActivity++
+      continue
+    }
     if (tag.name === 'WorkoutStatistics') {
-      if (workout && !tag.closing) workout.statistics.push(tag.attributes)
+      if (workout && !tag.closing) {
+        ;(insideActivity > 0 ? workout.activityStatistics : workout.statistics).push(tag.attributes)
+      }
       continue
     }
     // A record inside a correlation is repeated at the top level.
@@ -493,19 +548,29 @@ export async function readAppleHealth(
   }
   finishWorkout()
 
-  const records = [
+  const exported: Moment | null = exportedAt
+  let unfinished = false
+  const finished = <T,>(isFinished: (item: T) => boolean) => (item: T) => {
+    if (isFinished(item)) return true
+    unfinished = true
+    return false
+  }
+  const days = [
     ...activity.records('fitness_daily', ACTIVITY),
     ...vitals.records('vitals_daily', VITALS),
     ...body.records('body_measurement', BODY),
     ...nutrition.records('nutrition_daily', NUTRITION),
-    ...chooseSessions(sessionsFrom(sleep))
-      .filter((session) => session.end.ms - session.start.ms >= SHORTEST_SESSION_MS)
-      .map(sleepRecord),
-    ...workouts,
-  ]
+  ].filter(finished((record: ImportedRecord) => !exported || String(record.data.date) < exported.day))
+  // A night could carry on after the export as long as a new sample would still join it.
+  const nights = chooseSessions(sessionsFrom(sleep))
+    .filter((session) => session.end.ms - session.start.ms >= SHORTEST_SESSION_MS)
+    .filter(finished((session: Session) => !exported || session.end.ms <= exported.ms - SESSION_GAP_MS))
+    .map(sleepRecord)
+
+  const records = [...days, ...nights, ...workouts]
     .map((record) => keepPlausible(record, skip))
     .filter((record): record is ImportedRecord => record !== null)
-    .sort((a, b) => (a.capturedAt ?? '').localeCompare(b.capturedAt ?? ''))
+    .sort((a, b) => Date.parse(a.capturedAt ?? '') - Date.parse(b.capturedAt ?? '') || 0)
 
-  return { ...APPLE_HEALTH, records, skipped }
+  return { ...APPLE_HEALTH, records, skipped, ...(unfinished && exported ? { unfinishedDay: exported.day } : {}) }
 }

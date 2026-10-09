@@ -51,8 +51,8 @@ const EXPORT = `<?xml version="1.0" encoding="UTF-8"?>
  </Correlation>
  ${record('HKQuantityTypeIdentifierBloodPressureSystolic', 118, 'mmHg', at('07:45:00'), at('07:45:00'), 'Omron')}
  ${record('HKQuantityTypeIdentifierBloodPressureDiastolic', 76, 'mmHg', at('07:45:00'), at('07:45:00'), 'Omron')}
- ${record('HKQuantityTypeIdentifierRestingHeartRate', 5, 'count/min', at('06:00:00', '2026-10-08'))}
- ${record('HKQuantityTypeIdentifierRespiratoryRate', 15, 'count/min', at('03:00:00', '2026-10-08'))}
+ ${record('HKQuantityTypeIdentifierRestingHeartRate', 5, 'count/min', at('06:00:00', '2026-10-06'))}
+ ${record('HKQuantityTypeIdentifierRespiratoryRate', 15, 'count/min', at('03:00:00', '2026-10-06'))}
  ${record('HKQuantityTypeIdentifierBodyMass', 160, 'lb', at('07:00:00'), at('07:00:00'), 'Scale')}
  ${record('HKQuantityTypeIdentifierBodyMass', 159, 'lb', at('21:00:00'), at('21:00:00'), 'Scale')}
  ${record('HKQuantityTypeIdentifierBodyMass', 9, 'slug', at('21:30:00'), at('21:30:00'), 'Odd app')}
@@ -117,6 +117,8 @@ describe('readAppleHealth', () => {
   it('averages vitals, converts units and fractions, and reads blood pressure once', async () => {
     const vitals = byType(await readAppleHealth([EXPORT]), 'vitals_daily')
     expect(vitals.map((entry) => entry.data)).toEqual([
+      // A resting heart rate of 5 is dropped; the day's other reading is kept.
+      { date: '2026-10-06', respiratory_rate: 15, source: 'Apple Health' },
       {
         date: DAY,
         resting_heart_rate: 59,
@@ -128,8 +130,6 @@ describe('readAppleHealth', () => {
         blood_pressure_diastolic: 76,
         source: 'Apple Health',
       },
-      // A resting heart rate of 5 is dropped; the day's other reading is kept.
-      { date: '2026-10-08', respiratory_rate: 15, source: 'Apple Health' },
     ])
   })
 
@@ -199,6 +199,70 @@ describe('readAppleHealth', () => {
         },
       ],
     ])
+  })
+
+  it('reads a workout\'s own totals, not its first activity\'s', async () => {
+    // watchOS 11 nests each activity's statistics before the workout's own.
+    const stat = (type: string, attributes: string) =>
+      `<WorkoutStatistics type="${type}" startDate="${at('18:00:00')}" endDate="${at('19:00:00')}" ${attributes}/>`
+    const xml = `<HealthData>
+ <ExportDate value="2026-10-08 09:00:00 -0700"/>
+ <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="60.9" durationUnit="min" sourceName="Watch" startDate="${at('18:00:00')}" endDate="${at('19:00:54')}">
+  <WorkoutActivity uuid="A1" startDate="${at('18:00:00')}" endDate="${at('19:00:54')}" duration="60.9" durationUnit="min">
+   ${stat('HKQuantityTypeIdentifierActiveEnergyBurned', 'sum="650.04" unit="kcal"')}
+   ${stat('HKQuantityTypeIdentifierDistanceWalkingRunning', 'sum="8.88" unit="km"')}
+   ${stat('HKQuantityTypeIdentifierHeartRate', 'average="150" minimum="90" maximum="170" unit="count/min"')}
+  </WorkoutActivity>
+  ${stat('HKQuantityTypeIdentifierActiveEnergyBurned', 'sum="655.47" unit="kcal"')}
+  ${stat('HKQuantityTypeIdentifierDistanceWalkingRunning', 'sum="8.96" unit="km"')}
+  ${stat('HKQuantityTypeIdentifierHeartRate', 'average="152" minimum="90" maximum="171" unit="count/min"')}
+ </Workout>
+ <Workout workoutActivityType="HKWorkoutActivityTypeSwimBikeRun" duration="120" durationUnit="min" sourceName="Watch" startDate="${at('07:00:00')}" endDate="${at('09:00:00')}">
+  <WorkoutActivity uuid="B1" startDate="${at('07:00:00')}" endDate="${at('07:40:00')}">
+   ${stat('HKQuantityTypeIdentifierDistanceSwimming', 'sum="1500" unit="m"')}
+   ${stat('HKQuantityTypeIdentifierActiveEnergyBurned', 'sum="400" unit="kcal"')}
+   ${stat('HKQuantityTypeIdentifierHeartRate', 'average="140" maximum="155" unit="count/min"')}
+  </WorkoutActivity>
+  <WorkoutActivity uuid="B2" startDate="${at('07:45:00')}" endDate="${at('09:00:00')}">
+   ${stat('HKQuantityTypeIdentifierDistanceWalkingRunning', 'sum="5" unit="km"')}
+   ${stat('HKQuantityTypeIdentifierActiveEnergyBurned', 'sum="450" unit="kcal"')}
+   ${stat('HKQuantityTypeIdentifierHeartRate', 'average="160" maximum="178" unit="count/min"')}
+  </WorkoutActivity>
+ </Workout>
+</HealthData>`
+    const [multisport, run] = byType(await readAppleHealth([xml]), 'fitness_activity').map((entry) => entry.data)
+
+    expect(run).toMatchObject({ distance_km: 8.96, calories: 655, average_heartrate: 152, max_heartrate: 171 })
+    // Without totals of its own, a multisport workout adds up its legs. Their
+    // averages cannot be combined without durations, so only the peak is kept.
+    expect(multisport).toMatchObject({ distance_km: 6.5, calories: 850, max_heartrate: 178 })
+    expect(multisport).not.toHaveProperty('average_heartrate')
+  })
+
+  it('leaves out the day the export was made, and a night that may not have ended', async () => {
+    const xml = `<HealthData>
+ <ExportDate value="2026-10-08 09:00:00 -0700"/>
+ ${record('HKQuantityTypeIdentifierStepCount', 9000, 'count', at('09:00:00'), at('18:00:00'))}
+ ${record('HKQuantityTypeIdentifierStepCount', 1200, 'count', at('07:00:00', '2026-10-08'), at('08:00:00', '2026-10-08'))}
+ ${sleep('AsleepCore', at('23:00:00', '2026-10-06'), at('06:00:00'))}
+ ${sleep('AsleepCore', at('23:30:00'), at('08:30:00', '2026-10-08'))}
+</HealthData>`
+    const result = await readAppleHealth([xml])
+
+    expect(byType(result, 'fitness_daily').map((entry) => entry.data.date)).toEqual([DAY])
+    expect(byType(result, 'sleep_session').map((entry) => entry.data.end)).toEqual(['2026-10-07T06:00:00-07:00'])
+    expect(result.unfinishedDay).toBe('2026-10-08')
+
+    // An export without its date leaves nothing out, and says nothing about it.
+    const undated = await readAppleHealth([xml.replace(/<ExportDate[^>]*>/, '')])
+    expect(byType(undated, 'fitness_daily')).toHaveLength(2)
+    expect(undated.unfinishedDay).toBeUndefined()
+  })
+
+  it('stops reading when asked to', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    await expect(readAppleHealth([EXPORT], { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' })
   })
 
   it('says what it could not use', async () => {

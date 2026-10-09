@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Upload } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEncryption } from '@/lib/context/encryption-context'
@@ -89,6 +89,8 @@ export function VaultImportDialog() {
   /** How far through reading a health export, from 0 to 1. */
   const [reading, setReading] = useState<number | null>(null)
   const [healthBusy, setHealthBusy] = useState(false)
+  /** The file being read. Choosing another, or closing the dialog, stops it. */
+  const readController = useRef<AbortController | null>(null)
 
   const sourceKeys = useMemo(() => {
     if (!parsed) return [] as string[]
@@ -100,6 +102,8 @@ export function VaultImportDialog() {
   }, [parsed])
 
   const reset = () => {
+    readController.current?.abort()
+    readController.current = null
     setFileName('')
     setParsed(null)
     setParseError(null)
@@ -137,6 +141,11 @@ export function VaultImportDialog() {
 
   const handleFile = useCallback(async (file: File | undefined) => {
     if (!file) return
+    readController.current?.abort()
+    const controller = new AbortController()
+    readController.current = controller
+    // A read that was stopped, or overtaken by another file, changes nothing.
+    const current = () => readController.current === controller && !controller.signal.aborted
     setParseError(null)
     setParsed(null)
     setTargetType('custom')
@@ -152,7 +161,14 @@ export function VaultImportDialog() {
     // and imported in batches, so it never goes through the 1,000-record path.
     try {
       setReading(0)
-      const health = await readHealthExport(file, setReading)
+      const health = await readHealthExport(
+        file,
+        (fraction) => {
+          if (current()) setReading(fraction)
+        },
+        controller.signal
+      )
+      if (!current()) return
       if (health) {
         if (health.records.length === 0) {
           setParseError(`This ${health.label} export holds no records LucidData reads.`)
@@ -166,16 +182,18 @@ export function VaultImportDialog() {
         return
       }
     } catch (error) {
+      if (!current()) return
       setParseError(
         error instanceof ZipError ? error.message : 'Could not read this export. Download it again and retry.'
       )
       return
     } finally {
-      setReading(null)
+      if (current()) setReading(null)
     }
 
     try {
       const text = await file.text()
+      if (!current()) return
 
       // LD-203: a provider adapter goes first, because it knows the file's own
       // shape. Anything it does not recognise falls through to the generic

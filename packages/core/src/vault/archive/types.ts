@@ -26,9 +26,17 @@ export interface ExportReadResult {
   records: ImportedRecord[]
   /** Values that could not be used, counted by reason, so the person is told rather than left to guess. */
   skipped: Record<string, number>
+  /**
+   * The day the export was made, when records from it were left out because
+   * the day was not over. A record's key never changes, so a partial day stored
+   * now would block the full day a later export brings.
+   */
+  unfinishedDay?: string
 }
 
 export interface ReadOptions {
   /** Called as text is read, with the number of characters read so far. */
   onProgress?: (characters: number) => void
+  /** Stops reading, rejecting with the signal's reason. */
+  signal?: AbortSignal
 }
