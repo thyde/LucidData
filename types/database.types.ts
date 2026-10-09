@@ -34,6 +34,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_chain_heads: {
+        Row: {
+          head_hash: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          head_hash?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          head_hash?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_chain_heads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -2593,6 +2619,50 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      append_audit_log: {
+        Args: {
+          p_action: string
+          p_actor_id?: string
+          p_actor_name?: string
+          p_actor_type?: string
+          p_consent_id?: string
+          p_error_message?: string
+          p_event_type: string
+          p_ip_address?: string
+          p_metadata?: Json
+          p_method?: string
+          p_success?: boolean
+          p_user_agent?: string
+          p_user_id: string
+          p_vault_data_id?: string
+        }
+        Returns: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_type: string
+          consent_id: string | null
+          current_hash: string
+          error_message: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          method: string | null
+          previous_hash: string | null
+          success: boolean
+          timestamp: string
+          user_agent: string | null
+          user_id: string
+          vault_data_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "audit_logs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       apply_vault_rewrap: {
         Args: { p_ingest_key?: Json; p_rewrap_id: string; p_user_id: string }
         Returns: number
@@ -2600,6 +2670,16 @@ export type Database = {
       approve_consent_request_atomic: {
         Args: { request_id: string; response_note?: string }
         Returns: Json
+      }
+      audit_entry_hash: {
+        Args: {
+          p_action: string
+          p_event_type: string
+          p_previous_hash: string
+          p_timestamp: string
+          p_user_id: string
+        }
+        Returns: string
       }
       claim_offer_atomic: {
         Args: { p_offer_id: string }
@@ -2747,6 +2827,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      seal_audit_chain_ends: { Args: { p_user_id: string }; Returns: number }
       vault_source_coverage: {
         Args: { p_user_id: string }
         Returns: {

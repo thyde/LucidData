@@ -57,17 +57,18 @@ INSERT INTO public.consents (user_id, granted_to, access_level, purpose, start_d
   ('00000000-0000-4000-8000-000000000001', 'org-y', 'read', 'test', '2020-01-20', '2020-01-20', true),
   ('00000000-0000-4000-8000-000000000002', 'org-x', 'read', 'test', '2020-01-07', '2020-01-07', false);
 
-INSERT INTO public.audit_logs (user_id, event_type, action, actor_type, current_hash, "timestamp") VALUES
-  ('00000000-0000-4000-8000-000000000001', 'consent_granted', 'x', 'user', 'h1', '2020-01-06'),
-  ('00000000-0000-4000-8000-000000000001', 'credential_shared', 'x', 'user', 'h2', '2020-01-20'),
-  ('00000000-0000-4000-8000-000000000002', 'consent_granted', 'x', 'user', 'h3', '2020-01-07'),
+-- Each person's entries link to the one before, as the chain trigger requires.
+INSERT INTO public.audit_logs (user_id, event_type, action, actor_type, previous_hash, current_hash, "timestamp") VALUES
+  ('00000000-0000-4000-8000-000000000001', 'consent_granted', 'x', 'user', NULL, 'h1', '2020-01-06'),
+  ('00000000-0000-4000-8000-000000000001', 'credential_shared', 'x', 'user', 'h1', 'h2', '2020-01-20'),
+  ('00000000-0000-4000-8000-000000000002', 'consent_granted', 'x', 'user', NULL, 'h3', '2020-01-07'),
   -- Two verifier views of a shared credential.
-  ('00000000-0000-4000-8000-000000000001', 'credential_share_viewed', 'x', 'system', 'h4', '2020-01-21'),
-  ('00000000-0000-4000-8000-000000000001', 'credential_share_viewed', 'x', 'system', 'h5', '2020-01-22'),
+  ('00000000-0000-4000-8000-000000000001', 'credential_share_viewed', 'x', 'system', 'h2', 'h4', '2020-01-21'),
+  ('00000000-0000-4000-8000-000000000001', 'credential_share_viewed', 'x', 'system', 'h4', 'h5', '2020-01-22'),
   -- B never signs in again, but acts on day 40: that is a return.
-  ('00000000-0000-4000-8000-000000000002', 'vault_read', 'x', 'user', 'h6', '2020-02-12'),
+  ('00000000-0000-4000-8000-000000000002', 'vault_read', 'x', 'user', 'h3', 'h6', '2020-02-12'),
   -- C is touched only by the system after day 30: that is not.
-  ('00000000-0000-4000-8000-000000000003', 'consent_expired', 'x', 'system', 'h7', '2020-03-01');
+  ('00000000-0000-4000-8000-000000000003', 'consent_expired', 'x', 'system', NULL, 'h7', '2020-03-01');
 
 -- B saves a tracker summary from the extension. Only the schema type is read.
 INSERT INTO public.vault_data (user_id, label, schema_type, client_ciphertext, encrypted_dek, dek_salt, created_at) VALUES
