@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(23);
+SELECT plan(24);
 
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-0000000002a1', 'mover@example.com'),
@@ -29,6 +29,12 @@ SELECT ok(
     AND NOT has_table_privilege('anon', 'public.vault_rewraps', 'SELECT')
     AND NOT has_table_privilege('anon', 'public.vault_rewrap_entries', 'INSERT'),
   'Neither API role holds a privilege on the staged re-wrap tables'
+);
+
+SELECT hasnt_function(
+  'public',
+  'rewrap_vault_keys',
+  'The single-request re-wrap is gone, so every re-wrap takes the row lock and checks the ingestion key'
 );
 
 SELECT ok(
