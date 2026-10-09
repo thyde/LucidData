@@ -269,6 +269,10 @@ export const PRODUCT_MEASUREMENT = [
     how: 'If you arrive from a credential check or from the browser extension, your account notes which one, once. Nothing else about how you found us is kept.',
   },
   {
+    measure: 'Health timeline visits',
+    how: 'The first time each day you open your health timeline on a device, that day\'s total goes up by one. The total says nothing about who opened it or what was on screen.',
+  },
+  {
     measure: 'Weekly totals',
     how: 'Counts such as how many people connected a source or shared a record, worked out from records the product already keeps and stored as totals. No total is kept per person.',
   },

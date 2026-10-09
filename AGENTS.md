@@ -88,7 +88,7 @@ Mutations flow through four layers. Never touch the database directly from compo
 3. Repository in `lib/repositories/`. Supabase reads and writes, always scoped by `userId`.
 4. Supabase client. Use `lib/supabase/server.ts` in server code and `lib/supabase/client.ts` in Client Components. `lib/supabase/service.ts` is the service-role client; see the RLS warning before using it.
 
-The web app mutates through server actions, not REST handlers. Route handlers under `app/api/` are for auth, org, and webhook-style endpoints, plus the versioned client API in `app/api/v1/` that the phone app and the extension call. The action surface is broad (17 domains): vault, consent, consent-request, credential, credential-request, issuer, share, audit, account, notification, billing, monetization, marketplace, offer, data-order, contribution, and insights. New features follow the same four-layer flow.
+The web app mutates through server actions, not REST handlers. Route handlers under `app/api/` are for auth, org, and webhook-style endpoints, plus the versioned client API in `app/api/v1/` that the phone app and the extension call. The action surface is broad, with one file per domain under `lib/actions/`, such as vault, consent, credential, recovery, rights, and metrics. New features follow the same four-layer flow.
 
 Directory layout:
 
