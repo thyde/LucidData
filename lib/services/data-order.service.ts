@@ -4,6 +4,7 @@ import * as orderRepo from '@/lib/repositories/data-order.repository'
 import * as contributionRepo from '@/lib/repositories/contribution.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
 import { createAuditEntry } from '@/lib/services/audit.service'
+import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
 import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
 import { recordOrderPayouts } from '@/lib/services/payout.service'
 import {
@@ -277,12 +278,23 @@ export async function startPoolPurchase(
   return { kind: 'checkout', url: session.url, recordCount, totalCents }
 }
 
-/** Webhook: mark a data order paid once its Checkout session completes. Idempotent. */
+/**
+ * Webhook: mark a data order paid once its Checkout session completes.
+ *
+ * Idempotent. Contributors are owed from the moment the order is paid, so
+ * their payouts are recorded before anything that could fail, and a
+ * redelivered event for a paid order records any an earlier delivery left
+ * out; recording payouts skips an order that already has them.
+ */
 export async function markDataOrderPaid(session: Stripe.Checkout.Session): Promise<void> {
   const orderId = session.metadata?.orderId
   if (!orderId) return
   const order = await orderRepo.findOrderById(orderId)
-  if (!order || order.status === 'paid') return
+  if (!order) return
+  if (order.status === 'paid') {
+    await recordPayoutsFor(order)
+    return
+  }
 
   const paymentIntentId =
     typeof session.payment_intent === 'string' ? session.payment_intent : null
@@ -291,21 +303,34 @@ export async function markDataOrderPaid(session: Stripe.Checkout.Session): Promi
     stripe_payment_intent_id: paymentIntentId,
   })
 
+  await recordPayoutsFor(paidOrder)
+
   const userId = session.metadata?.userId
   if (userId) {
-    await createAuditEntry({
-      userId,
-      eventType: 'data_purchased',
-      action: `Paid for ${order.record_count} record(s) (order ${orderId.slice(0, 8)})`,
-      actorType: 'buyer',
-      metadata: { pool_id: order.pool_id, order_id: orderId, total_cents: order.total_cents },
-    })
+    // The payment stands whether or not this is written. Throwing here once
+    // made the webhook fail after the order was marked paid, and the
+    // redelivery then skipped the paid order without recording payouts.
+    try {
+      await createAuditEntry({
+        userId,
+        eventType: 'data_purchased',
+        action: `Paid for ${order.record_count} record(s) (order ${orderId.slice(0, 8)})`,
+        actorType: 'buyer',
+        metadata: { pool_id: order.pool_id, order_id: orderId, total_cents: order.total_cents },
+      })
+    } catch (error) {
+      errorLogger.log(error, ErrorSeverity.MEDIUM, { userId, action: 'ORDER_AUDIT_FAILED', metadata: { orderId } })
+    }
   }
+}
 
-  // Queue contributor payouts for this purchase (best-effort; webhook stays 200).
-  await recordOrderPayouts(paidOrder).catch((e) =>
-    console.error('recordOrderPayouts failed for order', orderId, e)
-  )
+/** Queue contributor payouts for a paid order. Best effort, so the webhook still answers 200. */
+async function recordPayoutsFor(order: DataOrder): Promise<void> {
+  try {
+    await recordOrderPayouts(order)
+  } catch (error) {
+    errorLogger.log(error, ErrorSeverity.HIGH, { action: 'ORDER_PAYOUTS_FAILED', metadata: { orderId: order.id } })
+  }
 }
 
 /** Webhook: cancel a pending data order whose Checkout session expired. */

@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 const findDuePayouts = vi.fn()
 const findAccount = vi.fn()
 const updatePayout = vi.fn()
+const updatePendingPayout = vi.fn()
+const transfersList = vi.fn()
 const findPoolById = vi.fn()
 const transfersCreate = vi.fn()
 const isStripeConfigured = vi.fn()
@@ -21,6 +23,7 @@ vi.mock('@/lib/repositories/payout.repository', () => ({
   findDuePayouts: (...a: unknown[]) => findDuePayouts(...a),
   findAccount: (...a: unknown[]) => findAccount(...a),
   updatePayout: (...a: unknown[]) => updatePayout(...a),
+  updatePendingPayout: (...a: unknown[]) => updatePendingPayout(...a),
 }))
 
 vi.mock('@/lib/repositories/pool.repository', () => ({
@@ -29,7 +32,12 @@ vi.mock('@/lib/repositories/pool.repository', () => ({
 
 vi.mock('@/lib/stripe/client', () => ({
   isStripeConfigured: () => isStripeConfigured(),
-  getStripe: () => ({ transfers: { create: (...a: unknown[]) => transfersCreate(...a) } }),
+  getStripe: () => ({
+    transfers: {
+      create: (...a: unknown[]) => transfersCreate(...a),
+      list: (...a: unknown[]) => transfersList(...a),
+    },
+  }),
 }))
 
 vi.mock('@/lib/services/audit.service', () => ({
@@ -104,6 +112,11 @@ const {
   MAX_PAYOUT_ATTEMPTS,
 } = await import('@/lib/services/scheduled-jobs.service')
 
+/** An error Stripe raises when it refused a request, so nothing was created. */
+function refusal(message: string) {
+  return Object.assign(new Error(message), { type: 'StripeInvalidRequestError', statusCode: 400 })
+}
+
 function payout(overrides: Record<string, unknown> = {}) {
   return {
     id: 'payout-1',
@@ -125,6 +138,8 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ stripe_account_id: 'acct_1', payouts_enabled: true })
   updatePayout.mockReset().mockResolvedValue(undefined)
+  updatePendingPayout.mockReset().mockResolvedValue(true)
+  transfersList.mockReset().mockResolvedValue({ data: [] })
   findPoolById.mockReset().mockResolvedValue({ name: 'Fitness pool' })
   transfersCreate.mockReset().mockResolvedValue({ id: 'tr_1' })
   isStripeConfigured.mockReset().mockReturnValue(true)
@@ -178,14 +193,90 @@ describe('runPayoutRetries', () => {
     expect(notifyPayoutPaid).toHaveBeenCalled()
   })
 
-  it('leaves a failed transfer pending with a backoff deadline', async () => {
-    findDuePayouts.mockResolvedValue([payout()])
-    transfersCreate.mockRejectedValue(new Error('balance_insufficient'))
+  it("sends each transfer in the payout's group, under a key tied to the attempts recorded so far", async () => {
+    findDuePayouts.mockResolvedValue([payout({ attempts: 2 })])
+    await runPayoutRetries()
+    expect(transfersList).toHaveBeenCalledWith({ transfer_group: 'payout-payout-1', limit: 1 })
+    expect(transfersCreate.mock.calls[0][0]).toMatchObject({ transfer_group: 'payout-payout-1' })
+    expect(transfersCreate.mock.calls[0][1]).toEqual({ idempotencyKey: 'payout-payout-1-2' })
+  })
+
+  it('records a transfer an earlier attempt sent instead of sending another', async () => {
+    findDuePayouts.mockResolvedValue([payout({ attempts: 1 })])
+    transfersList.mockResolvedValue({ data: [{ id: 'tr_earlier' }] })
+
+    const result = await runPayoutRetries()
+
+    expect(transfersCreate).not.toHaveBeenCalled()
+    expect(result.processed).toBe(1)
+    expect(updatePayout.mock.calls[0][1]).toMatchObject({ status: 'paid', stripe_transfer_id: 'tr_earlier' })
+  })
+
+  it('does not count an attempt whose outcome is unknown, so the retry repeats it', async () => {
+    findDuePayouts.mockResolvedValue([payout({ attempts: 2 })])
+    transfersCreate.mockRejectedValue(Object.assign(new Error('socket hang up'), { type: 'StripeConnectionError' }))
 
     const result = await runPayoutRetries()
 
     expect(result.failed).toBe(1)
-    const patch = updatePayout.mock.calls[0][1] as Record<string, unknown>
+    const [id, attempts, patch] = updatePendingPayout.mock.calls[0]
+    expect([id, attempts]).toEqual(['payout-1', 2])
+    expect(patch).not.toHaveProperty('attempts')
+    expect(patch).not.toHaveProperty('status')
+    expect(patch.next_attempt_at).toEqual(expect.any(String))
+    expect(notifyPayoutFailed).not.toHaveBeenCalled()
+  })
+
+  it('leaves a payout another run paid meanwhile, and tells nobody it failed', async () => {
+    findDuePayouts.mockResolvedValue([payout({ attempts: MAX_PAYOUT_ATTEMPTS - 1 })])
+    transfersCreate.mockRejectedValue(refusal('No such destination'))
+    updatePendingPayout.mockResolvedValue(false)
+
+    await runPayoutRetries()
+
+    expect(notifyPayoutFailed).not.toHaveBeenCalled()
+    expect(updatePayout).not.toHaveBeenCalled()
+  })
+
+  it('keeps a sent payout paid when its audit entry or notice fails', async () => {
+    findDuePayouts.mockResolvedValue([payout()])
+    createAuditEntry.mockRejectedValue({ code: 'PT409', message: 'The audit chain has moved on.' })
+    notifyPayoutPaid.mockRejectedValue(new Error('mail is down'))
+
+    const result = await runPayoutRetries()
+
+    // Put back in the queue, it would have been sent a second time.
+    expect(result).toMatchObject({ processed: 1, failed: 0 })
+    expect(updatePayout).toHaveBeenCalledTimes(1)
+    expect(updatePayout.mock.calls[0][1]).toMatchObject({ status: 'paid' })
+  })
+
+  it('leaves a payout as it was when its transfer went through but could not be recorded', async () => {
+    findDuePayouts.mockResolvedValue([payout()])
+    updatePayout.mockRejectedValueOnce(new Error('connection reset'))
+
+    const result = await runPayoutRetries()
+
+    // No second update: the attempt count, and so the key, stay put, and the
+    // next run's repeat of this request returns the same transfer.
+    expect(updatePayout).toHaveBeenCalledTimes(1)
+    expect(result.failed).toBe(1)
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.any(Error),
+      'critical',
+      expect.objectContaining({ action: 'PAYOUT_SENT_NOT_RECORDED' })
+    )
+  })
+
+  it('leaves a failed transfer pending with a backoff deadline', async () => {
+    findDuePayouts.mockResolvedValue([payout()])
+    transfersCreate.mockRejectedValue(refusal('balance_insufficient'))
+
+    const result = await runPayoutRetries()
+
+    expect(result.failed).toBe(1)
+    expect(updatePendingPayout.mock.calls[0][1]).toBe(0)
+    const patch = updatePendingPayout.mock.calls[0][2] as Record<string, unknown>
     expect(patch.status).toBe('pending')
     expect(patch.attempts).toBe(1)
     expect(patch.next_attempt_at).toEqual(expect.any(String))
@@ -194,11 +285,11 @@ describe('runPayoutRetries', () => {
 
   it('fails the payout, logs, and notifies once retries are exhausted', async () => {
     findDuePayouts.mockResolvedValue([payout({ attempts: MAX_PAYOUT_ATTEMPTS - 1 })])
-    transfersCreate.mockRejectedValue(new Error('account_invalid'))
+    transfersCreate.mockRejectedValue(refusal('account_invalid'))
 
     await runPayoutRetries()
 
-    const patch = updatePayout.mock.calls[0][1] as Record<string, unknown>
+    const patch = updatePendingPayout.mock.calls[0][2] as Record<string, unknown>
     expect(patch.status).toBe('failed')
     expect(patch.next_attempt_at).toBeNull()
     expect(logSpy).toHaveBeenCalledTimes(1)

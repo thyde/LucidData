@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/repositories/data-order.repository', () => ({
+  findOrderById: vi.fn(),
+  updateOrder: vi.fn(),
   createOrder: vi.fn(),
   deleteOrder: vi.fn(),
   createOrderRecords: vi.fn(),
@@ -24,7 +26,9 @@ import * as contributionRepo from '@/lib/repositories/contribution.repository'
 import type { PoolContributionWithEntry } from '@/lib/repositories/contribution.repository'
 import * as orderRepo from '@/lib/repositories/data-order.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
-import { getExport, startPoolPurchase } from '@/lib/services/data-order.service'
+import { getExport, markDataOrderPaid, startPoolPurchase } from '@/lib/services/data-order.service'
+import { createAuditEntry } from '@/lib/services/audit.service'
+import { recordOrderPayouts } from '@/lib/services/payout.service'
 import type { DataOrder, DataOrderRecord, DataPool } from '@/types/database.types'
 
 const pool = {
@@ -390,5 +394,35 @@ describe('data order snapshots', () => {
     await expect(getExport(pool.buyer_org_id, 'buyer-1', order.export_token)).rejects.toThrow(
       'This export link has expired'
     )
+  })
+})
+
+describe('markDataOrderPaid', () => {
+  const session = { metadata: { orderId: 'order-1', userId: 'buyer-1' }, payment_intent: 'pi_1' } as never
+  const order = { id: 'order-1', pool_id: 'pool-1', record_count: 3, total_cents: 900, status: 'pending' } as DataOrder
+
+  beforeEach(() => {
+    vi.mocked(orderRepo.findOrderById).mockReset().mockResolvedValue(order)
+    vi.mocked(orderRepo.updateOrder).mockReset().mockResolvedValue({ ...order, status: 'paid' } as DataOrder)
+    vi.mocked(recordOrderPayouts).mockReset().mockResolvedValue(undefined)
+    vi.mocked(createAuditEntry).mockReset()
+  })
+
+  it('records what contributors are owed even when the purchase cannot be audited', async () => {
+    vi.mocked(createAuditEntry).mockRejectedValue({ code: 'PT409' })
+
+    await expect(markDataOrderPaid(session)).resolves.toBeUndefined()
+
+    expect(recordOrderPayouts).toHaveBeenCalledWith(expect.objectContaining({ id: 'order-1', status: 'paid' }))
+  })
+
+  it('fills in payouts when the event is delivered again for a paid order', async () => {
+    vi.mocked(orderRepo.findOrderById).mockResolvedValue({ ...order, status: 'paid' } as DataOrder)
+
+    await markDataOrderPaid(session)
+
+    expect(orderRepo.updateOrder).not.toHaveBeenCalled()
+    expect(recordOrderPayouts).toHaveBeenCalledWith(expect.objectContaining({ id: 'order-1' }))
+    expect(createAuditEntry).not.toHaveBeenCalled()
   })
 })

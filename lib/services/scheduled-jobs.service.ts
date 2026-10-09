@@ -24,13 +24,15 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import * as payoutRepo from '@/lib/repositories/payout.repository'
 import * as poolRepo from '@/lib/repositories/pool.repository'
-import { getStripe, isStripeConfigured } from '@/lib/stripe/client'
+import { isStripeConfigured } from '@/lib/stripe/client'
 import { createAuditEntry } from '@/lib/services/audit.service'
 import {
   notifyPayoutFailed,
   notifyPayoutPaid,
 } from '@/lib/services/marketplace-notification.service'
 import { errorLogger, ErrorSeverity } from '@/lib/services/error-logger'
+import { transferRefused } from '@/lib/utils/payout-transfer'
+import { sendPayoutTransfer } from '@/lib/services/payout.service'
 import { purgeExpiredRateLimits } from '@/lib/services/rate-limit.service'
 import { runRetentionPurges } from '@/lib/services/retention.service'
 import { dispatchDueDeliveries } from '@/lib/services/webhook.service'
@@ -117,13 +119,10 @@ export async function runPayoutRetries(): Promise<JobResult> {
     if (!account || !account.payouts_enabled) continue
 
     const attempt = payout.attempts + 1
+    let transferId: string | null = null
     try {
-      const transfer = await getStripe().transfers.create({
-        amount: payout.amount_cents,
-        currency: 'usd',
-        destination: account.stripe_account_id,
-        metadata: { payoutId: payout.id, userId: payout.user_id },
-      })
+      const transfer = await sendPayoutTransfer(payout, account.stripe_account_id)
+      transferId = transfer.id
       await payoutRepo.updatePayout(payout.id, {
         status: 'paid',
         stripe_transfer_id: transfer.id,
@@ -132,35 +131,59 @@ export async function runPayoutRetries(): Promise<JobResult> {
         next_attempt_at: null,
         updated_at: now.toISOString(),
       })
-      await createAuditEntry({
-        userId: payout.user_id,
-        eventType: 'payout_sent',
-        action: `Received a payout of $${(payout.amount_cents / 100).toFixed(2)}`,
-        actorType: 'system',
-        metadata: { payout_id: payout.id, amount_cents: payout.amount_cents, attempt },
-      })
-      await notifyPayoutPaid(payout.user_id, {
-        poolName: await poolNameFor(payout.pool_id, poolNames),
-        amountCents: payout.amount_cents,
-        payoutId: payout.id,
-      })
-      result.processed += 1
     } catch (error) {
-      const exhausted = attempt >= MAX_PAYOUT_ATTEMPTS
+      if (transferId) {
+        // The money moved but the record did not. The payout is left exactly as
+        // it was, so the next run repeats this request under the same key and
+        // records the same transfer rather than sending another.
+        errorLogger.log(error, ErrorSeverity.CRITICAL, {
+          userId: payout.user_id,
+          action: 'PAYOUT_SENT_NOT_RECORDED',
+          resource: 'payout',
+          metadata: { payoutId: payout.id, transferId },
+        })
+        result.failed += 1
+        continue
+      }
       const message = error instanceof Error ? error.message : 'Transfer failed'
-      await payoutRepo
-        .updatePayout(payout.id, {
+      const retryAt = new Date(now.getTime() + backoffMsForAttempt(attempt)).toISOString()
+
+      // A timeout, a server error, or a rate limit leaves the outcome unknown,
+      // so the transfer may exist. The attempt is not counted: the next run
+      // repeats the same request, finds the transfer if there is one, and only
+      // a refusal can use up the attempts.
+      if (!transferRefused(error)) {
+        await payoutRepo
+          .updatePendingPayout(payout.id, payout.attempts, {
+            last_error: message.slice(0, 500),
+            next_attempt_at: retryAt,
+            updated_at: now.toISOString(),
+          })
+          .catch(() => undefined)
+        errorLogger.log(error, ErrorSeverity.MEDIUM, {
+          userId: payout.user_id,
+          action: 'PAYOUT_TRANSFER_UNANSWERED',
+          resource: 'payout',
+          metadata: { payoutId: payout.id },
+        })
+        result.failed += 1
+        continue
+      }
+
+      const exhausted = attempt >= MAX_PAYOUT_ATTEMPTS
+      // Only while the payout is as this run read it: one that another path paid
+      // meanwhile is not put back in the queue.
+      const recorded = await payoutRepo
+        .updatePendingPayout(payout.id, payout.attempts, {
           status: exhausted ? 'failed' : 'pending',
           attempts: attempt,
           last_error: message.slice(0, 500),
-          next_attempt_at: exhausted
-            ? null
-            : new Date(now.getTime() + backoffMsForAttempt(attempt)).toISOString(),
+          next_attempt_at: exhausted ? null : retryAt,
           updated_at: now.toISOString(),
         })
-        .catch(() => undefined)
+        .catch(() => false)
 
-      if (exhausted) {
+      if (exhausted && recorded) {
         errorLogger.log(error, ErrorSeverity.HIGH, {
           userId: payout.user_id,
           action: 'PAYOUT_RETRIES_EXHAUSTED',
@@ -175,14 +198,52 @@ export async function runPayoutRetries(): Promise<JobResult> {
           success: false,
           metadata: { payout_id: payout.id, amount_cents: payout.amount_cents },
         }).catch(() => undefined)
-        await notifyPayoutFailed(payout.user_id, {
-          poolName: await poolNameFor(payout.pool_id, poolNames),
-          amountCents: payout.amount_cents,
-          payoutId: payout.id,
-        })
+        try {
+          await notifyPayoutFailed(payout.user_id, {
+            poolName: await poolNameFor(payout.pool_id, poolNames),
+            amountCents: payout.amount_cents,
+            payoutId: payout.id,
+          })
+        } catch {
+          // Told or not, the payout is recorded as failed and the log has it.
+        }
       }
       result.failed += 1
+      continue
     }
+
+    // The payout is paid and recorded. What follows only tells people, and a
+    // failure here must never put the payout back in the queue: that sent the
+    // money a second time.
+    try {
+      await createAuditEntry({
+        userId: payout.user_id,
+        eventType: 'payout_sent',
+        action: `Received a payout of $${(payout.amount_cents / 100).toFixed(2)}`,
+        actorType: 'system',
+        metadata: { payout_id: payout.id, amount_cents: payout.amount_cents, attempt },
+      })
+    } catch (error) {
+      errorLogger.log(error, ErrorSeverity.MEDIUM, {
+        userId: payout.user_id,
+        action: 'PAYOUT_AUDIT_FAILED',
+        metadata: { payoutId: payout.id },
+      })
+    }
+    try {
+      await notifyPayoutPaid(payout.user_id, {
+        poolName: await poolNameFor(payout.pool_id, poolNames),
+        amountCents: payout.amount_cents,
+        payoutId: payout.id,
+      })
+    } catch (error) {
+      errorLogger.log(error, ErrorSeverity.LOW, {
+        userId: payout.user_id,
+        action: 'PAYOUT_NOTICE_FAILED',
+        metadata: { payoutId: payout.id },
+      })
+    }
+    result.processed += 1
   }
 
   return result
