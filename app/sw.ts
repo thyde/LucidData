@@ -20,6 +20,11 @@ const serwist = new Serwist({
   runtimeCaching: [
     // Supabase responses carry account data, and Turnstile breaks if its script is cached.
     { matcher: ({ sameOrigin }) => !sameOrigin, handler: new NetworkOnly() },
+    // A shared summary must stop opening the moment it is revoked, offline included.
+    {
+      matcher: ({ sameOrigin, url: { pathname } }) => sameOrigin && pathname.startsWith('/api/share/'),
+      handler: new NetworkOnly(),
+    },
     ...defaultCache,
   ],
   disableDevLogs: true,

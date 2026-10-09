@@ -60,6 +60,10 @@ vi.mock('@/lib/services/rate-limit.service', () => ({
 vi.mock('@/lib/services/passkey-challenge.service', () => ({
   purgeExpiredPasskeyChallenges: () => Promise.resolve(0),
 }))
+const purgeExpiredHealthShares = vi.fn(() => Promise.resolve(0))
+vi.mock('@/lib/services/health-share.service', () => ({
+  purgeExpiredHealthShares: () => purgeExpiredHealthShares(),
+}))
 
 vi.mock('@/lib/services/retention.service', () => ({
   runRetentionPurges: () => Promise.resolve({ results: [], failed: 0 }),
@@ -374,6 +378,14 @@ describe('runShareExpiry', () => {
   })
 })
 
+describe('runHealthSharePurge', () => {
+  it('reports how many expired summaries were deleted', async () => {
+    purgeExpiredHealthShares.mockResolvedValueOnce(3)
+    const results = await runScheduledJobs('health_share_purge')
+    expect(results).toEqual([expect.objectContaining({ job: 'health_share_purge', processed: 3, failed: 0 })])
+  })
+})
+
 describe('runScheduledJobs', () => {
   it('runs every job and records each run', async () => {
     const results = await runScheduledJobs()
@@ -383,19 +395,20 @@ describe('runScheduledJobs', () => {
       'share_expiry',
       'rate_limit_purge',
       'passkey_challenge_purge',
+      'health_share_purge',
       'retention_purge',
       'webhook_delivery',
       'bulk_operations',
       'connector_sync',
       'metrics_snapshot',
     ])
-    expect(jobRunInsert).toHaveBeenCalledTimes(10)
+    expect(jobRunInsert).toHaveBeenCalledTimes(11)
   })
 
   it('reports a failing job without stopping the sweep', async () => {
     findDuePayouts.mockRejectedValue(new Error('database unreachable'))
     const results = await runScheduledJobs()
-    expect(results).toHaveLength(10)
+    expect(results).toHaveLength(11)
     expect(results[0].error).toBe('database unreachable')
     expect(results[1].error).toBeUndefined()
   })

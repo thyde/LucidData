@@ -11,6 +11,7 @@
  *   share_expiry     mark credential share tokens whose window has closed
  *   rate_limit_purge drop counters from windows that can no longer be consulted
  *   passkey_challenge_purge drop passkey challenges nobody answered in time
+ *   health_share_purge delete the encrypted summary behind every expired share link
  *   retention_purge  destroy records past their stated retention window
  *   webhook_delivery send queued organization webhooks, with backoff
  *   bulk_operations  resume interrupted bulk jobs and purge finished ones
@@ -36,6 +37,7 @@ import { transferRefused } from '@/lib/utils/payout-transfer'
 import { sendPayoutTransfer } from '@/lib/services/payout.service'
 import { purgeExpiredRateLimits } from '@/lib/services/rate-limit.service'
 import { purgeExpiredPasskeyChallenges } from '@/lib/services/passkey-challenge.service'
+import { purgeExpiredHealthShares } from '@/lib/services/health-share.service'
 import { runRetentionPurges } from '@/lib/services/retention.service'
 import { dispatchDueDeliveries } from '@/lib/services/webhook.service'
 import { runBulkJobs, purgeOldBulkJobs } from '@/lib/services/bulk-job.service'
@@ -49,6 +51,7 @@ export const JOB_NAMES = [
   'share_expiry',
   'rate_limit_purge',
   'passkey_challenge_purge',
+  'health_share_purge',
   'retention_purge',
   'webhook_delivery',
   'bulk_operations',
@@ -321,6 +324,15 @@ export async function runPasskeyChallengePurge(): Promise<JobResult> {
 }
 
 /**
+ * LD-305: delete the encrypted summary behind every share link past its
+ * expiry. The link already refuses them; this removes what it would have opened.
+ */
+export async function runHealthSharePurge(): Promise<JobResult> {
+  const processed = await purgeExpiredHealthShares()
+  return { job: 'health_share_purge', processed, failed: 0 }
+}
+
+/**
  * LD-607: destroy records past their stated retention window. Turns pool
  * retention_days and export windows from claims into enforced rules.
  */
@@ -376,6 +388,7 @@ const JOB_RUNNERS: Record<JobName, () => Promise<JobResult>> = {
   share_expiry: runShareExpiry,
   rate_limit_purge: runRateLimitPurge,
   passkey_challenge_purge: runPasskeyChallengePurge,
+  health_share_purge: runHealthSharePurge,
   retention_purge: runRetentionPurge,
   webhook_delivery: runWebhookDelivery,
   bulk_operations: runBulkOperations,

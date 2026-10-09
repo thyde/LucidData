@@ -74,6 +74,10 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/api/cron') &&
     // LD-608: the client API authenticates each request with a bearer token.
     !request.nextUrl.pathname.startsWith('/api/v1/') &&
+    // LD-305: a shared health summary opens without an account. The page and
+    // its ciphertext route are public; the key is in the link's fragment.
+    !request.nextUrl.pathname.startsWith('/share/') &&
+    !request.nextUrl.pathname.startsWith('/api/share/') &&
     request.nextUrl.pathname !== '/'
   ) {
     // Redirect to login if accessing protected route, preserve original path

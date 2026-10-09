@@ -60,6 +60,17 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers,
       },
+      {
+        // LD-305: a shared health summary. Its key is in the fragment, which
+        // never leaves the browser; these keep the page itself out of caches,
+        // search results, and other sites' logs.
+        source: "/share/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
     ];
   },
 };

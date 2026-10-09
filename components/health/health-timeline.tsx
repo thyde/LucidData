@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { PasskeyUnlockButton } from '@/components/auth/passkey-unlock-button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { MetricCard } from './metric-card'
+import { ShareSummaryDialog } from './share-summary-dialog'
+import { HealthShareList } from './health-share-list'
 import { formatDay } from './format'
 import type { DecryptedVaultData } from '@/types'
 
@@ -100,23 +102,26 @@ export function HealthTimeline() {
         <div>
           <h1 className="text-3xl font-bold">Health</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Daily figures from the health records in your vault, worked out on this device. None of
-            them are sent anywhere.
+            Daily figures from the health records in your vault, worked out on this device. Nothing
+            leaves it unless you share a summary, which is encrypted here first.
           </p>
         </div>
-        <div role="group" aria-label="Date range" className="flex flex-wrap gap-1">
-          {RANGES.map((option) => (
-            <Button
-              key={option.id}
-              type="button"
-              size="sm"
-              variant={rangeId === option.id ? 'default' : 'outline'}
-              aria-pressed={rangeId === option.id}
-              onClick={() => setRangeId(option.id)}
-            >
-              {option.label}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div role="group" aria-label="Date range" className="flex flex-wrap gap-1">
+            {RANGES.map((option) => (
+              <Button
+                key={option.id}
+                type="button"
+                size="sm"
+                variant={rangeId === option.id ? 'default' : 'outline'}
+                aria-pressed={rangeId === option.id}
+                onClick={() => setRangeId(option.id)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+          {recorded.length > 0 && <ShareSummaryDialog series={recorded} today={today} />}
         </div>
       </div>
 
@@ -172,6 +177,8 @@ export function HealthTimeline() {
           ))}
         </div>
       )}
+
+      <HealthShareList />
     </div>
   )
 }

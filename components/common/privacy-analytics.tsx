@@ -19,6 +19,9 @@ export const ANALYTICS_SCRIPT_SRC = '/_vercel/insights/script.js'
 export function PrivacyAnalytics() {
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_VERCEL_ENV !== 'production') return
+    // A shared summary's key sits in the page's own address. No script that
+    // is not needed to open it loads there.
+    if (window.location.pathname.startsWith('/share/')) return
     if (!window.va) {
       window.va = (name, value) => {
         ;(window.vaq ??= []).push([name, value])

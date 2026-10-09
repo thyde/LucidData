@@ -1228,6 +1228,24 @@ keeps each person's right to their own bulk export, which LD-210 already imports
 provider is live. The framework waits for a provider whose terms allow a vault to keep its data, and that
 check comes first for every candidate, with the clause recorded in the provider's module.
 
+Update, 2026-10-09, provider terms. Each candidate's own developer terms were read that day:
+
+| Provider | Terms read | Can a vault keep the data? | Gate |
+| --- | --- | --- | --- |
+| Withings | Developer Software Agreement dated 2018-09-12, still the one linked for the public API | Yes. No retention limit, and sharing needs the person's consent | None for the public API, which Withings describes as for individuals without a contract |
+| Polar | AccessLink API Limited License Agreement, updated 2025-08-22 | Yes. Storing data is expected, with a duty to tell the person, and sharing needs their explicit permission | Any Polar Flow user can register a client, free |
+| Garmin | Connect Developer Program Agreement and the Health API pages | No retention limit in the agreement | Garmin's own FAQ limits the program to business use, approval is required, and commercial use of the Health API needs a licence fee |
+| Google Health API | Google APIs terms (2021) and the API Services User Data Policy (2024) | Unclear. The general terms forbid permanent copies beyond the cache header, and no health-specific terms override that | Every Health API scope is restricted, which needs an annual security assessment by a third party, a paid cost |
+| Oura | API and MCP Agreement, effective 2026-06-08 | No. Keeping data beyond what is strictly necessary is prohibited unless Oura agrees in writing | A user cap before approval, reported but not found in the agreement |
+| Whoop | API Terms of Use, effective 2026-10-06 | No. Permanent copies are prohibited, and a person's consent cannot lift the ban on transfer | Approval at each tier, starting at ten members |
+| Dexcom | Public terms and the developer portal | Unclear. The agreements that govern production access are private | Partnership review for anything past five users |
+
+Withings and Polar are the providers to build first. Each needs the owner to register a developer
+application, which costs nothing, and the Withings agreement's date should be confirmed with Withings
+before launch. Garmin needs a business decision and possibly a fee. Google needs a written answer about
+its permanent-copies clause and a budget for the assessment. Oura and Whoop stay out unless they agree to
+a vault in writing.
+
 Scope. A provider module interface and registry. PKCE where the provider supports it. Cursors and a
 backfill range. Signed webhook ingestion. Per-source scheduling. A terms policy per provider that the
 consent and contribution paths enforce. Retirement as a first-class state.
@@ -1633,12 +1651,21 @@ Security.
 - Every share has an expiry, with a short default.
 
 Acceptance criteria.
-- [ ] A person shares chosen categories over a date range, and the recipient opens the share without an account.
-- [ ] The server cannot read a share, asserted by test.
-- [ ] An expired or revoked share no longer opens.
-- [ ] Every share and revocation produces a receipt and an audit entry.
+- [x] A person shares chosen categories over a date range, and the recipient opens the share without an account.
+- [x] The server cannot read a share, asserted by test.
+- [x] An expired or revoked share no longer opens.
+- [x] Every share and revocation produces a receipt and an audit entry.
 
 Tests. A fragment-key round trip. A server-side read attempt that fails. Expiry and revocation tests.
+
+Progress, 2026-10-09. Delivered.
+- Sharing starts on the health page. A person picks from the figures recorded in the chosen dates, a range of up to a year, and a link that works for 1, 7, or 30 days, 7 by default. A name and a note are optional and travel inside the encrypted summary. A label for their own list does not, and the dialog says it is not encrypted. The link is shown once, with a QR code, because no other copy of the key exists.
+- The browser builds the snapshot from the timeline it has already worked out and encrypts it under a fresh AES-GCM key with the vault's own helpers, in `packages/core/src/crypto/share-link.ts`, which has a known-answer vector made with Node's cipher. The key goes after the # in the link. The action's schema has no field for a key and refuses unknown fields. A component test decrypts what the action received with the key from the link, and checks that neither the key nor the note was sent. The e2e test checks every request, from both the owner's page and the recipient's, for the key, the note, and the name.
+- Each share stands on a consent naming `link:<share id>`. The access level is export, because a recipient can keep what they saw, so the receipt says a delivered copy cannot be recalled. The database refuses a share unless that consent is in force, names the share, and ends when the share does. A consent behind a share can only be revoked, and revoking it from the share list, the consents page, or directly clears the ciphertext. The independent review of the schema found that a consent revoked before its share was stored would leave a share that opened. The insert guard closes that gap, and the open function reads the consent as well.
+- The viewer at `/share/<id>` reads the key from the fragment and fetches the ciphertext from a public route. That route is rate limited per client, kept out of the service worker's cache, sent with no-store and noindex, and never followed by a Referer. The page loads no analytics script. A recipient can print the summary or save it as a PDF, and the printed copy lists every day's figures.
+- The owner's audit trail records the first view in any hour. The share list shows each link's figures, dates, expiry, and views, and revokes after asking. A person can hold ten open links and make twenty a day. An hourly job deletes the ciphertext of expired links.
+- The privacy policy and the consumer health data privacy policy now list summary links as a way health data is shared, so both moved to version 2026-10-09 and everyone is asked to accept the change.
+- Not done: a FHIR bundle. Mapping the figures to LOINC codes needs each code checked against LOINC itself, and that check has not been done, so the PDF is the export for now.
 
 ---
 
@@ -2982,7 +3009,7 @@ Status: started 2026-07-27. LD-203 is delivered. The record is in
 
 Re-sequenced on 2026-10-05. These come first, in this order:
 
-- LD-305 health summary sharing
+- LD-305 health summary sharing (delivered 2026-10-09)
 - LD-612 consumer subscription
 - LD-611 operator console and webhook management
 - LD-211 US health records
@@ -3018,6 +3045,7 @@ code, and are listed below. What was available was LD-203, which depends only on
 | Spec | Status | What landed | What did not |
 | --- | --- | --- | --- |
 | LD-203 provider export adapters | Delivered 2026-07-27 | `packages/core/src/vault/adapters/` holds one module per provider behind a shared `detect` and `parse`, and a registry that returns null when nothing matches, so an unrecognised file imports exactly as well as it did before. Apple Health is parsed by scanning rather than through `DOMParser`, which is a size decision: a year of Health data is routinely hundreds of megabytes and tens of millions of elements, and building a DOM of that ends the tab before any of it reaches the vault. Scanning also lets the record limit apply while reading, so a large file truncates instead of failing. Quantity samples are aggregated per calendar day, because one entry per sample would be tens of thousands of useless records. The bank adapter reconciles the column names, date orders, and debit-or-credit conventions that differ between every bank, and refuses to rewrite a genuinely ambiguous date rather than silently moving a transaction by a month. | No zip handling: the person unzips and picks the file, which the walkthroughs now say. The bank adapter claims no schema type, because `financial_summary` describes an account rather than a transaction and there is no transaction schema. Adding one is a deliberate decision rather than a side effect of an import adapter, since it would need a quasi-identifier classification before anything typed with it could be sold, and transaction data is about as re-identifying as data gets. |
+| LD-305 health summary sharing | Delivered 2026-10-09 | A link to chosen figures over chosen dates, encrypted in the browser under a key that travels only in the link's fragment. It opens without an account, expires after 1, 7, or 30 days, and can be revoked, which deletes the ciphertext. Each share is a consent with a signed receipt, and the database ties the two together so they cannot disagree. The full record is in the LD-305 spec. | A FHIR bundle, which waits for a checked LOINC mapping. |
 | LD-205 walkthroughs, last open criterion | Closed 2026-07-27 | The walkthroughs existed from Phase 2 with nothing behind them, which is what the criterion was really tracking. Each source now names the adapter that reads its output, and a test asserts the link. A walkthrough talks someone through a request that takes hours, and Google's takes days, so completing that and then failing to read the file is worse than never having offered. | Nothing in scope. |
 
 Blocked in Phase 4, and blocked on a decision rather than on work:

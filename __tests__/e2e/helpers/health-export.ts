@@ -84,7 +84,11 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * every other day, and a weigh-in each week. About 1,330 vault entries once read.
  */
 export function appleHealthYear(now = new Date()): { buffer: Buffer; days: number } {
-  const days = 365
+  return appleHealthDays(365, now)
+}
+
+/** The same export over any number of days up to yesterday, for a test that needs only a few. */
+export function appleHealthDays(days: number, now = new Date()): { buffer: Buffer; days: number } {
   const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
   const lines: string[] = []
   for (let back = days; back >= 1; back--) {

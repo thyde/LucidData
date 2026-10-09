@@ -77,6 +77,14 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
     note: 'Decryption happens in your browser. Plaintext never passes through the server.',
   },
   {
+    material: 'Share link key',
+    module: 'packages/core/src/crypto/share-link.ts',
+    derivedOrGenerated: 'Generated fresh in your browser for each health summary you share by link (AES-GCM 256)',
+    heldBy: 'user_browser',
+    protects: 'One health summary you share by link',
+    note: 'It travels only in the link, after the # sign, which browsers do not send to any server. LucidData stores the encrypted summary but cannot open it. Anyone holding the whole link can, until it expires or you revoke it, and revoking deletes the stored summary.',
+  },
+  {
     material: 'Contribution anonymization',
     module: 'packages/core/src/crypto/anonymize.ts',
     derivedOrGenerated: 'No key. Direct identifiers are stripped in your browser',
@@ -344,6 +352,13 @@ export const THREAT_MODEL: ThreatModelRow[] = [
     mitigation:
       'Grants are time-bound, purpose-bound, revocable, and produce a signed receipt both parties keep.',
     residual: REVOCATION_LIMIT,
+  },
+  {
+    threat: 'Someone else gets a link to a health summary you shared',
+    mitigation:
+      'Every link expires, after 7 days unless you choose 1 or 30, and you can revoke it at any time, which deletes the stored summary. The summary is encrypted with a key that only the link carries.',
+    residual:
+      'Anyone holding the whole link can open the summary until then, and whatever they saved or printed stays with them. The figures you chose, the dates, and the label you gave the link are stored unencrypted as the terms of the share.',
   },
   {
     threat: 'A fake organization contacts you',

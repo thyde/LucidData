@@ -28,7 +28,7 @@ const POINTS = [
   {
     icon: Handshake,
     title: 'Share only what is needed',
-    body: 'Send a credential through a link that shows only the fields you pick, with an expiry if you want one. Revoke the link at any time.',
+    body: 'Send your doctor or coach a summary of the health figures you pick, through a link that expires and that you can revoke. Your browser encrypts the summary, so we cannot read it. Credentials can be shared the same way, showing only the fields you choose.',
   },
   {
     icon: ScrollText,

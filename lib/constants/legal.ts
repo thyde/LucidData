@@ -36,14 +36,14 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
     id: 'privacy',
     title: 'Privacy Policy',
     path: '/legal/privacy',
-    version: '2026-10-08',
+    version: '2026-10-09',
     summary: 'What we collect, why, who we share it with, and the choices you have.',
   },
   'health-privacy': {
     id: 'health-privacy',
     title: 'Consumer Health Data Privacy Policy',
     path: '/legal/health-privacy',
-    version: '2026-10-08',
+    version: '2026-10-09',
     summary:
       'How we handle health and fitness data, written for the Washington, Nevada, and Connecticut consumer health data laws.',
   },
