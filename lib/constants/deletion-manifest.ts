@@ -174,6 +174,14 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
     reason: 'A registered authenticator is an identifier for the person.',
   },
   {
+    table: 'passkey_challenges',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: 'user_id',
+    strippedColumns: [],
+    reason: 'A pending passkey sign-in or registration names the account it is for.',
+  },
+  {
     table: 'mfa_backup_codes',
     personalData: true,
     behaviour: 'cascade',
