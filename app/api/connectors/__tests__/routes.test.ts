@@ -11,6 +11,19 @@ vi.mock('@/lib/services/legal.service', () => ({
   hasHealthDataConsent: (...args: unknown[]) => hasHealthDataConsent(...args),
 }))
 
+// Strava's connector is retired (see strava-retired.test.ts), but these routes
+// are tested against a live copy of its definition, the only one with a fetch.
+vi.mock('@luciddata/core/connectors/fitness', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@luciddata/core/connectors/fitness')>()
+  return {
+    ...actual,
+    FITNESS_CONNECTORS: {
+      ...actual.FITNESS_CONNECTORS,
+      strava: { ...actual.FITNESS_CONNECTORS.strava, retired: undefined },
+    },
+  }
+})
+
 const authorize = await import('@/app/api/connectors/[provider]/authorize/route')
 const callback = await import('@/app/api/connectors/[provider]/callback/route')
 

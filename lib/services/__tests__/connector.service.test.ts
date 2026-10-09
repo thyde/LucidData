@@ -26,6 +26,19 @@ const failingSelects = new Set<string>()
 const filters: { table: string; column: string; value: unknown }[] = []
 const createAuditEntry = vi.fn()
 
+// Strava's connector is retired: its API terms forbid keeping its data past
+// seven days. It is still the only provider with a fetch, so the framework is
+// tested against a copy of its definition that is live.
+vi.mock('@luciddata/core/connectors/fitness', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@luciddata/core/connectors/fitness')>()
+  return {
+    ...actual,
+    FITNESS_CONNECTORS: {
+      ...actual.FITNESS_CONNECTORS,
+      strava: { ...actual.FITNESS_CONNECTORS.strava, retired: undefined },
+    },
+  }
+})
 vi.mock('@/lib/services/audit.service', () => ({
   createAuditEntry: (...a: unknown[]) => createAuditEntry(...a),
 }))

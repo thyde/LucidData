@@ -94,7 +94,7 @@ export default function PrivacyPolicyPage() {
         </LegalSubsection>
         <LegalSubsection title="Connected services">
           <p>
-            If you connect a service such as Strava, we keep the access tokens it gives us,
+            If you connect a service, we keep the access tokens it gives us,
             encrypted with a key held on our servers, so we can fetch new records while you are
             away. Each record fetched that way is sealed to a key that only your browser can open
             before we store it, and you open it the next time you unlock your vault.
