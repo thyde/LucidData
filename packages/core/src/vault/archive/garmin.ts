@@ -62,6 +62,8 @@ function gmt(value: unknown): number | undefined {
 }
 
 const SPORTS: [RegExp, string][] = [
+  // Motor sports first, so a motorcycle trip is never counted as a ride.
+  [/motor|moto|atv|snowmobil|jet_?ski|boat/, 'Other'],
   [/run/, 'Run'],
   [/cycl|bik|ride/, 'Ride'],
   [/swim/, 'Swim'],
@@ -128,7 +130,8 @@ function dayRecords(day: Json): ImportedRecord[] {
   }
 
   const vitals: Record<string, unknown> = { date }
-  const resting = numberOf(day.restingHeartRate) ?? numberOf(day.currentDayRestingHeartRate)
+  // restingHeartRate is Garmin's seven-day rolling average; this is the day's own.
+  const resting = numberOf(day.currentDayRestingHeartRate)
   if (resting !== undefined && resting > 0) vitals.resting_heart_rate = Math.round(resting)
   const oxygen = numberOf(day.averageSpo2Value)
   if (oxygen !== undefined && oxygen > 0) vitals.blood_oxygen_pct = round(oxygen, 1)

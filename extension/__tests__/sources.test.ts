@@ -50,9 +50,12 @@ describe('matchExportSource', () => {
     ).toBeNull()
   })
 
-  it('recognizes a Strava archive by its host', () => {
-    const match = matchExportSource('https://www.strava.com/athlete/export/download', '/home/me/Downloads/export_123.zip')
-    expect(match?.id).toBe('strava')
+  it('takes no activity download from Strava or Garmin for an account export', () => {
+    // Both sites serve single activities as files the matcher would accept.
+    expect(
+      matchExportSource('https://connect.garmin.com/download-service/files/activity/123', '/downloads/123.zip')
+    ).toBeNull()
+    expect(matchExportSource('https://www.strava.com/activities/123/export_original', '/downloads/123.zip')).toBeNull()
   })
 
   it('falls back to the file name when the host says nothing', () => {

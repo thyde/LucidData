@@ -45,12 +45,12 @@ export const EXPORT_SOURCES = [
   {
     id: 'strava',
     label: 'Strava',
-    adapterId: 'strava',
+    adapterId: 'strava-archive',
     fileTypes: ['.zip'],
     requestUrl: 'https://www.strava.com/account',
-    // The archive comes from a link Strava emails, so a zip from Strava's own
-    // site is the only thing taken for it.
-    urlPatterns: ['strava.com'],
+    // Not watched for: the archive's download link is not documented, and an
+    // archive is usually larger than the extension hands over anyway.
+    urlPatterns: [],
     filenamePatterns: [],
     steps: [
       'On strava.com, open Settings, then My Account.',
@@ -65,7 +65,9 @@ export const EXPORT_SOURCES = [
     adapterId: 'garmin',
     fileTypes: ['.zip'],
     requestUrl: 'https://www.garmin.com/account/datamanagement/',
-    urlPatterns: ['garmin.com'],
+    // Not watched for: Garmin Connect serves single activities as zips from the
+    // same hosts, and the full export is larger than the extension hands over.
+    urlPatterns: [],
     filenamePatterns: [],
     steps: [
       'Sign in at garmin.com and open Data Management in your account.',
