@@ -12,6 +12,9 @@
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
+    /* The shadcn hover fades primary to 90%, which drops its text to 4.2:1.
+       A darker shade keeps a hovered button above 4.5:1, at 5.9:1. */
+    --primary-hover: 221.2 83.2% 48%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
@@ -43,6 +46,8 @@
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
+    /* Lighter here, because the text on primary is dark: 5.6:1. */
+    --primary-hover: 217.2 91.2% 64%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;

@@ -80,7 +80,7 @@ export default async function DashboardLayout({
               href="/org"
               aria-label="Organizations"
               title="Organizations"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Building2 className="h-5 w-5" />
             </Link>
@@ -88,13 +88,16 @@ export default async function DashboardLayout({
               href="/settings"
               aria-label="Settings"
               title="Settings"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Settings className="h-5 w-5" />
             </Link>
             <NotificationBell />
-            <span className="text-sm text-muted-foreground">{user.email}</span>
-            <SignOutButton className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" />
+            {/* The primary links need the width below 1536px. */}
+            <span className="hidden max-w-[16rem] truncate text-sm text-muted-foreground 2xl:inline" title={user.email}>
+              {user.email}
+            </span>
+            <SignOutButton className="whitespace-nowrap text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" />
           </div>
         </div>
       </header>
