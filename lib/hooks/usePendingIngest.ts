@@ -41,7 +41,7 @@ export interface DrainState {
 }
 
 export function usePendingIngest(): DrainState & { drain: () => Promise<void> } {
-  const { masterKey, isLocked, encrypt } = useEncryption()
+  const { masterKey, isLocked, encrypt, writesHeld } = useEncryption()
   const { requestHealthConsent } = useHealthConsent()
   const queryClient = useQueryClient()
   const [state, setState] = useState<DrainState>({
@@ -54,7 +54,9 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
   const running = useRef(false)
 
   const drain = useCallback(async () => {
-    if (running.current || !masterKey) return
+    // A password change is moving the vault to a new key. The drain runs again
+    // once the new key unlocks it.
+    if (running.current || !masterKey || writesHeld()) return
     running.current = true
 
     try {
@@ -136,7 +138,7 @@ export function usePendingIngest(): DrainState & { drain: () => Promise<void> } 
     } finally {
       running.current = false
     }
-  }, [masterKey, encrypt, queryClient, requestHealthConsent])
+  }, [masterKey, encrypt, writesHeld, queryClient, requestHealthConsent])
 
   useEffect(() => {
     if (isLocked) return
