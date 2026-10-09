@@ -408,7 +408,11 @@ test.describe('Client API v1', () => {
       },
     })
     expect(rewrapped.status()).toBe(200)
-    expect((await rewrapped.json()).data).toEqual({ rewrapped: entries.length, retired_kits: 0 })
+    expect((await rewrapped.json()).data).toEqual({
+      rewrapped: entries.length,
+      retired_kits: 0,
+      retired_passkeys: 0,
+    })
     const ingestKey = (await (await request.get('/api/v1/ingest/key', { headers: as(owner) })).json()).data
     expect(ingestKey.wrapped_private_key).toBe('bW92ZWQgdG8gdGhlIG5ldyBrZXk')
   })

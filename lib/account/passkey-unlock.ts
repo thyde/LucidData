@@ -104,8 +104,8 @@ function localCeremony(credentialIds: string[], salts: Record<string, string>): 
 /**
  * Open a signed-in vault with any passkey that can, as after a reload, which
  * clears the key from memory. Null when no passkey can, or the person cancels.
- * Material read beforehand lets the passkey prompt open with nothing awaited
- * first, which older Safari needs to treat the click as the prompt's cause.
+ * Material read beforehand lets the prompt open straight from the click,
+ * without waiting on a request first.
  */
 export async function unlockWithPasskey(preloaded?: PasskeyUnlockMaterial): Promise<CryptoKey | null> {
   const material = preloaded ?? (await unwrap(getPasskeyUnlockMaterialAction()))

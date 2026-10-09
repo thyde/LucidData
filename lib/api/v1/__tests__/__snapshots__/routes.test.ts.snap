@@ -3896,7 +3896,7 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
                 },
               },
             },
-            "description": "How many entries were re-wrapped, and how many recovery kits stopped working.",
+            "description": "How many entries were re-wrapped, how many recovery kits stopped working, and how many passkeys stopped opening the vault.",
           },
           "400": {
             "content": {
@@ -4035,7 +4035,7 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
                 },
               },
             },
-            "description": "How many entries were re-wrapped, and how many recovery kits stopped working.",
+            "description": "How many entries were re-wrapped, how many recovery kits stopped working, and how many passkeys stopped opening the vault.",
           },
           "400": {
             "content": {
