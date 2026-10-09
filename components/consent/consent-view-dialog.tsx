@@ -15,6 +15,7 @@ import { ConsentRevokeDialog } from './consent-revoke-dialog';
 import { ConsentExtendDialog } from './consent-extend-dialog';
 import { ConsentReceipts } from './consent-receipts';
 import { formatDate, formatDateTime } from '@/lib/utils/date-formatter';
+import { isLinkShareConsent } from '@luciddata/core/health/share';
 import { Shield, Calendar, User, AlertTriangle } from 'lucide-react';
 
 interface ConsentViewDialogProps {
@@ -51,6 +52,9 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
     ? 'expired'
     : 'active';
 
+  // A shared health summary keeps its terms; it is revoked, never extended.
+  const linkShare = isLinkShareConsent(consent);
+
   const isExpiringSoon =
     status === 'active' &&
     consent.end_date &&
@@ -65,7 +69,9 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
               <div>
                 <DialogTitle className="text-2xl">{consent.granted_to_name}</DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground mt-1">
-                  {consent.granted_to}
+                  {linkShare
+                    ? 'A link to a health summary you shared. Anyone who has it can open the summary until it expires or you revoke it.'
+                    : consent.granted_to}
                 </DialogDescription>
               </div>
               <Badge
@@ -193,13 +199,15 @@ export function ConsentViewDialog({ consentId, open, onOpenChange }: ConsentView
             {/* Actions */}
             {status === 'active' && (
               <div className="flex gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowExtend(true)}
-                >
-                  Extend Consent
-                </Button>
+                {!linkShare && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowExtend(true)}
+                  >
+                    Extend Consent
+                  </Button>
+                )}
                 <Button
                   variant="destructive"
                   className="flex-1"

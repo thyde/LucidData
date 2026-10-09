@@ -69,3 +69,10 @@ export async function revokeConsent(id: string, userId: string, reason: string):
     revoked_reason: reason,
   })
 }
+
+/** Remove a consent outright. Only for undoing one whose share could not be stored. */
+export async function deleteConsent(id: string, userId: string): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase.from('consents').delete().eq('id', id).eq('user_id', userId)
+  if (error) throw error
+}

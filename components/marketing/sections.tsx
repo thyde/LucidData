@@ -56,7 +56,7 @@ const FEATURES = [
   {
     icon: Handshake,
     title: 'Share only what is needed',
-    body: 'Share a credential, such as a diploma, through a link that shows only the fields you pick. Give the link an expiry, or revoke it whenever you like.',
+    body: 'Send your doctor or coach the health figures you pick, for the dates you pick, through a link that expires. A credential works the same way and shows only the fields you choose. You can revoke a link whenever you like.',
   },
   {
     icon: ScrollText,
@@ -170,7 +170,7 @@ const PIPELINE = [
   {
     icon: Handshake,
     title: 'Share what you choose',
-    body: "Send a credential link that shows only the fields you pick, or approve an organization's request for a stated purpose.",
+    body: "Send a doctor a link to the figures you pick, or a credential that shows only the fields you choose. An organization gets access only when you approve its request.",
   },
   {
     icon: ScrollText,

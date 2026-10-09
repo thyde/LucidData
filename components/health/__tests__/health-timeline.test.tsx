@@ -20,6 +20,12 @@ vi.mock('@/lib/actions/metrics.actions', () => ({
   recordTimelineVisitAction: vi.fn(() => Promise.resolve()),
 }))
 
+vi.mock('@/lib/actions/health-share.actions', () => ({
+  createHealthShareAction: vi.fn(),
+  listHealthSharesAction: vi.fn(() => Promise.resolve([])),
+  revokeHealthShareAction: vi.fn(),
+}))
+
 import { useVaultList } from '@/lib/hooks/useVault'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { recordTimelineVisitAction } from '@/lib/actions/metrics.actions'
@@ -142,6 +148,14 @@ describe('HealthTimeline', () => {
 
     expect(screen.getByRole('heading', { name: 'No health records yet' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Go to your vault' })).toHaveAttribute('href', '/vault')
+    expect(screen.queryByRole('button', { name: 'Share a summary' })).not.toBeInTheDocument()
+  })
+
+  it('offers to share a summary once there is something to share', () => {
+    showVault(ENTRIES)
+    render(<HealthTimeline />)
+
+    expect(screen.getByRole('button', { name: 'Share a summary' })).toBeInTheDocument()
   })
 
   it('shows placeholders while the vault loads', () => {

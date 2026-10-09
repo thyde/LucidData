@@ -11,7 +11,7 @@ An encrypted vault for your health and personal records, shared only on your ter
 
 ## Overview
 
-LucidData keeps a person's health history and personal records in one encrypted vault. People bring in an Apple Health export, add records by hand, and hold credentials that organizations issue to them. They can share a credential through a link that shows only the fields they pick, and they answer organizations' access requests under explicit, time-bound consent.
+LucidData keeps a person's health history and personal records in one encrypted vault. People bring in an Apple Health export, add records by hand, and hold credentials that organizations issue to them. They can share a credential through a link that shows only the fields they pick, send a clinician or coach a summary of chosen health figures through a link that expires, and answer organizations' access requests under explicit, time-bound consent.
 
 Encryption happens in the browser, so the server never sees the contents of an entry or the keys that protect it. Labels, dates, and a few other fields stay readable so the vault can list entries; the trust centre names every one.
 
@@ -60,6 +60,7 @@ Organizations:
 | Encrypted data vault | Client-side encryption with the Web Crypto API. Keys are derived from the user's password with PBKDF2, and data is sealed with AES-GCM in the browser. | Built |
 | Health imports | Apple Health, Strava, and Garmin exports imported in the browser as they download, zip and all, with health data stored only after separate, withdrawable consent. | Built |
 | Health timeline | Daily charts of steps, sleep, heart rate, workouts, weight, and more, worked out in the browser from the decrypted vault. Each value names its source, and a day several sources recorded is counted once. | Built |
+| Health summary sharing | A link to chosen figures over chosen dates, for someone without an account. The browser encrypts the summary and keeps the key in the link, after the #, so the server stores what it cannot read. Every link expires, can be revoked, and produces a signed consent receipt. | Built |
 | Consent-based access control | Granular, time-bound permissions that set who can access which data and for how long. | Built |
 | Consent requests | Organizations request access to a user's data, and the user approves or denies each request. | Built |
 | Immutable audit ledger | Hash-chained log of vault and consent events that can be checked for tampering. | Built |

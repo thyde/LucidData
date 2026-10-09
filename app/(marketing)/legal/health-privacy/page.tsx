@@ -29,8 +29,8 @@ const COLLECTED: { what: string; why: string }[] = [
     why: 'To fetch new records while you are away.',
   },
   {
-    what: 'Records of who you shared health data with, for what purpose, and until when.',
-    why: 'To enforce your choices and show you what you shared.',
+    what: 'Records of who you shared health data with, for what purpose, and until when. For a summary you share by link, the figures and dates it covers, the label you give it, and how many times it was opened. The summary itself is encrypted on your device, so we cannot read it.',
+    why: 'To enforce your choices, show you what you shared, and open a summary for whoever holds its link.',
   },
   {
     what: 'Your consent to this policy, and any withdrawal of it.',
@@ -106,6 +106,12 @@ export default function HealthPrivacyPolicyPage() {
           <li>
             With organizations you choose. Each grant is your consent to share the data it covers
             with that organization, for the purpose and time you set.
+          </li>
+          <li>
+            With anyone you send a summary link to. You choose the figures, the dates, and how long
+            the link works, up to 30 days. Your browser encrypts the summary with a key that stays in
+            the link, so we store it without being able to read it. Anyone holding the link can open
+            it until it expires or you revoke it, and can keep what they saw.
           </li>
           <li>
             With service providers that process it for us under contract. Supabase stores your

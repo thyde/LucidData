@@ -246,6 +246,23 @@ describe('ConsentViewDialog', () => {
       expect(screen.queryByRole('button', { name: /revoke consent/i })).not.toBeInTheDocument();
     });
 
+    it('offers only revocation for a shared health summary, which keeps its terms', () => {
+      vi.mocked(useConsentEntry).mockReturnValue(
+        createMockQuery({
+          ...mockConsent,
+          granted_to: 'link:3f2a0c4e-1b5d-4c6e-8f70-9a1b2c3d4e5f',
+          granted_to_name: 'Dr. Patel',
+        })
+      );
+
+      render(<ConsentViewDialog {...defaultProps} />);
+
+      expect(screen.getByText(/A link to a health summary you shared/)).toBeInTheDocument();
+      expect(screen.queryByText(/^link:/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /extend consent/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /revoke consent/i })).toBeInTheDocument();
+    });
+
     it('opens respective dialogs when action buttons clicked', async () => {
       const user = userEvent.setup();
       render(<ConsentViewDialog {...defaultProps} />);

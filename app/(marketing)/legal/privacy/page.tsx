@@ -104,7 +104,10 @@ export default function PrivacyPolicyPage() {
           <p>
             The organizations you grant access to, what each grant covers, its purpose, and how
             long it lasts. The requests organizations send you and your answers. Share links you
-            create for a credential, and how many times each was opened.
+            create for a credential, and how many times each was opened. For a health summary you
+            share by link, the figures and dates it covers, the label you give it, when it expires,
+            and how many times it was opened. The summary itself is encrypted in your browser with a
+            key that stays in the link, so we store it without being able to read it.
           </p>
         </LegalSubsection>
         <LegalSubsection title="Credentials">
@@ -227,7 +230,9 @@ export default function PrivacyPolicyPage() {
           <li>
             Organizations you choose. When you grant access, the organization can see what the
             grant covers, for the purpose and time you set. When you share a credential link,
-            anyone with the link can see the claims you chose to show. Revoking a grant stops
+            anyone with the link can see the claims you chose to show. When you share a health
+            summary by link, anyone with the link can see the figures you chose until it expires or
+            you revoke it, and can keep what they saw. Revoking a grant stops
             future access but cannot recall a copy the organization already exported.
           </li>
           <li>Buyers, only through the marketplace, as described above.</li>
@@ -257,6 +262,10 @@ export default function PrivacyPolicyPage() {
             answered or expire ({CREDENTIAL_REQUEST_RETENTION_DAYS} days for credential requests).
           </li>
           <li>Share links, {SHARE_RETENTION_DAYS} days after they expire or you revoke them.</li>
+          <li>
+            The encrypted summary behind a health summary link, as soon as you revoke the link, or
+            within an hour of it expiring. The terms of the share stay with your consent records.
+          </li>
           <li>Notifications, {NOTIFICATION_RETENTION_DAYS} days after we send them.</li>
           <li>
             Records in a dataset a buyer bought, {EXPORT_GRACE_DAYS}{' '}
