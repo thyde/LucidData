@@ -66,9 +66,12 @@ const DISPLAY_DATE = /^([A-Z][a-z]{2,3}) (\d{1,2}), (\d{4}),? (\d{1,2}):(\d{2}):
 const DAY_FIRST_DATE = /^(\d{1,2}) ([A-Z][a-z]{2,3}) (\d{4}),? (\d{1,2}):(\d{2}):(\d{2})(?: ?([AaPp][Mm]))?$/
 const PLAIN_DATE = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z?$/
 
+/** Abbreviations some English locales use in place of the three-letter ones. */
+const LONGER_MONTHS: Record<string, number> = { June: 5, July: 6, Sept: 8 }
+
 /** An English month abbreviation, including British English's `Sept`, as 0 to 11, or -1. */
 function monthIndex(name: string): number {
-  return name === 'Sept' ? 8 : MONTHS.indexOf(name)
+  return LONGER_MONTHS[name] ?? MONTHS.indexOf(name)
 }
 
 /** An hour on a 12-hour clock with its half of the day, on a 24-hour clock, or -1. */
