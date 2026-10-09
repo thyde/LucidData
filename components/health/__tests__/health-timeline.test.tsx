@@ -185,6 +185,11 @@ describe('pointsFor', () => {
     expect(pointsFor([day('2026-09-02', 5)], '2026-09-01', '2026-09-03').map((point) => point.value)).toEqual([null, 5, null])
   })
 
+  it('adds up a week of workouts rather than averaging the days that had one', () => {
+    const points = pointsFor([day('2026-01-05', 30), day('2026-01-07', 45)], '2025-01-01', '2026-01-14', true)
+    expect(points.find((point) => point.date === '2026-01-05')?.value).toBe(75)
+  })
+
   it('averages by the week, from Monday, once a range passes a year', () => {
     // 2026-01-05 is a Monday.
     const points = pointsFor([day('2026-01-05', 4), day('2026-01-11', 6), day('2026-01-12', 9)], '2025-01-01', '2026-01-14')

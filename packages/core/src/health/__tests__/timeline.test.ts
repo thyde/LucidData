@@ -89,6 +89,92 @@ describe('buildTimeline', () => {
     expect(sleep.days).toEqual([{ date: '2026-09-14', value: 7.4, source: 'garmin', sources: ['garmin', 'apple-health'] }])
   })
 
+  it("places a Strava start, which the database returns as +00:00, in the reader's time zone, and matches it", () => {
+    // 18:30 in Los Angeles on Sep 14 is 01:30 UTC on Sep 15.
+    const workouts = series(
+      [
+        { schemaType: 'fitness_activity', data: { start_date: '2026-09-15T01:30:00Z', duration_min: 40 }, provider: 'garmin' },
+        {
+          schemaType: 'fitness_activity',
+          data: { start_date: '2026-09-15', duration_min: 40 },
+          provider: 'strava',
+          capturedAt: '2026-09-15T01:30:00+00:00',
+        },
+      ],
+      'workout_minutes',
+      { timeZone: 'America/Los_Angeles' }
+    )
+    expect(workouts.days).toEqual([{ date: '2026-09-14', value: 40, source: 'garmin', sources: ['garmin'] }])
+
+    // On its own, Strava's run still lands on the reader's day.
+    const alone = series(
+      [{ schemaType: 'fitness_activity', data: { start_date: '2026-09-15', duration_min: 40 }, provider: 'strava', capturedAt: '2026-09-15T01:30:00+00:00' }],
+      'workout_minutes',
+      { timeZone: 'America/Los_Angeles' }
+    )
+    expect(alone.days.map((day) => day.date)).toEqual(['2026-09-14'])
+  })
+
+  it('matches one workout that two sources put on different calendar days', () => {
+    // Apple Health keeps the day where it happened; Garmin's UTC start is read in Tokyo.
+    const workouts = series(
+      [
+        { schemaType: 'fitness_activity', data: { start_date: '2026-09-14T18:30:00-07:00', duration_min: 40 }, provider: 'apple-health' },
+        { schemaType: 'fitness_activity', data: { start_date: '2026-09-15T01:31:00Z', duration_min: 41 }, provider: 'garmin' },
+      ],
+      'workout_minutes',
+      { timeZone: 'Asia/Tokyo' }
+    )
+    expect(workouts.days).toEqual([{ date: '2026-09-15', value: 41, source: 'garmin', sources: ['garmin'] }])
+  })
+
+  it('compares weekly workout totals, because a day without one had none', () => {
+    const run = (date: string, minutes: number): TimelineEntry => ({
+      schemaType: 'fitness_activity',
+      data: { start_date: `${date}T07:00:00Z`, duration_min: minutes },
+      provider: 'garmin',
+    })
+    // Steps recorded today show the data reaches today.
+    const today = daily('garmin', '2026-09-14', { steps: 4000 })
+    // Five half hours the week before, two hours in the last seven days.
+    const entries = [
+      ...['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05'].map((date) => run(date, 30)),
+      run('2026-09-10', 60),
+      run('2026-09-12', 60),
+      today,
+    ]
+    expect(series(entries, 'workout_minutes', { to: '2026-09-14', timeZone: 'UTC' }).trend).toEqual({
+      recent: 120,
+      previous: 150,
+      change: -0.2,
+    })
+    // One workout in each week is enough to compare.
+    expect(
+      series([run('2026-09-03', 30), run('2026-09-12', 45), today], 'workout_minutes', { to: '2026-09-14', timeZone: 'UTC' }).trend
+    ).toEqual({ recent: 45, previous: 30, change: 0.5 })
+  })
+
+  it('ends the workout weeks where an export ends, and gives no trend once it is old', () => {
+    const days = Array.from({ length: 21 }, (_, index) => addDays('2026-09-14', index))
+    // The same half hour every day, and steps every day, until the export on Oct 4.
+    const entries = days.flatMap((date): TimelineEntry[] => [
+      { schemaType: 'fitness_activity', data: { start_date: `${date}T07:00:00Z`, duration_min: 30 }, provider: 'apple-health' },
+      daily('apple-health', date, { steps: 8000 }),
+    ])
+    expect(days.at(-1)).toBe('2026-10-04')
+
+    // The day after the export: the weeks end on Oct 4, so nothing looks like a drop.
+    expect(series(entries, 'workout_minutes', { to: '2026-10-05', timeZone: 'UTC' }).trend).toEqual({
+      recent: 210,
+      previous: 210,
+      change: 0,
+    })
+    // Days later the days since the export would count as zero, so there is no trend.
+    expect(series(entries, 'workout_minutes', { to: '2026-10-09', timeZone: 'UTC' }).trend).toBeNull()
+    // A reading's average is unaffected by the days nothing was measured.
+    expect(series(entries, 'steps', { to: '2026-10-09', timeZone: 'UTC' }).trend).toMatchObject({ change: 0 })
+  })
+
   it('compares the last seven days with the seven before', () => {
     const entries = Array.from({ length: 14 }, (_, index) =>
       daily('garmin', addDays('2026-09-01', index), { steps: index < 7 ? 8000 : 9000 })

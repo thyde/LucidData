@@ -25,8 +25,10 @@ export function formatValue(metric: MetricDefinition, value: number): string {
 
 /** How the last seven days compare with the seven before, without judging the change. */
 export function describeTrend(metric: MetricDefinition, trend: Trend): string {
-  const average = `Average over the last 7 days: ${formatValue(metric, trend.recent)}`
+  const recent = metric.absentIsZero
+    ? `Last 7 days: ${formatValue(metric, trend.recent)} in total`
+    : `Average over the last 7 days: ${formatValue(metric, trend.recent)}`
   const percent = Math.round(Math.abs(trend.change) * 100)
-  if (percent === 0) return `${average}, about the same as the 7 days before.`
-  return `${average}, ${trend.change > 0 ? 'up' : 'down'} ${percent}% on the 7 days before.`
+  if (percent === 0) return `${recent}, about the same as the 7 days before.`
+  return `${recent}, ${trend.change > 0 ? 'up' : 'down'} ${percent}% on the 7 days before.`
 }

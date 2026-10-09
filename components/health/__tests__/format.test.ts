@@ -34,5 +34,9 @@ describe('describeTrend', () => {
     expect(describeTrend(metric('weight_kg'), { recent: 72.1, previous: 72.2, change: -0.0014 })).toBe(
       'Average over the last 7 days: 72.1 kg, about the same as the 7 days before.'
     )
+    // Workouts compare totals, since a day without one had none.
+    expect(describeTrend(metric('workout_minutes'), { recent: 120, previous: 150, change: -0.2 })).toBe(
+      'Last 7 days: 120 min in total, down 20% on the 7 days before.'
+    )
   })
 })
