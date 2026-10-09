@@ -85,7 +85,7 @@ When generating or editing user-facing copy, apply the **humanizer** rules ([.gi
 **For comprehensive stack overview, see [README.md](README.md). Critical versions and configuration notes below.**
 
 ### Core Framework
-- **Next.js 16.2.10** with App Router and **React 19.2.7** - Path alias: `@/*` maps to project root
+- **Next.js 16.3.8** with App Router and **React 19.2.7** - Path alias: `@/*` maps to project root
 - **Serwist 9.5.6** for PWA support. Development and production builds use Webpack explicitly because the stable Serwist integration is Webpack-based.
 - **TypeScript 5** with strict mode enabled
 - **Tailwind CSS 3.4.1** for styling

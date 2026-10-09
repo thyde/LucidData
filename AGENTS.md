@@ -24,7 +24,7 @@ Committed total: about $60 a month. With every cap reached: about $120. Recorded
 
 ## What this project is
 
-LucidData is a privacy-first personal data bank. Users own, control, and share their data on their terms. The app is built with Next.js 16.2.10 (App Router, React 19.2.7), Supabase (Postgres, Auth, Realtime), and client-side encryption using the Web Crypto API.
+LucidData is a privacy-first personal data bank. Users own, control, and share their data on their terms. The app is built with Next.js 16.3.8 (App Router, React 19.2.7), Supabase (Postgres, Auth, Realtime), and client-side encryption using the Web Crypto API.
 
 Core ideas:
 
@@ -52,6 +52,7 @@ Common scripts (see package.json for the full list):
 - `npm run test:e2e` - Playwright end-to-end tests.
 - `npm run test:all` - typecheck, lint, unit tests, then e2e.
 - `npm run security:audit` - audit production dependencies at high severity or above.
+- `npm run lockfile:check` - confirm every dependency resolves from registry.npmjs.org with a sha512 hash. CI runs it first. An npm configured to use a mirror writes the mirror's tarball URLs, and sometimes only SHA-1 hashes, into package-lock.json, so check after any install on such a machine.
 
 The dev and build scripts use Webpack explicitly because the stable Serwist 9 PWA integration is Webpack-based. Keep the `--webpack` flags until Serwist supports the default Next.js bundler in a stable release.
 

@@ -39,13 +39,17 @@ async function goToVault(page: Page): Promise<void> {
 }
 
 /**
- * Settings, opened as a fresh page load. The vault page sends several server
- * actions as it opens, and Next.js can apply their results to whichever page
- * is showing when they finish, so a soft navigation away from it straight
- * after landing can be pulled back. None of these steps needs the key in memory.
+ * Settings, by a soft navigation, as a person moves around. On Next.js 16.2
+ * this journey went back to the vault about half the time: an action the
+ * vault page was still running finished after the move and took the router
+ * back with it (vercel/next.js#88343, fixed in 16.3.0). It stays a soft
+ * navigation so the journey keeps checking that.
  */
 async function openSettings(page: Page): Promise<void> {
-  await page.goto('/settings')
+  await Promise.all([
+    page.waitForURL('/settings', { timeout: 20000, waitUntil: 'commit' }),
+    page.getByRole('link', { name: 'Settings' }).click(),
+  ])
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
 }
 

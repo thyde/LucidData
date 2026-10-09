@@ -17,7 +17,7 @@ Encryption happens in the browser, so the server never sees the contents of an e
 
 ## Technology
 
-- Next.js 16.2.10 with the App Router and React 19.2.7.
+- Next.js 16.3.8 with the App Router and React 19.2.7.
 - Supabase for Postgres, Auth, Realtime, and Row Level Security.
 - Serwist 9.5.6 for the installable PWA and offline cache.
 - TypeScript 5, Tailwind CSS, shadcn/ui, TanStack Query, Vitest, and Playwright.

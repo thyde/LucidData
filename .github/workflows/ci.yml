@@ -30,6 +30,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Before anything is downloaded: every tarball must come from
+      # registry.npmjs.org with a sha512 hash, not from a mirror a developer's
+      # npm happened to use.
+      - name: Check the lockfile's sources
+        run: node scripts/check-lockfile.mjs
+
       - name: Install dependencies
         run: npm ci
 
