@@ -8,12 +8,14 @@ const recordRegistrationChoices = vi.fn()
 vi.mock('@/lib/actions/account.actions', () => ({
   claimKeySaltAction: (...args: unknown[]) => claimKeySaltAction(...args),
   setRecoveryEscrowAction: (...args: unknown[]) => setRecoveryEscrowAction(...args),
-  rewrapVaultEntriesAction: vi.fn(),
+  getVaultKeyEnvelopesAction: vi.fn(),
+  beginVaultRewrapAction: vi.fn(),
+  stageVaultRewrapAction: vi.fn(),
+  applyVaultRewrapAction: vi.fn(),
 }))
 vi.mock('@/lib/actions/recovery.actions', () => ({
   addRecoveryFactorAction: (...args: unknown[]) => addRecoveryFactorAction(...args),
 }))
-vi.mock('@/lib/actions/vault.actions', () => ({ getVaultEntriesAction: vi.fn() }))
 vi.mock('@/lib/actions/legal.actions', () => ({
   recordRegistrationChoicesAction: (...args: unknown[]) => recordRegistrationChoices(...args),
 }))

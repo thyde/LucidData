@@ -39,6 +39,22 @@ export async function countVaultByCategory(userId: string): Promise<Map<string, 
   return counts
 }
 
+/** Every entry's wrapped data key, which is all a re-wrap reads. Never the ciphertext. */
+export async function findVaultKeyEnvelopes(
+  userId: string
+): Promise<{ id: string; encrypted_dek: string; dek_salt: string }[]> {
+  const supabase = await createClient()
+  const rows = await readAllPages<{ id: string; encrypted_dek: string; dek_salt: string; created_at: string }>(
+    (after, limit) => {
+      let query = supabase.from('vault_data').select('id, encrypted_dek, dek_salt, created_at').eq('user_id', userId)
+      if (after) query = query.gte('created_at', after.at).or(afterKey('created_at', after))
+      return query.order('created_at', { ascending: true }).order('id', { ascending: true }).limit(limit)
+    },
+    (row) => ({ at: row.created_at, id: row.id })
+  )
+  return rows.map(({ id, encrypted_dek, dek_salt }) => ({ id, encrypted_dek, dek_salt }))
+}
+
 export async function findVaultById(id: string, userId: string): Promise<VaultData | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
