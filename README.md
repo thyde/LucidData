@@ -58,7 +58,7 @@ Organizations:
 | Feature | Description | Status |
 |---------|-------------|--------|
 | Encrypted data vault | Client-side encryption with the Web Crypto API. Keys are derived from the user's password with PBKDF2, and data is sealed with AES-GCM in the browser. | Built |
-| Health imports | Apple Health export import in the browser, with health data stored only after separate, withdrawable consent. | Built |
+| Health imports | Apple Health, Strava, and Garmin exports imported in the browser as they download, zip and all, with health data stored only after separate, withdrawable consent. | Built |
 | Consent-based access control | Granular, time-bound permissions that set who can access which data and for how long. | Built |
 | Consent requests | Organizations request access to a user's data, and the user approves or denies each request. | Built |
 | Immutable audit ledger | Hash-chained log of vault and consent events that can be checked for tampering. | Built |
