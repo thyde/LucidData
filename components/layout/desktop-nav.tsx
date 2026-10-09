@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 
 const links = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/health', label: 'Health' },
   { href: '/vault', label: 'Vault' },
   { href: '/marketplace', label: 'Marketplace' },
   { href: '/credentials', label: 'Credentials' },
@@ -19,7 +20,7 @@ export function DesktopNav() {
   const pathname = usePathname()
 
   return (
-    <nav aria-label="Primary" className="hidden space-x-6 md:flex">
+    <nav aria-label="Primary" className="hidden gap-6 xl:flex">
       {links.map((link) => {
         const active = pathname === link.href
 
@@ -29,7 +30,7 @@ export function DesktopNav() {
             href={link.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'text-sm font-medium transition-colors hover:text-foreground',
+              'whitespace-nowrap text-sm font-medium transition-colors hover:text-foreground',
               active ? 'text-foreground' : 'text-muted-foreground'
             )}
           >

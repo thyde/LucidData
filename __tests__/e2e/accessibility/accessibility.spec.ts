@@ -128,6 +128,7 @@ test.describe('Accessibility, authenticated surfaces', () => {
 
   const privateRoutes = [
     '/dashboard',
+    '/health',
     '/vault',
     '/consent',
     '/audit',
@@ -149,7 +150,7 @@ test.describe('Accessibility, authenticated surfaces', () => {
   test('each page has exactly one level-one heading and a named main landmark', async ({
     page,
   }) => {
-    for (const route of ['/dashboard', '/vault', '/consent', '/audit']) {
+    for (const route of ['/dashboard', '/health', '/vault', '/consent', '/audit']) {
       await page.goto(route, { waitUntil: 'domcontentloaded' })
       await expect(page.locator('main#main')).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)

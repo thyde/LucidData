@@ -14,6 +14,7 @@ import { OffersList } from '@/components/dashboard/offers-list'
 import { LearnCenter } from '@/components/dashboard/learn-center'
 import { TrackerInsight } from '@/components/dashboard/tracker-insight'
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard'
+import { HealthSummaryCard } from '@/components/health/health-summary-card'
 import { formatCents } from '@/components/dashboard/chart-theme'
 
 export default async function DashboardPage() {
@@ -60,6 +61,10 @@ export default async function DashboardPage() {
         <h1 className="text-3xl font-bold">Welcome back</h1>
         <p className="mt-1 text-muted-foreground">Your personal data bank at a glance</p>
       </div>
+
+      {/* LD-214: worked out in the browser from decrypted entries, so it is a
+          client component the server only ever renders locked. */}
+      <HealthSummaryCard />
 
       {/* LD-206: the one panel that is useful on day one with an empty vault,
           because it reports something that already happened to the person.

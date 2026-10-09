@@ -174,6 +174,25 @@ describe('trust disclosures', () => {
     expect(copy).not.toContain('\u2014')
   })
 
+  it('discloses every daily counter the database can keep', () => {
+    // The CHECK constraint is the list of counters; one without a row on /trust
+    // would be counting something the trust centre does not mention.
+    const named: Record<string, string> = { timeline_visit: 'Health timeline visits' }
+    const migrations = readdirSync(join(process.cwd(), 'supabase/migrations'))
+      .sort()
+      .map((file) => readFileSync(join(process.cwd(), 'supabase/migrations', file), 'utf8'))
+      .join('\n')
+    const lists = [...migrations.matchAll(/CHECK\s*\(\s*counter\s+IN\s*\(([^)]*)\)/gi)]
+    expect(lists.length).toBeGreaterThan(0)
+    // A later migration that widens the list replaces the constraint; the last one counts.
+    const counters = [...lists.at(-1)![1].matchAll(/'([a-z_]+)'/g)].map((match) => match[1])
+    expect(counters.length).toBeGreaterThan(0)
+    for (const counter of counters) {
+      expect(named[counter], `${counter} has no name here`).toBeDefined()
+      expect(PRODUCT_MEASUREMENT.some((row) => row.measure === named[counter])).toBe(true)
+    }
+  })
+
   it('discloses every place a sign-up source can come from', () => {
     // Adding a source to the allowlist without saying so on /trust would mean
     // recording something the trust centre does not mention.

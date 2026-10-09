@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ShieldCheck, Vault, Handshake, Sparkles } from 'lucide-react'
+import { ShieldCheck, HeartPulse, Handshake, Sparkles } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { completeOnboardingAction } from '@/lib/actions/account.actions'
@@ -32,6 +32,52 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
     completeOnboardingAction().catch(() => {})
   }, [])
 
+  // LD-214: bringing in records comes first, because the timeline is empty
+  // until something is in the vault. A first write needs a recovery code, so
+  // without one that step comes before it.
+  const importStep: Step = {
+    icon: <HeartPulse className="h-6 w-6 text-primary" />,
+    title: 'Bring in your health history',
+    body: (
+      <p>
+        Import an export from Apple Health, Strava, or Garmin on your{' '}
+        <Link href="/vault" className="text-primary underline">
+          vault page
+        </Link>
+        , or add a record by hand. Each record is encrypted on this device before it is stored, and
+        your{' '}
+        <Link href="/health" className="text-primary underline">
+          health timeline
+        </Link>{' '}
+        charts it.
+      </p>
+    ),
+  }
+
+  const recoveryStep: Step = {
+    icon: <ShieldCheck className="h-6 w-6 text-primary" />,
+    title: 'Keep your recovery code safe',
+    body: recoveryConfigured ? (
+      <p>
+        You got a recovery code when you signed up. It is the only way to restore your vault if you
+        forget your password, so store it somewhere safe. You can regenerate it anytime in{' '}
+        <Link href="/settings" className="text-primary underline">
+          Settings
+        </Link>
+        .
+      </p>
+    ) : (
+      <p>
+        You do not have a recovery code yet. Without one, resetting your password leaves your
+        encrypted data unreadable, so the vault asks you to set one up before your first record. Set one up in{' '}
+        <Link href="/settings" className="text-primary underline">
+          Settings
+        </Link>
+        .
+      </p>
+    ),
+  }
+
   const steps: Step[] = [
     {
       icon: <Sparkles className="h-6 w-6 text-primary" />,
@@ -43,42 +89,7 @@ export function OnboardingWizard({ recoveryConfigured }: OnboardingWizardProps) 
         </p>
       ),
     },
-    {
-      icon: <ShieldCheck className="h-6 w-6 text-primary" />,
-      title: 'Keep your recovery code safe',
-      body: recoveryConfigured ? (
-        <p>
-          You got a recovery code when you signed up. It is the only way to restore your vault if you
-          forget your password, so store it somewhere safe. You can regenerate it anytime in{' '}
-          <Link href="/settings" className="text-primary underline">
-            Settings
-          </Link>
-          .
-        </p>
-      ) : (
-        <p>
-          You do not have a recovery code yet. Without one, resetting your password leaves your
-          encrypted data unreadable. Set one up in{' '}
-          <Link href="/settings" className="text-primary underline">
-            Settings
-          </Link>
-          .
-        </p>
-      ),
-    },
-    {
-      icon: <Vault className="h-6 w-6 text-primary" />,
-      title: 'Add your first records',
-      body: (
-        <p>
-          Import an Apple Health export or add a record in your{' '}
-          <Link href="/vault" className="text-primary underline">
-            vault
-          </Link>
-          . It is encrypted before it leaves your device.
-        </p>
-      ),
-    },
+    ...(recoveryConfigured ? [importStep, recoveryStep] : [recoveryStep, importStep]),
     {
       icon: <Handshake className="h-6 w-6 text-primary" />,
       title: 'Share on your terms',

@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/health', label: 'Health' },
   { href: '/vault', label: 'Vault' },
   { href: '/marketplace', label: 'Marketplace' },
   { href: '/credentials', label: 'Credentials' },
@@ -41,7 +42,7 @@ export function MobileNav() {
   }, [open]);
 
   return (
-    <div className="md:hidden">
+    <div className="xl:hidden">
       <Button
         variant="ghost"
         size="icon"
