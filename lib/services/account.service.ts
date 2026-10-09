@@ -206,8 +206,9 @@ async function afterRewrap(
   await notifySecurityEvent(userId, reason === 'password_change' ? 'password_changed' : 'vault_recovered')
 
   try {
-    const { kits } = await retireRecoveryFactors(userId)
+    const { kits, passkeys } = await retireRecoveryFactors(userId)
     if (kits > 0) await notifySecurityEvent(userId, 'recovery_kits_retired')
+    if (passkeys > 0) await notifySecurityEvent(userId, 'passkey_unlocks_retired')
     return { retiredKits: kits }
   } catch (retireError) {
     errorLogger.log(retireError, ErrorSeverity.HIGH, { userId, action: 'RECOVERY_RETIRE_FAILED' })
@@ -261,6 +262,14 @@ export async function claimKeySalt(userId: string, proposed: string): Promise<st
 
 export async function removePasskey(userId: string, passkeyId: string): Promise<void> {
   const service = createServiceClient()
+  // LD-112: whether it could open the vault. Its factor goes with it, by cascade.
+  const { count: unlocks, error: factorError } = await service
+    .from('recovery_factors')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('passkey_id', passkeyId)
+  if (factorError) throw factorError
+
   const { data, error } = await service
     .from('passkeys')
     .delete()
@@ -271,12 +280,16 @@ export async function removePasskey(userId: string, passkeyId: string): Promise<
   if (error) throw error
   if (!data) throw new UserFacingError('Passkey not found')
 
+  const openedVault = (unlocks ?? 0) > 0
   await createAuditEntry({
     userId,
     eventType: 'passkey_removed',
-    action: 'Removed a registered passkey',
-    metadata: { passkey_id: passkeyId },
+    action: openedVault
+      ? 'Removed a registered passkey, which also stopped it opening the vault'
+      : 'Removed a registered passkey',
+    metadata: { passkey_id: passkeyId, opened_vault: openedVault },
   })
+  if (openedVault) await notifySecurityEvent(userId, 'passkey_unlock_removed')
 }
 
 // Toggle the optional email copy of in-app notifications. In-app notifications are

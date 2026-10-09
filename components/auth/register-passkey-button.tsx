@@ -24,7 +24,11 @@ export function RegisterPasskeyButton({ onRegistered }: RegisterPasskeyButtonPro
       const optRes = await fetch('/api/auth/passkey/register-options', { method: 'POST' })
       const { options } = await optRes.json()
 
-      const credential = await startRegistration({ optionsJSON: options })
+      // LD-112: ask for the PRF extension now. Some authenticators only give a
+      // passkey one when it is created, and it is what lets it open the vault.
+      const credential = await startRegistration({
+        optionsJSON: { ...options, extensions: { ...options.extensions, prf: {} } },
+      })
 
       const verifyRes = await fetch('/api/auth/passkey/register-verify', {
         method: 'POST',

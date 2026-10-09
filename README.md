@@ -64,7 +64,7 @@ Organizations:
 | Consent requests | Organizations request access to a user's data, and the user approves or denies each request. | Built |
 | Immutable audit ledger | Hash-chained log of vault and consent events that can be checked for tampering. | Built |
 | Verifiable credentials | Organizations issue Ed25519-signed credentials. Users hold them in an inbox, verify them, and share them. | Built |
-| Passkey sign-in | WebAuthn passkeys alongside password sign-in. | Built |
+| Passkey sign-in | WebAuthn passkeys alongside password sign-in. A passkey that supports the PRF extension can also open the vault, at sign-in and after a reload, without the password. | Built |
 | Installable PWA | Progressive web app with realtime updates over Supabase. | Built |
 | Two-factor authentication | TOTP authenticator-app second factor, enforced at sign-in, with one-time backup codes for recovery. | Built |
 | Data marketplace | Individuals can contribute de-identified credential data to buyer-defined pools for a small payment. Health, financial, location, and browsing data are never for sale. | Built |

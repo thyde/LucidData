@@ -5,6 +5,7 @@ import { useEncryption } from '@/lib/context/encryption-context';
 import { VaultList } from '@/components/vault/vault-list';
 import { RecoverySetupGate } from '@/components/vault/recovery-setup-gate';
 import { Button } from '@/components/ui/button';
+import { PasskeyUnlockButton } from '@/components/auth/passkey-unlock-button';
 
 export default function VaultPage() {
   const { isLocked } = useEncryption();
@@ -19,8 +20,9 @@ export default function VaultPage() {
           Sign in again to derive your encryption key and unlock your vault entries.
         </p>
         <Button asChild>
-          <Link href="/login">Sign in</Link>
+          <Link href="/login?redirectedFrom=%2Fvault">Sign in</Link>
         </Button>
+        <PasskeyUnlockButton />
       </div>
     );
   }

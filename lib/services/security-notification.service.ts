@@ -23,6 +23,9 @@ export type SecurityNotificationEvent =
   | 'recovery_kit_added'
   | 'recovery_factor_removed'
   | 'recovery_kits_retired'
+  | 'passkey_unlock_added'
+  | 'passkey_unlock_removed'
+  | 'passkey_unlocks_retired'
 
 interface SecurityCopy {
   title: string
@@ -78,6 +81,21 @@ const SECURITY_COPY: Record<SecurityNotificationEvent, SecurityCopy> = {
     title: 'Recovery kits no longer work',
     message:
       'Your vault key changed, so the recovery kits you made before stopped working. Make a new kit in Settings.',
+  },
+  passkey_unlock_added: {
+    title: 'A passkey can open your vault',
+    message:
+      'A passkey can now open your vault without your password. If this was not you, remove the passkey in Settings and change your password.',
+  },
+  passkey_unlock_removed: {
+    title: 'A passkey no longer opens your vault',
+    message:
+      'A passkey was turned off for opening your vault. If this was not you, change your password in Settings.',
+  },
+  passkey_unlocks_retired: {
+    title: 'Passkeys no longer open your vault',
+    message:
+      'Your vault key changed, so your passkeys no longer open your vault. Turn this back on for each passkey in Settings.',
   },
 }
 

@@ -25,6 +25,9 @@ const db = {
   deleted: { id: 'factor-1', type: 'recovery_kit' } as Record<string, unknown> | null,
   retired: [] as Record<string, unknown>[],
   confirmed: { id: 'factor-1' } as Record<string, unknown> | null,
+  /** LD-112: the passkey a copy is for, as the owner's lookup finds it. */
+  passkey: { id: 'pk-1', device_name: 'Laptop' } as Record<string, unknown> | null,
+  passkeyFactors: 0,
 }
 const calls: Call[] = []
 
@@ -36,7 +39,9 @@ function respond(call: Call, mode: 'many' | 'single' | 'maybeSingle') {
     case 'users:update':
       return { error: null }
     case 'recovery_factors:count':
-      return { count: db.codeFactors, error: null }
+      return { count: call.filters.type === 'passkey_prf' ? db.passkeyFactors : db.codeFactors, error: null }
+    case 'passkeys:select':
+      return { data: db.passkey, error: null }
     case 'recovery_factors:select':
       return { data: db.factorRows, error: null }
     case 'recovery_factors:insert':
@@ -47,6 +52,7 @@ function respond(call: Call, mode: 'many' | 'single' | 'maybeSingle') {
           label: call.payload?.label,
           created_at: '2026-10-08T00:00:00.000Z',
           last_confirmed_at: '2026-10-08T00:00:00.000Z',
+          passkey_id: call.payload?.passkey_id ?? null,
         },
         error: null,
       }
@@ -89,6 +95,10 @@ function fakeClient(client: Call['client']) {
         },
         eq(column: string, value: unknown) {
           call.filters[column] = value
+          return chain
+        },
+        in(column: string, values: unknown[]) {
+          call.filters[column] = values
           return chain
         },
         order(column: string, options: { ascending: boolean }) {
@@ -135,6 +145,9 @@ const {
   retireRecoveryFactors,
   getRecoveryMaterial,
   declineRecoverySetup,
+  addPasskeyUnlock,
+  getPasskeyUnlockMaterial,
+  hasPasskeyUnlock,
   CONFIRMATION_INTERVAL_DAYS,
 } = await import('@/lib/services/recovery-factor.service')
 
@@ -172,6 +185,8 @@ beforeEach(() => {
     deleted: { id: 'factor-1', type: 'recovery_kit' },
     retired: [],
     confirmed: { id: 'factor-1' },
+    passkey: { id: 'pk-1', device_name: 'Laptop' },
+    passkeyFactors: 0,
   })
   findUserById.mockReset().mockResolvedValue(user())
   updateUser.mockReset().mockResolvedValue(undefined)
@@ -218,6 +233,18 @@ describe('getRecoveryStatus', () => {
     const status = await getRecoveryStatus('user-1')
     expect(status.factors).toEqual([])
     expect(status.confirmationDue).toBe(false)
+  })
+
+  it('leaves out a passkey that opens the vault, because it cannot reset a password', async () => {
+    db.factorRows = [factorRow({ id: 'pk-factor', type: 'passkey_prf', label: 'Laptop', passkey_id: 'pk-1' })]
+
+    const status = await getRecoveryStatus('user-1')
+
+    expect(status.factors).toEqual([])
+    expect(status.vaultWriteAllowed).toBe(false)
+    await expect(assertRecoveryReadyForFirstWrite('user-1')).rejects.toMatchObject({
+      code: 'recovery_required',
+    })
   })
 })
 
@@ -378,6 +405,22 @@ describe('removeRecoveryFactor', () => {
     expect(escrow.payload).toMatchObject({ wrapped_master_key: null, recovery_code_salt: null })
   })
 
+  it('says a passkey stopped opening the vault, and leaves the escrow alone', async () => {
+    db.deleted = { id: 'factor-1', type: 'passkey_prf' }
+
+    await removeRecoveryFactor('user-1', 'factor-1', 'grant')
+
+    expect(writes().some((call) => call.table === 'users')).toBe(false)
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'recovery_factor_removed',
+        action: 'Turned off opening the vault with a passkey',
+        metadata: { factor_id: 'factor-1', type: 'passkey_prf' },
+      })
+    )
+    expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'passkey_unlock_removed')
+  })
+
   it('reports a factor that is not there, without recording anything', async () => {
     db.deleted = null
 
@@ -428,7 +471,7 @@ describe('retireRecoveryFactors', () => {
       { id: 'kit-2', type: 'recovery_kit' },
     ]
 
-    expect(await retireRecoveryFactors('user-1')).toEqual({ kits: 2 })
+    expect(await retireRecoveryFactors('user-1')).toEqual({ kits: 2, passkeys: 0 })
 
     const removed = writes().find((call) => call.op === 'delete')!
     expect(removed).toMatchObject({ client: 'service', filters: { user_id: 'user-1' } })
@@ -443,8 +486,17 @@ describe('retireRecoveryFactors', () => {
     )
   })
 
+  it('retires passkey copies too, since they wrap the old key, and counts them', async () => {
+    db.retired = [
+      { id: 'code-1', type: 'recovery_code' },
+      { id: 'pk-factor-1', type: 'passkey_prf' },
+    ]
+
+    expect(await retireRecoveryFactors('user-1')).toEqual({ kits: 0, passkeys: 1 })
+  })
+
   it('records nothing when there was nothing to retire', async () => {
-    expect(await retireRecoveryFactors('user-1')).toEqual({ kits: 0 })
+    expect(await retireRecoveryFactors('user-1')).toEqual({ kits: 0, passkeys: 0 })
     expect(createAuditEntry).not.toHaveBeenCalled()
   })
 })
@@ -472,12 +524,109 @@ describe('getRecoveryMaterial', () => {
     }
     const probe = calls.find((call) => call.table === 'vault_data')!
     expect(probe.order).toEqual({ column: 'created_at', ascending: true })
+    // A passkey copy cannot restore anything, so it is not offered as recovery.
+    const factors = calls.find((call) => call.table === 'recovery_factors')!
+    expect(factors.filters.type).toEqual(['recovery_code', 'recovery_kit'])
   })
 
   it('reports no escrow when only half of it is stored', async () => {
     findUserById.mockResolvedValue(user({ wrapped_master_key: 'ZXNjcm93' }))
 
     expect((await getRecoveryMaterial('user-1')).escrow).toBeNull()
+  })
+})
+
+describe('addPasskeyUnlock', () => {
+  const copy = { passkeyId: 'pk-1', wrappedMasterKey: 'd3JhcHBlZA==', salt: 'cHJmLXNhbHQ=', stepUpToken: 'grant' }
+
+  it('needs a grant for add_recovery_factor, and changes nothing without one', async () => {
+    await expect(addPasskeyUnlock('user-1', { ...copy, stepUpToken: '' })).rejects.toMatchObject({
+      code: 'step_up_required',
+    })
+    consumeStepUp.mockRejectedValueOnce(new Error('Confirm your password to continue'))
+    await expect(addPasskeyUnlock('user-1', copy)).rejects.toThrow('Confirm your password to continue')
+
+    expect(consumeStepUp).toHaveBeenCalledWith('user-1', 'add_recovery_factor', 'grant')
+    expect(writes()).toEqual([])
+    expect(createAuditEntry).not.toHaveBeenCalled()
+  })
+
+  it('refuses a passkey that is not the person\'s own', async () => {
+    db.passkey = null
+
+    await expect(addPasskeyUnlock('user-1', copy)).rejects.toMatchObject({ code: 'not_found' })
+
+    const lookup = calls.find((call) => call.table === 'passkeys')!
+    expect(lookup.filters).toEqual({ id: 'pk-1', user_id: 'user-1' })
+    expect(writes()).toEqual([])
+    expect(notifySecurityEvent).not.toHaveBeenCalled()
+  })
+
+  it('replaces any earlier copy with wrapped bytes bound to the passkey, and tells the person', async () => {
+    const summary = await addPasskeyUnlock('user-1', copy)
+
+    const [removed, added] = writes()
+    expect(removed).toMatchObject({
+      client: 'service',
+      table: 'recovery_factors',
+      op: 'delete',
+      filters: { user_id: 'user-1', passkey_id: 'pk-1' },
+    })
+    expect(added).toMatchObject({ client: 'service', table: 'recovery_factors', op: 'insert' })
+    expect(added.payload).toMatchObject({
+      user_id: 'user-1',
+      type: 'passkey_prf',
+      label: 'Laptop',
+      wrapped_master_key: 'd3JhcHBlZA==',
+      salt: 'cHJmLXNhbHQ=',
+      passkey_id: 'pk-1',
+    })
+    expect(summary).toMatchObject({ type: 'passkey_prf', passkeyId: 'pk-1' })
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'recovery_factor_added',
+        metadata: { factor_id: 'factor-new', type: 'passkey_prf', passkey_id: 'pk-1' },
+      })
+    )
+    expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'passkey_unlock_added')
+  })
+})
+
+describe('getPasskeyUnlockMaterial', () => {
+  it('returns each copy by credential id with the newest entry, read as the person', async () => {
+    findUserById.mockResolvedValue(user({ wrapped_ingest_private_key: 'aW5nZXN0' }))
+    db.factorRows = [{ wrapped_master_key: 'd3JhcHBlZA==', salt: 'cHJmLXNhbHQ=', passkeys: { credential_id: 'cred-1' } }]
+    db.probe = { encrypted_dek: 'ZGVr', dek_salt: 'aXY=' }
+
+    expect(await getPasskeyUnlockMaterial('user-1')).toEqual({
+      passkeys: [{ credentialId: 'cred-1', wrappedMasterKey: 'd3JhcHBlZA==', salt: 'cHJmLXNhbHQ=' }],
+      probe: { encrypted_dek: 'ZGVr', dek_salt: 'aXY=' },
+      ingest_key: { wrapped: 'aW5nZXN0' },
+    })
+    for (const call of calls) {
+      expect(call.client).toBe('session')
+      expect(call.filters.user_id).toBe('user-1')
+    }
+    expect(calls.find((call) => call.table === 'recovery_factors')!.filters.type).toBe('passkey_prf')
+    // The newest entry: a copy must open the vault as it is now.
+    expect(calls.find((call) => call.table === 'vault_data')!.order).toEqual({
+      column: 'created_at',
+      ascending: false,
+    })
+  })
+})
+
+describe('hasPasskeyUnlock', () => {
+  it('counts only the person\'s passkey copies', async () => {
+    expect(await hasPasskeyUnlock('user-1')).toBe(false)
+
+    db.passkeyFactors = 1
+    expect(await hasPasskeyUnlock('user-1')).toBe(true)
+    expect(calls.at(-1)).toMatchObject({
+      client: 'session',
+      op: 'count',
+      filters: { user_id: 'user-1', type: 'passkey_prf' },
+    })
   })
 })
 
