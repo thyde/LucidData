@@ -10,6 +10,7 @@ import {
   markAllNotificationsReadAction,
 } from '@/lib/actions/notification.actions'
 import { cn } from '@/lib/utils'
+import type { Notification } from '@/types/database.types'
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -23,13 +24,25 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
-export function NotificationBell() {
+interface NotificationBellProps {
+  /**
+   * Read with the page, so loading them is not a server action. Next.js runs
+   * server actions one at a time, and this one, fired on every page, made the
+   * page's own data wait behind it.
+   */
+  initialNotifications?: Notification[]
+}
+
+export function NotificationBell({ initialNotifications }: NotificationBellProps) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
 
   const { data: notifications } = useQuery({
     queryKey: ['notifications'],
     queryFn: getNotificationsAction,
+    initialData: initialNotifications,
+    // New ones arrive through the realtime subscription below, which refetches.
+    staleTime: initialNotifications ? 5 * 60 * 1000 : 0,
   })
 
   const unread = notifications?.filter((n) => !n.read).length ?? 0

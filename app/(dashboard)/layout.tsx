@@ -12,6 +12,7 @@ import { recordUniversalOptOut } from '@/lib/services/privacy-signal.service';
 import { decodeSessionId, isSessionRevoked } from '@/lib/services/session-security.service';
 import { GPC_FORWARD_HEADER } from '@/lib/supabase/middleware';
 import { getLegalStatus } from '@/lib/services/legal.service';
+import { getNotifications } from '@/lib/services/notification.service';
 import { HealthConsentProvider } from '@/components/legal/health-consent-provider';
 import { LegalGateBoundary } from '@/components/legal/legal-gate-boundary';
 import { Building2, Settings } from 'lucide-react';
@@ -56,7 +57,12 @@ export default async function DashboardLayout({
   // LD-110: the current terms and privacy policy must be accepted before the
   // dashboard is usable. A failed read does not lock anyone out; they are
   // asked on the next request instead.
-  const legal = await getLegalStatus(user.id).catch(() => null);
+  // Notifications come with the page rather than through a server action,
+  // which would queue in front of the page's own actions.
+  const [legal, notifications] = await Promise.all([
+    getLegalStatus(user.id).catch(() => null),
+    getNotifications(user.id).catch(() => undefined),
+  ]);
   const outstanding = legal?.outstanding ?? [];
   const returning = outstanding.some((document) => legal?.accepted[document] !== null);
 
@@ -92,7 +98,7 @@ export default async function DashboardLayout({
             >
               <Settings className="h-5 w-5" />
             </Link>
-            <NotificationBell />
+            <NotificationBell initialNotifications={notifications} />
             <SignOutButton className="whitespace-nowrap text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" />
           </div>
         </div>
