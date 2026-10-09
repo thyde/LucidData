@@ -40,6 +40,12 @@ REVOKE ALL ON public.vault_rewraps, public.vault_rewrap_entries FROM anon, authe
 -- with PT409, which PostgREST answers as 409 without retrying. A re-wrap that
 -- has expired or belongs to someone else is refused with PT410. On success the
 -- staged rows are deleted and the number of entries re-wrapped is returned.
+--
+-- p_ingest_key carries the connector ingestion key as the device read it:
+-- {"previous": <the stored wrap, or null when there was none>, "wrapped": <its
+-- new wrap, or null to leave it>}. The stored key must still be the one read,
+-- null included, so a key published meanwhile under the old master key is not
+-- left behind. Omitting p_ingest_key skips that check.
 CREATE OR REPLACE FUNCTION public.apply_vault_rewrap(
   p_user_id UUID,
   p_rewrap_id UUID,
@@ -54,12 +60,34 @@ DECLARE
   expected_count INTEGER;
   staged_count INTEGER;
   updated_count INTEGER;
+  stored_ingest TEXT;
 BEGIN
   IF p_user_id IS NULL OR p_rewrap_id IS NULL THEN
     RAISE EXCEPTION 'A user and a re-wrap are required';
   END IF;
 
-  -- The lock stops a second apply of the same re-wrap from running alongside.
+  IF p_ingest_key IS NOT NULL AND (
+    jsonb_typeof(p_ingest_key) <> 'object'
+    OR (p_ingest_key->>'wrapped' IS NOT NULL AND (p_ingest_key->>'wrapped' = '' OR p_ingest_key->>'previous' IS NULL))
+  ) THEN
+    RAISE EXCEPTION 'The ingestion key must name the wrap that was read, and a new wrap only for a key that exists';
+  END IF;
+
+  -- The person's row first, FOR UPDATE: it is the only row lock that conflicts
+  -- with the key-share lock a vault_data insert takes on users for its foreign
+  -- key. An insert already under way finishes before the counts below, and one
+  -- that starts now waits until this commits, so no entry can appear between
+  -- the counts and the update. It also runs two applies for one person in turn.
+  SELECT wrapped_ingest_private_key INTO stored_ingest
+  FROM public.users
+  WHERE id = p_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'The re-wrap has expired or does not exist'
+      USING ERRCODE = 'PT410';
+  END IF;
+
   PERFORM 1
   FROM public.vault_rewraps
   WHERE id = p_rewrap_id
@@ -104,18 +132,15 @@ BEGIN
   END IF;
 
   IF p_ingest_key IS NOT NULL THEN
-    IF COALESCE(p_ingest_key->>'previous', '') = '' OR COALESCE(p_ingest_key->>'wrapped', '') = '' THEN
-      RAISE EXCEPTION 'The ingestion key needs its new wrap and the wrap it replaces';
-    END IF;
-
-    UPDATE public.users
-    SET wrapped_ingest_private_key = p_ingest_key->>'wrapped'
-    WHERE id = p_user_id
-      AND wrapped_ingest_private_key = p_ingest_key->>'previous';
-
-    IF NOT FOUND THEN
+    IF stored_ingest IS DISTINCT FROM p_ingest_key->>'previous' THEN
       RAISE EXCEPTION 'The ingestion key changed after it was read'
         USING ERRCODE = 'PT409';
+    END IF;
+
+    IF p_ingest_key->>'wrapped' IS NOT NULL THEN
+      UPDATE public.users
+      SET wrapped_ingest_private_key = p_ingest_key->>'wrapped'
+      WHERE id = p_user_id;
     END IF;
   END IF;
 
