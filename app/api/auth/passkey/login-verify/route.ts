@@ -1,8 +1,9 @@
 import { verifyAuthenticationResponse } from '@simplewebauthn/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { Passkey } from '@/types/database.types'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+
+const refused = () => NextResponse.json({ error: 'Passkey verification failed' }, { status: 400 })
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -15,21 +16,25 @@ export async function POST(req: NextRequest) {
   cookieStore.delete('passkey_challenge')
   cookieStore.delete('passkey_email')
 
-  const body = await req.json()
-  const { credential } = body
+  const body = await req.json().catch(() => null)
+  const credential = body?.credential
+  if (typeof credential?.id !== 'string' || credential.id.length === 0) return refused()
 
-  const supabase = createServiceClient()
+  const service = createServiceClient()
 
-  // Find passkey by credential ID
-  const { data: passkey } = await supabase
+  // The account the person asked to sign in to. Only a passkey registered to
+  // that account can open it: a valid signature from someone else's passkey
+  // proves nothing about this one.
+  const { data: account } = await service.from('users').select('id, email').eq('email', email).maybeSingle()
+  if (!account?.email) return refused()
+
+  const { data: passkey } = await service
     .from('passkeys')
-    .select('id, credential_id, public_key, counter, user_id')
+    .select('id, credential_id, public_key, counter')
     .eq('credential_id', credential.id)
-    .single() as { data: Pick<Passkey, 'id' | 'credential_id' | 'public_key' | 'counter' | 'user_id'> | null }
-
-  if (!passkey) {
-    return NextResponse.json({ error: 'Passkey not found' }, { status: 400 })
-  }
+    .eq('user_id', account.id)
+    .maybeSingle()
+  if (!passkey) return refused()
 
   let verification
   try {
@@ -45,32 +50,30 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch {
-    return NextResponse.json({ error: 'Verification failed' }, { status: 400 })
+    return refused()
   }
 
-  if (!verification.verified) {
-    return NextResponse.json({ error: 'Not verified' }, { status: 400 })
-  }
+  if (!verification.verified) return refused()
 
-  // Update counter
-  await supabase
+  await service
     .from('passkeys')
     .update({ counter: verification.authenticationInfo.newCounter, last_used_at: new Date().toISOString() })
-    .eq('credential_id', credential.id)
+    .eq('id', passkey.id)
+    .eq('user_id', account.id)
 
-  // Issue Supabase session via magic link
-  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+  // A single-use link for the passkey's owner, and only them. It goes to the
+  // browser that has just proved it holds this account's passkey, which
+  // exchanges it for a session. Exchanging it here instead would put every
+  // passkey sign-in behind one Supabase verification limit for this server's
+  // address, which anyone could use up.
+  const { data: link, error: linkError } = await service.auth.admin.generateLink({
     type: 'magiclink',
-    email,
+    email: account.email,
   })
-
-  if (linkError || !linkData?.properties?.hashed_token) {
+  const tokenHash = link?.properties?.hashed_token
+  if (linkError || !tokenHash) {
     return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
   }
 
-  return NextResponse.json({
-    verified: true,
-    token: linkData.properties.hashed_token,
-    email,
-  })
+  return NextResponse.json({ verified: true, token_hash: tokenHash })
 }

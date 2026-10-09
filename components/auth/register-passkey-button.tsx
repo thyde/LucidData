@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { startRegistration } from '@simplewebauthn/browser'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,7 @@ export function RegisterPasskeyButton({ onRegistered }: RegisterPasskeyButtonPro
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deviceName, setDeviceName] = useState('')
+  const router = useRouter()
 
   const handleRegister = async () => {
     setLoading(true)
@@ -34,7 +36,10 @@ export function RegisterPasskeyButton({ onRegistered }: RegisterPasskeyButtonPro
         setError('Passkey registration failed')
         return
       }
+      setDeviceName('')
       onRegistered?.()
+      // The list of passkeys is rendered on the server.
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
@@ -56,7 +61,11 @@ export function RegisterPasskeyButton({ onRegistered }: RegisterPasskeyButtonPro
       <Button type="button" onClick={handleRegister} disabled={loading}>
         {loading ? 'Registering...' : 'Register this device as passkey'}
       </Button>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   )
 }
