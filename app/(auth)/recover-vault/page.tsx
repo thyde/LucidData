@@ -139,8 +139,10 @@ export default function RecoverVaultPage() {
       // An earlier attempt may have restored the vault under this password and
       // stopped before it finished, which leaves nothing to recover.
       const alreadyOpen = newMasterKey !== null && (await vaultOpensWith(newMasterKey, material))
-      const passkeyCopies =
-        (await unwrap(getPasskeyUnlockMaterialAction()).catch(() => passkeyMaterial))?.passkeys.length ?? 0
+      // Null when the passkeys could not be read, which is not the same as none.
+      const freshPasskeys = await unwrap(getPasskeyUnlockMaterialAction()).catch(() => null)
+      if (freshPasskeys) setPasskeyMaterial(freshPasskeys)
+      const passkeyCopies = (freshPasskeys ?? passkeyMaterial)?.passkeys.length ?? null
 
       // Check the code or kit before changing anything, so a typo never leaves
       // the password changed and the vault still closed.
@@ -168,10 +170,17 @@ export default function RecoverVaultPage() {
       }
 
       // Resetting without restoring retires the passkeys' copies, and they may
-      // be the only way back to the data, so ask before changing anything.
-      if (!oldMasterKey && !alreadyOpen && keySalt && vaultHasContent(material) && passkeyCopies > 0 && !skipWarning) {
-        setSkipWarning(material.escrow !== null || material.factors.length > 0 ? 'with_code' : 'without_code')
-        return
+      // be the only way back to the data, so ask before changing anything, and
+      // do not go on without knowing whether there are any.
+      if (!oldMasterKey && !alreadyOpen && keySalt && vaultHasContent(material)) {
+        if (passkeyCopies === null) {
+          setError('Your passkeys could not be checked, so nothing was changed. Try again.')
+          return
+        }
+        if (passkeyCopies > 0 && !skipWarning) {
+          setSkipWarning(material.escrow !== null || material.factors.length > 0 ? 'with_code' : 'without_code')
+          return
+        }
       }
 
       // Work out every entry's new envelope before the password changes, so an
@@ -265,7 +274,7 @@ export default function RecoverVaultPage() {
         // would go on writing under one key while a password session writes
         // under another. The person was told, and chose not to restore.
         let passkeysRetired: boolean | null = null
-        if (passkeyCopies > 0) {
+        if ((passkeyCopies ?? 0) > 0) {
           const grant = await stepUpWithPassword(
             'remove_recovery_factor',
             user.email,
