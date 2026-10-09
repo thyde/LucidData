@@ -57,7 +57,8 @@ function ask<T>(action: string): Promise<BridgeReply<T> | null> {
 
     setTimeout(() => {
       if (settled) return
-      window.removeEventListener('message', onMessage)
+      // The page can be gone by now, as it is once a test's environment is torn down.
+      if (typeof window !== 'undefined') window.removeEventListener('message', onMessage)
       resolve(null)
     }, TIMEOUT_MS)
   })
