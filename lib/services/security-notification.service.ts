@@ -95,7 +95,7 @@ const SECURITY_COPY: Record<SecurityNotificationEvent, SecurityCopy> = {
   passkey_unlocks_retired: {
     title: 'Passkeys no longer open your vault',
     message:
-      'Your vault key changed, so your passkeys no longer open your vault. Turn this back on for each passkey in Settings.',
+      'Your password changed, so your passkeys no longer open your vault. Turn this back on for each passkey in Settings.',
   },
 }
 

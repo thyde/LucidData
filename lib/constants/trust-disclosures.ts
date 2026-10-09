@@ -66,7 +66,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
       'Derived in your browser with HKDF-SHA256 from a secret your passkey produces through the WebAuthn PRF extension, after it checks your fingerprint, face, or device PIN',
     heldBy: 'user_browser',
     protects: 'A wrapped copy of your master key for each passkey you let open the vault',
-    note: 'The server stores each wrapped copy, its salt, and the passkey it belongs to. It never sees the passkey secret. Removing the passkey deletes its copy, and a password change retires every copy.',
+    note: 'The server stores each wrapped copy, its salt, and the passkey it belongs to. It never sees the passkey secret. Removing the passkey deletes its copy, and changing or resetting your password retires every copy. At a reset, the passkey can first restore your vault, as a recovery code can.',
   },
   {
     material: 'Vault export key',
@@ -335,7 +335,7 @@ export const THREAT_MODEL: ThreatModelRow[] = [
   {
     threat: 'You lose your password and your recovery code',
     mitigation:
-      'A recovery code or a recovery kit opens a wrapped copy of your master key, and you can hold more than one.',
+      'A recovery code or a recovery kit opens a wrapped copy of your master key, and you can hold more than one. A passkey you let open the vault can restore it too.',
     residual:
       'If every factor is lost, the vault cannot be decrypted by anyone, including us. This is the cost of us not holding a key.',
   },

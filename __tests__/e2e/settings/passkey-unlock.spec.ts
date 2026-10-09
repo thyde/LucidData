@@ -1,9 +1,11 @@
 /**
- * E2E tests - LD-112: a passkey that opens the vault at sign-in and after a
- * reload, using a Chromium virtual authenticator with the PRF extension.
+ * E2E tests - LD-112: a passkey that opens the vault at sign-in, after a
+ * reload, and at a password reset, using a Chromium virtual authenticator
+ * with the PRF extension.
  */
 
 import { expect, test, type Page } from '@playwright/test'
+import { createClient } from '@supabase/supabase-js'
 import { getUniqueEmail, signup, TEST_USER } from '../helpers/auth'
 import { createAdminClient } from '../helpers/supabase-admin'
 
@@ -85,6 +87,21 @@ async function accountWithPasskey(page: Page, email: string, prf: boolean): Prom
   await page.getByRole('button', { name: 'Register this device as passkey' }).click()
   await expect(page.getByRole('button', { name: `Remove ${DEVICE}` })).toBeVisible({ timeout: 20000 })
   return data.id
+}
+
+async function passwordWorks(email: string, password: string): Promise<boolean> {
+  const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data } = await client.auth.signInWithPassword({ email, password })
+  return Boolean(data.session)
+}
+
+/** The reset page with a new password typed in. A signed-in browser stands in for one from a reset email. */
+async function startReset(page: Page, newPassword: string): Promise<void> {
+  await page.goto('/recover-vault')
+  await page.getByLabel('New password', { exact: true }).fill(newPassword)
+  await page.getByLabel('Confirm new password').fill(newPassword)
 }
 
 async function unlockCopies(userId: string): Promise<{ passkey_id: string | null }[]> {
@@ -176,6 +193,98 @@ test.describe('Passkey vault unlock', () => {
           'Turned off opening the vault with a passkey',
           'Removed a registered passkey, which also stopped it opening the vault',
         ])
+      )
+    } finally {
+      if (userId) await service.auth.admin.deleteUser(userId).catch(() => undefined)
+    }
+  })
+
+  test('restores the vault with a passkey at a password reset', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'The virtual authenticator is a Chromium DevTools feature')
+    test.setTimeout(300000)
+    const email = getUniqueEmail('passkey-restore')
+    const newPassword = 'RestoredWithPasskey789!'
+    let userId: string | null = null
+
+    try {
+      userId = await accountWithPasskey(page, email, true)
+      await enableUnlock(page, TEST_USER.password)
+
+      await startReset(page, newPassword)
+      await page.getByRole('button', { name: 'Restore with a passkey' }).click()
+      await expect(page.getByRole('status').filter({ hasText: 'Your passkey opened your vault' })).toBeVisible({
+        timeout: 20000,
+      })
+      await expect(page.getByLabel('Recovery code or kit')).toHaveCount(0)
+      // Nothing has changed yet.
+      expect(await passwordWorks(email, TEST_USER.password)).toBe(true)
+
+      await page.getByRole('button', { name: 'Reset password' }).click()
+      const done = page.getByRole('status').filter({ hasText: 'restored' })
+      await expect(done).toContainText('1 vault entry was restored', { timeout: 60000 })
+      await expect(done).toContainText('Your passkeys no longer open your vault')
+      expect(await passwordWorks(email, newPassword)).toBe(true)
+      expect(await passwordWorks(email, TEST_USER.password)).toBe(false)
+
+      // The copy wrapped the old key, so it went with the others, and a new code replaced the old one.
+      expect(await unlockCopies(userId)).toEqual([])
+      const { data: factors } = await createAdminClient()
+        .from('recovery_factors')
+        .select('type')
+        .eq('user_id', userId)
+      expect(factors).toEqual([{ type: 'recovery_code' }])
+
+      await Promise.all([
+        page.waitForURL('/dashboard', { timeout: 20000, waitUntil: 'commit' }),
+        page.getByRole('button', { name: 'Continue to dashboard' }).click(),
+      ])
+      await goToVault(page)
+      await expect(page.getByText(ENTRY_LABEL)).toBeVisible({ timeout: 20000 })
+    } finally {
+      if (userId) await createAdminClient().auth.admin.deleteUser(userId).catch(() => undefined)
+    }
+  })
+
+  test('asks before a reset that does not restore, then stops the passkeys opening the vault', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'The virtual authenticator is a Chromium DevTools feature')
+    test.setTimeout(300000)
+    const service = createAdminClient()
+    const email = getUniqueEmail('passkey-skip')
+    const newPassword = 'ResetWithoutRestore789!'
+    let userId: string | null = null
+
+    try {
+      userId = await accountWithPasskey(page, email, true)
+      await enableUnlock(page, TEST_USER.password)
+
+      await startReset(page, newPassword)
+      await page.getByRole('button', { name: 'Reset password' }).click()
+      const warning = page.getByRole('alert').filter({ hasText: 'your passkeys stop opening your vault' })
+      await expect(warning).toContainText('until you use your recovery code or kit', { timeout: 20000 })
+      // Asking changed nothing.
+      expect(await passwordWorks(email, TEST_USER.password)).toBe(true)
+      expect(await unlockCopies(userId)).toHaveLength(1)
+
+      await page.getByRole('button', { name: 'Reset without restoring' }).click()
+      const done = page.getByRole('status').filter({ hasText: 'Your password was reset' })
+      await expect(done).toContainText('Your passkeys no longer open your vault', { timeout: 60000 })
+      await expect(done).toContainText('Enter your recovery code or kit to also restore')
+      expect(await passwordWorks(email, newPassword)).toBe(true)
+
+      // The passkey copies are gone. The recovery code stays, because it can still restore the vault.
+      expect(await unlockCopies(userId)).toEqual([])
+      const { data: factors } = await service.from('recovery_factors').select('type').eq('user_id', userId)
+      expect(factors).toEqual([{ type: 'recovery_code' }])
+      const { data: events } = await service
+        .from('audit_logs')
+        .select('action')
+        .eq('user_id', userId)
+        .eq('event_type', 'recovery_factor_removed')
+      expect(events?.map((event) => event.action)).toContain(
+        'Stopped 1 passkey opening the vault after a password reset that did not restore it'
       )
     } finally {
       if (userId) await service.auth.admin.deleteUser(userId).catch(() => undefined)

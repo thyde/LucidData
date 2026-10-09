@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { KeyRound } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -27,7 +28,18 @@ interface ChangePasswordFormProps {
   keySalt: string | null
 }
 
+/** What else stopped working, as one sentence, or nothing. */
+function retiredNotice(kits: number, passkeys: number): string | null {
+  if (kits > 0 && passkeys > 0) {
+    return 'Your recovery kits stopped working and your passkeys no longer open your vault, so make a new kit and turn passkey unlock back on.'
+  }
+  if (kits > 0) return 'Your recovery kits stopped working, so make a new one.'
+  if (passkeys > 0) return 'Your passkeys no longer open your vault, so turn this back on for each one under Passkeys.'
+  return null
+}
+
 export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const { unlock, holdWrites } = useEncryption()
   const [open, setOpen] = useState(false)
@@ -37,7 +49,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [newCode, setNewCode] = useState<string | null>(null)
-  const [retiredKits, setRetiredKits] = useState(0)
+  const [retired, setRetired] = useState<string | null>(null)
   const { attach: turnstileRef, getToken: getCaptchaToken } = useTurnstile('reauthenticate')
 
   function reset() {
@@ -47,7 +59,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
     setError(null)
     setBusy(false)
     setNewCode(null)
-    setRetiredKits(0)
+    setRetired(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -116,11 +128,16 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       }
 
       let kitsRetired = 0
+      let passkeysRetired = 0
       try {
         // Prepare again from what is stored now, so an entry edited elsewhere
         // since the check above is not overwritten with its old data key.
         const prepared = await prepareRewrap(oldMasterKey, newMasterKey)
-        ;({ retiredKits: kitsRetired } = await storeRewrap(prepared, 'password_change', stepUpToken))
+        ;({ retiredKits: kitsRetired, retiredPasskeys: passkeysRetired } = await storeRewrap(
+          prepared,
+          'password_change',
+          stepUpToken
+        ))
       } catch (rewrapError) {
         // The server may have stored the new wrapping before the error reached
         // the browser. Rolling the password back then would leave every entry
@@ -154,16 +171,16 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       }
       await unlock(newPassword, keySalt)
 
-      setRetiredKits(kitsRetired)
+      const notice = retiredNotice(kitsRetired, passkeysRetired)
+      setRetired(notice)
       if (code) setNewCode(code)
       else setOpen(false)
       toast({
         title: 'Password changed',
-        description:
-          kitsRetired > 0
-            ? 'Your vault was re-encrypted with the new password. Your recovery kits stopped working, so make a new one.'
-            : 'Your vault was re-encrypted with the new password.',
+        description: ['Your vault was re-encrypted with the new password.', notice].filter(Boolean).join(' '),
       })
+      // The passkey list and the recovery factors are rendered on the server.
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not change your password')
     } finally {
@@ -180,7 +197,8 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
       </div>
       <p className="text-sm text-muted-foreground">
         Changing your password re-encrypts your vault in the browser and issues a new recovery code.
-        Recovery kits you made before stop working, so make a new one afterwards.
+        Recovery kits you made before stop working, and so does opening the vault with a passkey, so
+        set those up again afterwards.
       </p>
       <Button
         variant="outline"
@@ -204,9 +222,9 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
             <DialogTitle>{newCode ? 'Save your new recovery code' : 'Change password'}</DialogTitle>
             <DialogDescription>
               {newCode
-                ? retiredKits > 0
-                  ? 'Your password changed and your vault was re-encrypted. Save this new recovery code. Your recovery kits stopped working, so make a new one under Recovery factors.'
-                  : 'Your password changed and your vault was re-encrypted. Save this new recovery code.'
+                ? ['Your password changed and your vault was re-encrypted. Save this new recovery code.', retired]
+                    .filter(Boolean)
+                    .join(' ')
                 : 'Enter your current password and a new password.'}
             </DialogDescription>
           </DialogHeader>

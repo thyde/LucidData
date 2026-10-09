@@ -61,6 +61,8 @@ export async function setRecoveryEscrow(
 export interface RewrapOutcome {
   /** Recovery kits that stopped working because the master key changed. */
   retiredKits: number
+  /** LD-112: passkeys that stopped opening the vault, for the same reason. */
+  retiredPasskeys: number
 }
 
 /**
@@ -177,8 +179,8 @@ export async function rewrapVaultEntries(
   for (let start = 0; start < entries.length; start += REWRAP_PART_SIZE) {
     await rewrapRepo.stageRewrapEntries(rewrapId, entries.slice(start, start + REWRAP_PART_SIZE))
   }
-  const { retiredKits } = await applyVaultRewrap(userId, rewrapId, ingestKey)
-  return { retiredKits }
+  const { retiredKits, retiredPasskeys } = await applyVaultRewrap(userId, rewrapId, ingestKey)
+  return { retiredKits, retiredPasskeys }
 }
 
 // The new wrapping is stored before this runs. Nothing here may throw: a
@@ -209,10 +211,10 @@ async function afterRewrap(
     const { kits, passkeys } = await retireRecoveryFactors(userId)
     if (kits > 0) await notifySecurityEvent(userId, 'recovery_kits_retired')
     if (passkeys > 0) await notifySecurityEvent(userId, 'passkey_unlocks_retired')
-    return { retiredKits: kits }
+    return { retiredKits: kits, retiredPasskeys: passkeys }
   } catch (retireError) {
     errorLogger.log(retireError, ErrorSeverity.HIGH, { userId, action: 'RECOVERY_RETIRE_FAILED' })
-    return { retiredKits: 0 }
+    return { retiredKits: 0, retiredPasskeys: 0 }
   }
 }
 
