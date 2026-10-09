@@ -5,17 +5,29 @@ import { startAuthentication } from '@simplewebauthn/browser'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useEncryption } from '@/lib/context/encryption-context'
+import { openVaultWithPasskey, takePrfOutput, withPrfInputs } from '@/lib/account/passkey-unlock'
+import { getPasskeyUnlockMaterialAction } from '@/lib/actions/recovery.actions'
+import { unwrap } from '@/lib/actions/unwrap'
 
 interface PasskeyLoginButtonProps {
   email: string
+  /** Where to go once signed in and the vault is open. */
+  redirectTo?: string
   onSuccess?: () => void
   onNeedEncryptionPassword?: (keySalt: string) => void
 }
 
-export function PasskeyLoginButton({ email, onSuccess, onNeedEncryptionPassword }: PasskeyLoginButtonProps) {
+export function PasskeyLoginButton({
+  email,
+  redirectTo = '/dashboard',
+  onSuccess,
+  onNeedEncryptionPassword,
+}: PasskeyLoginButtonProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const { unlockWithKey } = useEncryption()
 
   const handlePasskeyLogin = async () => {
     if (!email) {
@@ -31,14 +43,16 @@ export function PasskeyLoginButton({ email, onSuccess, onNeedEncryptionPassword 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const { options } = await optRes.json()
+      const { options, prf } = await optRes.json()
       if (!options) {
         setError('No passkey registered for this account')
         return
       }
 
-      // Perform WebAuthn ceremony
-      const credential = await startAuthentication({ optionsJSON: options })
+      // Perform WebAuthn ceremony, asking a passkey that can open the vault for its PRF output
+      const assertion = await startAuthentication({ optionsJSON: withPrfInputs(options, prf ?? {}) })
+      // LD-112: the PRF output opens the vault, so it stays in this page.
+      const { output: prfOutput, response: credential } = takePrfOutput(assertion)
 
       // The server checks the passkey belongs to this account and, if it
       // does, returns a single-use link for it.
@@ -62,6 +76,21 @@ export function PasskeyLoginButton({ email, onSuccess, onNeedEncryptionPassword 
         return
       }
 
+      // LD-112: open the vault with the passkey when it can, and fall back to
+      // the password when it cannot.
+      if (prfOutput) {
+        const key = await unwrap(getPasskeyUnlockMaterialAction())
+          .then((material) => openVaultWithPasskey(credential.id, prfOutput, material))
+          .catch(() => null)
+        if (key) {
+          unlockWithKey(key)
+          onSuccess?.()
+          router.push(redirectTo)
+          router.refresh()
+          return
+        }
+      }
+
       // Get user's key_salt for vault unlock
       const profileRes = await fetch('/api/user/profile')
       const { data: profile } = await profileRes.json()
@@ -69,7 +98,7 @@ export function PasskeyLoginButton({ email, onSuccess, onNeedEncryptionPassword 
         onNeedEncryptionPassword(profile.key_salt)
       } else {
         onSuccess?.()
-        router.push('/dashboard')
+        router.push(redirectTo)
         router.refresh()
       }
     } catch (err) {

@@ -11,7 +11,7 @@ import { SessionSecuritySection } from '@/components/settings/session-security-s
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup'
 import { PasskeyList } from '@/components/settings/passkey-list'
 import { getAccountSecurity } from '@/lib/services/account.service'
-import { getRecoveryStatus } from '@/lib/services/recovery-factor.service'
+import { getRecoveryStatus, listRecoveryFactors } from '@/lib/services/recovery-factor.service'
 import { listSessions } from '@/lib/services/session-security.service'
 import { getUniversalOptOut } from '@/lib/services/privacy-signal.service'
 import { getLegalStatus } from '@/lib/services/legal.service'
@@ -28,10 +28,10 @@ export default async function SettingsPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: passkeys }, security, optOut, recovery, sessions, legal, params] = await Promise.all([
+  const [{ data: passkeys }, security, optOut, recovery, sessions, legal, params, factors] = await Promise.all([
     supabase
       .from('passkeys')
-      .select('id, device_name, created_at, last_used_at')
+      .select('id, credential_id, device_name, created_at, last_used_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
     getAccountSecurity(user.id),
@@ -40,7 +40,12 @@ export default async function SettingsPage({
     listSessions(user.id),
     getLegalStatus(user.id).catch(() => null),
     searchParams,
+    listRecoveryFactors(),
   ])
+  // LD-112: which passkeys can also open the vault.
+  const unlockFactorOf = new Map(
+    factors.filter((factor) => factor.passkeyId).map((factor) => [factor.passkeyId, factor.id])
+  )
 
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-10">
@@ -73,10 +78,18 @@ export default async function SettingsPage({
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Passkeys</h2>
         <p className="text-sm text-muted-foreground">
-          Passkeys let you sign in without a password using your device biometrics or PIN.
+          Passkeys let you sign in without a password using your device biometrics or PIN. A
+          passkey on a device that supports it can also open your vault, so signing in with it, or
+          opening the vault again after a reload, needs no password.
         </p>
 
-        <PasskeyList passkeys={passkeys ?? []} />
+        <PasskeyList
+          keySalt={security?.key_salt ?? null}
+          passkeys={(passkeys ?? []).map((passkey) => ({
+            ...passkey,
+            unlock_factor_id: unlockFactorOf.get(passkey.id) ?? null,
+          }))}
+        />
 
         <RegisterPasskeyButton />
       </section>

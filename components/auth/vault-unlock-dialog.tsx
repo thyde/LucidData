@@ -12,9 +12,11 @@ interface VaultUnlockDialogProps {
   open: boolean
   keySalt: string
   onClose: () => void
+  /** Where to go once the vault is open. */
+  redirectTo?: string
 }
 
-export function VaultUnlockDialog({ open, keySalt, onClose }: VaultUnlockDialogProps) {
+export function VaultUnlockDialog({ open, keySalt, onClose, redirectTo = '/dashboard' }: VaultUnlockDialogProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -28,7 +30,7 @@ export function VaultUnlockDialog({ open, keySalt, onClose }: VaultUnlockDialogP
     try {
       await unlock(password, keySalt)
       onClose()
-      router.push('/dashboard')
+      router.push(redirectTo)
       router.refresh()
     } catch {
       setError('Incorrect encryption password. Try again.')
@@ -44,6 +46,8 @@ export function VaultUnlockDialog({ open, keySalt, onClose }: VaultUnlockDialogP
           <DialogTitle>Unlock your vault</DialogTitle>
           <DialogDescription>
             You signed in with your passkey. Enter your encryption password to unlock your vault.
+            To skip this step next time, let the passkey open your vault in Settings, if your
+            device supports it.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleUnlock} className="space-y-4">

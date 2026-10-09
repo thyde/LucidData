@@ -13,8 +13,10 @@ import { decodeSessionId, isSessionRevoked } from '@/lib/services/session-securi
 import { GPC_FORWARD_HEADER } from '@/lib/supabase/middleware';
 import { getLegalStatus } from '@/lib/services/legal.service';
 import { getNotifications } from '@/lib/services/notification.service';
+import { hasPasskeyUnlock } from '@/lib/services/recovery-factor.service';
 import { HealthConsentProvider } from '@/components/legal/health-consent-provider';
 import { LegalGateBoundary } from '@/components/legal/legal-gate-boundary';
+import { PasskeyUnlockProvider } from '@/components/auth/passkey-unlock-provider';
 import { Building2, Settings } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -57,11 +59,13 @@ export default async function DashboardLayout({
   // LD-110: the current terms and privacy policy must be accepted before the
   // dashboard is usable. A failed read does not lock anyone out; they are
   // asked on the next request instead.
-  // Notifications come with the page rather than through a server action,
-  // which would queue in front of the page's own actions.
-  const [legal, notifications] = await Promise.all([
+  // Notifications, and whether a passkey can open a locked vault, come with the
+  // page rather than through a server action, which would queue in front of the
+  // page's own actions.
+  const [legal, notifications, passkeyUnlock] = await Promise.all([
     getLegalStatus(user.id).catch(() => null),
     getNotifications(user.id).catch(() => undefined),
+    hasPasskeyUnlock(user.id).catch(() => false),
   ]);
   const outstanding = legal?.outstanding ?? [];
   const returning = outstanding.some((document) => legal?.accepted[document] !== null);
@@ -105,7 +109,9 @@ export default async function DashboardLayout({
       </header>
       <main id="main" className="container mx-auto px-4 py-8">
         <LegalGateBoundary outstanding={outstanding} returning={returning}>
-          <HealthConsentProvider>{children}</HealthConsentProvider>
+          <PasskeyUnlockProvider available={passkeyUnlock}>
+            <HealthConsentProvider>{children}</HealthConsentProvider>
+          </PasskeyUnlockProvider>
         </LegalGateBoundary>
       </main>
     </div>

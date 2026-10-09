@@ -74,6 +74,8 @@ interface EncryptionContextValue {
   idleLockMinutes: number
   setIdleLockMinutes: (minutes: number) => void
   unlock: (password: string, keySalt: string) => Promise<void>
+  /** LD-112: open the vault with a master key a passkey unwrapped. */
+  unlockWithKey: (key: CryptoKey) => void
   lock: () => void
   encrypt: (plaintext: string) => Promise<EncryptedEntry>
   decrypt: (client_ciphertext: string, encrypted_dek: string, dek_salt: string) => Promise<string>
@@ -113,6 +115,8 @@ export function EncryptionProvider({ children }: { children: ReactNode }) {
     const key = await deriveMasterKey(password, keySalt)
     setMasterKey(key)
   }, [setMasterKey])
+
+  const unlockWithKey = useCallback((key: CryptoKey) => setMasterKey(key), [setMasterKey])
 
   // Dropping the reference is what makes the key unreachable: it is a
   // non-extractable CryptoKey, so nothing else in the page retains it.
@@ -181,13 +185,14 @@ export function EncryptionProvider({ children }: { children: ReactNode }) {
       idleLockMinutes,
       setIdleLockMinutes,
       unlock,
+      unlockWithKey,
       lock,
       encrypt,
       decrypt,
       holdWrites,
       writesHeld,
     }),
-    [masterKey, idleLockMinutes, setIdleLockMinutes, unlock, lock, encrypt, decrypt, holdWrites, writesHeld]
+    [masterKey, idleLockMinutes, setIdleLockMinutes, unlock, unlockWithKey, lock, encrypt, decrypt, holdWrites, writesHeld]
   )
 
   return <EncryptionContext.Provider value={value}>{children}</EncryptionContext.Provider>

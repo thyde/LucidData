@@ -7,6 +7,7 @@ import { useVaultList } from '@/lib/hooks/useVault'
 import { useTimelineVisit } from '@/lib/hooks/use-timeline-visit'
 import { addDays, buildTimeline, dayOf, type MetricSeries, type TimelineEntry } from '@luciddata/core/health/timeline'
 import { Button } from '@/components/ui/button'
+import { PasskeyUnlockButton } from '@/components/auth/passkey-unlock-button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { MetricCard } from './metric-card'
 import { formatDay } from './format'
@@ -73,6 +74,7 @@ export function VaultLockedNotice({ returnTo }: { returnTo: string }) {
       <Button asChild>
         <Link href={`/login?redirectedFrom=${encodeURIComponent(returnTo)}`}>Sign in</Link>
       </Button>
+      <PasskeyUnlockButton />
     </div>
   )
 }

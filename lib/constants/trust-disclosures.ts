@@ -40,7 +40,7 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
       'Derived in your browser from your password and your key salt with PBKDF2-SHA256, 600,000 iterations',
     heldBy: 'user_browser',
     protects: 'Every per-entry data key in your vault',
-    note: 'It is never sent to the server and is held only in memory, so it is lost when the tab closes.',
+    note: 'It is never sent to the server and is held only in memory, so it is lost when the tab closes or the page reloads. No copy stays on your device between page loads. A passkey you let open the vault brings it back without your password.',
   },
   {
     material: 'Per-entry data key (DEK)',
@@ -58,6 +58,15 @@ export const KEY_CUSTODY: KeyCustodyEntry[] = [
     heldBy: 'user_browser',
     protects: 'A wrapped copy of your master key for each recovery factor, used after a password reset',
     note: 'The server stores each wrapped copy and its salt. It never sees the code or the kit secret. A password change retires every copy, because each one wraps the old master key.',
+  },
+  {
+    material: 'Passkey unlock key',
+    module: 'packages/core/src/crypto/passkey-unlock.ts',
+    derivedOrGenerated:
+      'Derived in your browser with HKDF-SHA256 from a secret your passkey produces through the WebAuthn PRF extension, after it checks your fingerprint, face, or device PIN',
+    heldBy: 'user_browser',
+    protects: 'A wrapped copy of your master key for each passkey you let open the vault',
+    note: 'The server stores each wrapped copy, its salt, and the passkey it belongs to. It never sees the passkey secret. Removing the passkey deletes its copy, and a password change retires every copy.',
   },
   {
     material: 'Vault export key',
@@ -315,6 +324,13 @@ export const THREAT_MODEL: ThreatModelRow[] = [
       'Second-factor authentication with an authenticator app, one-time backup codes, and passkeys are supported.',
     residual:
       'A password plus a live session on an unlocked device gives full vault access. Exporting everything, changing recovery factors or the password, ending other sessions, and deleting the account each ask for the password again, but any single entry can still be read, changed, or deleted.',
+  },
+  {
+    threat: 'Someone takes a device with a passkey that opens your vault',
+    mitigation:
+      'The passkey produces the secret that opens your vault only after the device checks your fingerprint, face, or PIN, and the wrapped copy it opens is given only to a signed-in session.',
+    residual:
+      'Anyone who can unlock that device can open your vault with it. Remove the passkey in Settings from another device, which deletes its copy at once.',
   },
   {
     threat: 'You lose your password and your recovery code',

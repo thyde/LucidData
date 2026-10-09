@@ -262,6 +262,7 @@ function LoginForm() {
           </Button>
           <PasskeyLoginButton
             email={email}
+            redirectTo={redirectTo}
             onNeedEncryptionPassword={(keySalt) => {
               setPasskeyKeySalt(keySalt);
               setShowUnlockDialog(true);
@@ -279,6 +280,7 @@ function LoginForm() {
         <VaultUnlockDialog
           open={showUnlockDialog}
           keySalt={passkeyKeySalt}
+          redirectTo={redirectTo}
           onClose={() => setShowUnlockDialog(false)}
         />
       )}

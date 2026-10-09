@@ -21,7 +21,14 @@ import { UserFacingError } from '@/lib/actions/action-result'
  * would skip the audit entry, the notification, and the step-up check below.
  */
 
-export type RecoveryFactorType = 'recovery_code' | 'recovery_kit'
+export type RecoveryFactorType = 'recovery_code' | 'recovery_kit' | 'passkey_prf'
+
+/**
+ * The factors that bring a vault back after a password reset. LD-112's
+ * passkey factor opens the vault at sign-in, but a reset cannot use it, so it
+ * does not count as recovery being set up.
+ */
+const RESETTING_TYPES: ReadonlySet<RecoveryFactorType> = new Set(['recovery_code', 'recovery_kit'])
 
 export interface RecoveryFactorSummary {
   id: string
@@ -29,6 +36,8 @@ export interface RecoveryFactorSummary {
   label: string
   createdAt: string
   lastConfirmedAt: string | null
+  /** For a passkey factor, the passkey it belongs to. */
+  passkeyId: string | null
 }
 
 export interface RecoveryStatus {
@@ -57,17 +66,11 @@ export async function listRecoveryFactors(): Promise<RecoveryFactorSummary[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('recovery_factors')
-    .select('id, type, label, created_at, last_confirmed_at')
+    .select(SUMMARY_COLUMNS)
     .order('created_at', { ascending: true })
   if (error) throw error
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    type: row.type as RecoveryFactorType,
-    label: row.label,
-    createdAt: row.created_at,
-    lastConfirmedAt: row.last_confirmed_at,
-  }))
+  return (data ?? []).map(toSummary)
 }
 
 function confirmationOverdue(reference: string | null): boolean {
@@ -88,11 +91,13 @@ async function hasExistingVaultData(userId: string): Promise<boolean> {
 }
 
 export async function getRecoveryStatus(userId: string): Promise<RecoveryStatus> {
-  const [factors, user, hasData] = await Promise.all([
+  const [all, user, hasData] = await Promise.all([
     listRecoveryFactors(),
     userRepo.findUserById(userId),
     hasExistingVaultData(userId),
   ])
+  // Passkeys are managed with the passkeys, and cannot reset a password.
+  const factors = all.filter((factor) => RESETTING_TYPES.has(factor.type))
 
   const declinedAt = user?.recovery_setup_declined_at ?? null
   const lastConfirmedAt = user?.recovery_last_confirmed_at ?? null
@@ -121,7 +126,7 @@ export async function assertRecoveryReadyForFirstWrite(userId: string): Promise<
   )
 }
 
-const SUMMARY_COLUMNS = 'id, type, label, created_at, last_confirmed_at'
+const SUMMARY_COLUMNS = 'id, type, label, created_at, last_confirmed_at, passkey_id'
 
 function toSummary(row: {
   id: string
@@ -129,6 +134,7 @@ function toSummary(row: {
   label: string
   created_at: string
   last_confirmed_at: string | null
+  passkey_id: string | null
 }): RecoveryFactorSummary {
   return {
     id: row.id,
@@ -136,6 +142,7 @@ function toSummary(row: {
     label: row.label,
     createdAt: row.created_at,
     lastConfirmedAt: row.last_confirmed_at,
+    passkeyId: row.passkey_id,
   }
 }
 
@@ -316,10 +323,12 @@ export async function removeRecoveryFactor(
     action:
       data.type === 'recovery_code'
         ? 'Removed the vault recovery code'
-        : 'Removed a vault recovery kit',
+        : data.type === 'passkey_prf'
+          ? 'Turned off opening the vault with a passkey'
+          : 'Removed a vault recovery kit',
     metadata: { factor_id: factorId, type: data.type },
   })
-  await notifySecurityEvent(userId, 'recovery_factor_removed')
+  await notifySecurityEvent(userId, data.type === 'passkey_prf' ? 'passkey_unlock_removed' : 'recovery_factor_removed')
 }
 
 /** The user confirms they still hold a working factor. */
@@ -353,7 +362,7 @@ export async function confirmRecoveryFactor(userId: string, factorId: string): P
  * caller makes a new recovery code straight afterwards. Returns how many kits
  * went, so the person can be told to make new ones.
  */
-export async function retireRecoveryFactors(userId: string): Promise<{ kits: number }> {
+export async function retireRecoveryFactors(userId: string): Promise<{ kits: number; passkeys: number }> {
   const service = createServiceClient()
   const { data, error } = await service
     .from('recovery_factors')
@@ -377,7 +386,131 @@ export async function retireRecoveryFactors(userId: string): Promise<{ kits: num
       metadata: { reason: 'vault_key_changed', factor_ids: retired.map((factor) => factor.id) },
     })
   }
-  return { kits: retired.filter((factor) => factor.type === 'recovery_kit').length }
+  return {
+    kits: retired.filter((factor) => factor.type === 'recovery_kit').length,
+    passkeys: retired.filter((factor) => factor.type === 'passkey_prf').length,
+  }
+}
+
+/**
+ * LD-112: let a passkey open the vault. The browser has wrapped a copy of the
+ * master key under a key derived from the passkey's PRF output; the server
+ * stores that copy and the PRF input, and never sees the output. A new way
+ * into the vault, so it needs a fresh password proof, as a kit does.
+ */
+export async function addPasskeyUnlock(
+  userId: string,
+  input: { passkeyId: string; wrappedMasterKey: string; salt: string; stepUpToken: string }
+): Promise<RecoveryFactorSummary> {
+  await requireStepUp(userId, 'add_recovery_factor', input.stepUpToken)
+  const service = createServiceClient()
+
+  const { data: passkey, error: passkeyError } = await service
+    .from('passkeys')
+    .select('id, device_name')
+    .eq('id', input.passkeyId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (passkeyError) throw passkeyError
+  if (!passkey) throw new UserFacingError('Passkey not found', 'not_found')
+
+  // One way in per passkey: turning it on again replaces the earlier copy.
+  const { error: clearError } = await service
+    .from('recovery_factors')
+    .delete()
+    .eq('user_id', userId)
+    .eq('passkey_id', passkey.id)
+  if (clearError) throw clearError
+
+  const { data, error } = await service
+    .from('recovery_factors')
+    .insert({
+      user_id: userId,
+      type: 'passkey_prf',
+      label: passkey.device_name ?? 'Passkey',
+      wrapped_master_key: input.wrappedMasterKey,
+      salt: input.salt,
+      passkey_id: passkey.id,
+      last_confirmed_at: new Date().toISOString(),
+    })
+    .select(SUMMARY_COLUMNS)
+    .single()
+  if (error) throw error
+
+  await createAuditEntry({
+    userId,
+    eventType: 'recovery_factor_added',
+    action: 'Turned on opening the vault with a passkey',
+    metadata: { factor_id: data.id, type: 'passkey_prf', passkey_id: passkey.id },
+  })
+  await notifySecurityEvent(userId, 'passkey_unlock_added')
+  return toSummary(data)
+}
+
+/** One passkey's wrapped copy of the master key, keyed by the credential id the browser reports. */
+export interface PasskeyUnlock {
+  credentialId: string
+  wrappedMasterKey: string
+  salt: string
+}
+
+export interface PasskeyUnlockMaterial {
+  passkeys: PasskeyUnlock[]
+  /**
+   * The newest entry's wrapped data key, so a copy is used only if it opens the
+   * vault as it is now. Null when the vault is empty.
+   */
+  probe: { encrypted_dek: string; dek_salt: string } | null
+  /** The connector ingestion key, wrapped under the master key: the check when there are no entries. */
+  ingest_key: { wrapped: string } | null
+}
+
+/** LD-112: whether any of the person's passkeys can open the vault. */
+export async function hasPasskeyUnlock(userId: string): Promise<boolean> {
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('recovery_factors')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('type', 'passkey_prf')
+  if (error) throw error
+  return (count ?? 0) > 0
+}
+
+/**
+ * LD-112: everything a device needs to open the vault with one of the
+ * person's passkeys. Only wrapped bytes and salts leave the server, read under
+ * the person's own session.
+ */
+export async function getPasskeyUnlockMaterial(userId: string): Promise<PasskeyUnlockMaterial> {
+  const supabase = await createClient()
+  const [factors, probe, user] = await Promise.all([
+    supabase
+      .from('recovery_factors')
+      .select('wrapped_master_key, salt, passkeys!inner(credential_id)')
+      .eq('user_id', userId)
+      .eq('type', 'passkey_prf'),
+    supabase
+      .from('vault_data')
+      .select('encrypted_dek, dek_salt')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    userRepo.findUserById(userId),
+  ])
+  if (factors.error) throw factors.error
+  if (probe.error) throw probe.error
+
+  return {
+    passkeys: (factors.data ?? []).map((row) => ({
+      credentialId: (row.passkeys as unknown as { credential_id: string }).credential_id,
+      wrappedMasterKey: row.wrapped_master_key,
+      salt: row.salt,
+    })),
+    probe: probe.data ?? null,
+    ingest_key: user?.wrapped_ingest_private_key ? { wrapped: user.wrapped_ingest_private_key } : null,
+  }
 }
 
 export interface RecoveryMaterial {
@@ -405,10 +538,13 @@ export async function getRecoveryMaterial(userId: string): Promise<RecoveryMater
   const supabase = await createClient()
   const [user, factors, probe] = await Promise.all([
     userRepo.findUserById(userId),
+    // Only factors a person can use without their password. A passkey that
+    // opens the vault is retired by the reset, so it cannot restore anything.
     supabase
       .from('recovery_factors')
       .select('id, type, wrapped_master_key, salt')
       .eq('user_id', userId)
+      .in('type', [...RESETTING_TYPES])
       .order('created_at', { ascending: false }),
     // The oldest entry: if a reset without recovery left newer entries under the
     // new password, the oldest is still under the key a recovery factor opens.

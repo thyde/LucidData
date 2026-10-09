@@ -22,4 +22,16 @@ export const removeRecoveryFactorSchema = z.object({
   stepUpToken: z.string().min(1, 'Confirm your password to continue'),
 })
 
+/**
+ * LD-112: a passkey's wrapped copy of the master key and the PRF input it was
+ * made with, both produced on the device, for a passkey the person owns. A new
+ * way into the vault, so it needs a step-up grant for add_recovery_factor.
+ */
+export const addPasskeyUnlockSchema = z.object({
+  passkeyId: z.string().uuid(),
+  wrappedMasterKey: z.string().min(1, 'Wrapped master key is required'),
+  salt: z.string().min(1, 'Salt is required'),
+  stepUpToken: z.string().min(1, 'Confirm your password to continue'),
+})
+
 export type AddRecoveryFactorInput = z.infer<typeof addRecoveryFactorSchema>

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEncryption } from '@/lib/context/encryption-context'
 import { Button } from '@/components/ui/button'
+import { PasskeyUnlockButton } from '@/components/auth/passkey-unlock-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { sourceLabel, type MetricId } from '@luciddata/core/health/timeline'
 import { useHealthSeries } from './health-timeline'
@@ -42,9 +43,12 @@ export function HealthSummaryCard() {
       </CardHeader>
       <CardContent>
         {isLocked && (
-          <Button asChild size="sm">
-            <Link href="/login?redirectedFrom=%2Fhealth">Sign in</Link>
-          </Button>
+          <div className="flex flex-wrap items-start gap-2">
+            <Button asChild size="sm">
+              <Link href="/login?redirectedFrom=%2Fhealth">Sign in</Link>
+            </Button>
+            <PasskeyUnlockButton />
+          </div>
         )}
 
         {!isLocked && isLoading && (

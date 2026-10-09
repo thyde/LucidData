@@ -3,17 +3,21 @@
 import { guarded, type ActionFailure } from '@/lib/actions/action-result'
 import { createClient } from '@/lib/supabase/server'
 import {
+  addPasskeyUnlock,
   addRecoveryFactor,
   confirmRecoveryFactor,
   declineRecoverySetup,
+  getPasskeyUnlockMaterial,
   getRecoveryMaterial,
   getRecoveryStatus,
   removeRecoveryFactor,
+  type PasskeyUnlockMaterial,
   type RecoveryFactorSummary,
   type RecoveryMaterial,
   type RecoveryStatus,
 } from '@/lib/services/recovery-factor.service'
 import {
+  addPasskeyUnlockSchema,
   addRecoveryFactorSchema,
   recoveryFactorIdSchema as factorIdSchema,
   removeRecoveryFactorSchema,
@@ -58,6 +62,22 @@ export async function getRecoveryMaterialAction(): Promise<RecoveryMaterial | Ac
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     return getRecoveryMaterial(userId)
+  })
+}
+
+/** LD-112: let one of the person's passkeys open the vault. */
+export async function addPasskeyUnlockAction(input: unknown): Promise<RecoveryFactorSummary | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return addPasskeyUnlock(userId, addPasskeyUnlockSchema.parse(input))
+  })
+}
+
+/** LD-112: the wrapped copies of the master key that the person's passkeys open. */
+export async function getPasskeyUnlockMaterialAction(): Promise<PasskeyUnlockMaterial | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    return getPasskeyUnlockMaterial(userId)
   })
 }
 
