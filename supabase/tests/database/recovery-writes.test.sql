@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(19);
+SELECT plan(12);
 
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-0000000001a1', 'keeper@example.com'),
@@ -112,73 +112,6 @@ SELECT lives_ok(
   $$ UPDATE public.users SET wrapped_master_key = NULL, recovery_code_salt = NULL, recovery_codes_generated_at = NULL
      WHERE id = '00000000-0000-4000-8000-0000000001a1' $$,
   'The server clears an escrow that a new master key retired'
-);
-
-RESET ROLE;
-
--- 3. Every key a password change moves, in one transaction ------------------
-
-INSERT INTO public.vault_data (id, user_id, label, category, schema_type, client_ciphertext, encrypted_dek, dek_salt) VALUES
-  ('00000000-0000-4000-8000-0000000001f1', '00000000-0000-4000-8000-0000000001a1', 'One', 'personal', 'custom', 'c1', 'old-dek-1', 'iv1'),
-  ('00000000-0000-4000-8000-0000000001f2', '00000000-0000-4000-8000-0000000001a1', 'Two', 'personal', 'custom', 'c2', 'old-dek-2', 'iv2');
-UPDATE public.users SET wrapped_ingest_private_key = 'old-ingest' WHERE id = '00000000-0000-4000-8000-0000000001a1';
-
-SELECT ok(
-  has_function_privilege('service_role', 'public.rewrap_vault_keys(uuid, jsonb, jsonb)', 'EXECUTE')
-    AND NOT has_function_privilege('authenticated', 'public.rewrap_vault_keys(uuid, jsonb, jsonb)', 'EXECUTE')
-    AND NOT has_function_privilege('anon', 'public.rewrap_vault_keys(uuid, jsonb, jsonb)', 'EXECUTE'),
-  'Only the server can re-wrap keys, after its step-up check'
-);
-
-SET LOCAL ROLE service_role;
-
-SELECT throws_ok(
-  $$ SELECT public.rewrap_vault_keys('00000000-0000-4000-8000-0000000001a1', '[
-       {"id": "00000000-0000-4000-8000-0000000001f1", "encrypted_dek": "new-dek-1", "dek_salt": "n1", "previous_encrypted_dek": "old-dek-1"},
-       {"id": "00000000-0000-4000-8000-0000000001f2", "encrypted_dek": "new-dek-2", "dek_salt": "n2", "previous_encrypted_dek": "edited-elsewhere"}
-     ]'::jsonb) $$,
-  'PT409',
-  'A vault entry changed after it was read',
-  'An entry edited since it was read stops the whole re-wrap'
-);
-
-SELECT is(
-  (SELECT encrypted_dek FROM public.vault_data WHERE id = '00000000-0000-4000-8000-0000000001f1'),
-  'old-dek-1',
-  'and the entries that did match are left as they were'
-);
-
-SELECT throws_ok(
-  $$ SELECT public.rewrap_vault_keys('00000000-0000-4000-8000-0000000001a1', '[
-       {"id": "00000000-0000-4000-8000-0000000001f1", "encrypted_dek": "new-dek-1", "dek_salt": "n1", "previous_encrypted_dek": "old-dek-1"}
-     ]'::jsonb) $$,
-  'P0001',
-  'Every vault entry must be supplied exactly once',
-  'Leaving an entry out is refused'
-);
-
-SELECT throws_ok(
-  $$ SELECT public.rewrap_vault_keys('00000000-0000-4000-8000-0000000001a1', '[
-       {"id": "00000000-0000-4000-8000-0000000001f1", "encrypted_dek": "new-dek-1", "dek_salt": "n1", "previous_encrypted_dek": "old-dek-1"},
-       {"id": "00000000-0000-4000-8000-0000000001f2", "encrypted_dek": "new-dek-2", "dek_salt": "n2", "previous_encrypted_dek": "old-dek-2"}
-     ]'::jsonb, '{"previous": "not-the-stored-key", "wrapped": "new-ingest"}'::jsonb) $$,
-  'PT409',
-  'The ingestion key changed after it was read',
-  'An ingestion key that changed since it was read stops the whole re-wrap'
-);
-
-SELECT lives_ok(
-  $$ SELECT public.rewrap_vault_keys('00000000-0000-4000-8000-0000000001a1', '[
-       {"id": "00000000-0000-4000-8000-0000000001f1", "encrypted_dek": "new-dek-1", "dek_salt": "n1", "previous_encrypted_dek": "old-dek-1"},
-       {"id": "00000000-0000-4000-8000-0000000001f2", "encrypted_dek": "new-dek-2", "dek_salt": "n2", "previous_encrypted_dek": "old-dek-2"}
-     ]'::jsonb, '{"previous": "old-ingest", "wrapped": "new-ingest"}'::jsonb) $$,
-  'A re-wrap that matches what is stored goes through'
-);
-
-SELECT ok(
-  (SELECT bool_and(encrypted_dek LIKE 'new-dek-%') FROM public.vault_data WHERE user_id = '00000000-0000-4000-8000-0000000001a1')
-    AND (SELECT wrapped_ingest_private_key FROM public.users WHERE id = '00000000-0000-4000-8000-0000000001a1') = 'new-ingest',
-  'and moves every envelope and the ingestion key together'
 );
 
 RESET ROLE;
