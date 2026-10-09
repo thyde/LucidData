@@ -29,7 +29,7 @@ interface ChangePasswordFormProps {
 
 export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
   const { toast } = useToast()
-  const { unlock } = useEncryption()
+  const { unlock, holdWrites } = useEncryption()
   const [open, setOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -68,6 +68,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
     }
 
     setBusy(true)
+    let releaseWrites: (() => void) | null = null
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -88,6 +89,10 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
 
       const oldMasterKey = await deriveMasterKey(currentPassword, keySalt)
       const newMasterKey = await deriveMasterKey(newPassword, keySalt)
+
+      // Until the vault opens with the new key, anything this tab encrypted
+      // would land under the old one, such as a synced record being drained.
+      releaseWrites = holdWrites()
 
       // Work out every entry's new envelope before the password changes, so an
       // entry that cannot move stops the change instead of being stranded by it.
@@ -162,6 +167,7 @@ export function ChangePasswordForm({ keySalt }: ChangePasswordFormProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not change your password')
     } finally {
+      releaseWrites?.()
       setBusy(false)
     }
   }

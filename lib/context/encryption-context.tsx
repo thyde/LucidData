@@ -64,6 +64,9 @@ function writeIdleLockMinutes(minutes: number): void {
   window.dispatchEvent(new Event(IDLE_LOCK_EVENT))
 }
 
+/** What `encrypt` says while a password change is moving the vault to a new key. */
+export const WRITES_HELD_MESSAGE = 'Your vault is being re-encrypted. Try again when that finishes.'
+
 interface EncryptionContextValue {
   masterKey: CryptoKey | null
   isLocked: boolean
@@ -74,6 +77,14 @@ interface EncryptionContextValue {
   lock: () => void
   encrypt: (plaintext: string) => Promise<EncryptedEntry>
   decrypt: (client_ciphertext: string, encrypted_dek: string, dek_salt: string) => Promise<string>
+  /**
+   * Refuse new encryption until the returned release is called. A password
+   * change holds writes while it moves every entry to the new key, so nothing
+   * this tab saves meanwhile lands under the old one.
+   */
+  holdWrites: () => () => void
+  /** Whether a key change is holding writes. */
+  writesHeld: () => boolean
 }
 
 const EncryptionContext = createContext<EncryptionContextValue | null>(null)
@@ -81,7 +92,16 @@ const EncryptionContext = createContext<EncryptionContextValue | null>(null)
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'scroll', 'touchstart'] as const
 
 export function EncryptionProvider({ children }: { children: ReactNode }) {
-  const [masterKey, setMasterKey] = useState<CryptoKey | null>(null)
+  const [masterKey, setKeyState] = useState<CryptoKey | null>(null)
+  // The key in force right now. A callback made with an earlier key compares
+  // against it, so a write already under way when the key changed is refused
+  // rather than saved under a key the vault no longer uses.
+  const currentKey = useRef<CryptoKey | null>(null)
+  const holds = useRef(0)
+  const setMasterKey = useCallback((key: CryptoKey | null) => {
+    currentKey.current = key
+    setKeyState(key)
+  }, [])
   const idleLockMinutes = useSyncExternalStore(
     subscribeToIdleLock,
     readIdleLockMinutes,
@@ -92,11 +112,23 @@ export function EncryptionProvider({ children }: { children: ReactNode }) {
   const unlock = useCallback(async (password: string, keySalt: string) => {
     const key = await deriveMasterKey(password, keySalt)
     setMasterKey(key)
-  }, [])
+  }, [setMasterKey])
 
   // Dropping the reference is what makes the key unreachable: it is a
   // non-extractable CryptoKey, so nothing else in the page retains it.
-  const lock = useCallback(() => setMasterKey(null), [])
+  const lock = useCallback(() => setMasterKey(null), [setMasterKey])
+
+  const holdWrites = useCallback(() => {
+    holds.current += 1
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      holds.current -= 1
+    }
+  }, [])
+
+  const writesHeld = useCallback(() => holds.current > 0, [])
 
   const setIdleLockMinutes = useCallback((minutes: number) => {
     writeIdleLockMinutes(minutes)
@@ -124,10 +156,12 @@ export function EncryptionProvider({ children }: { children: ReactNode }) {
         window.removeEventListener(event, arm)
       }
     }
-  }, [masterKey, idleLockMinutes])
+  }, [masterKey, idleLockMinutes, setMasterKey])
 
   const encrypt = useCallback(async (plaintext: string): Promise<EncryptedEntry> => {
     if (!masterKey) throw new Error('Vault is locked')
+    if (masterKey !== currentKey.current) throw new Error('Your vault key changed. Try again.')
+    if (holds.current > 0) throw new Error(WRITES_HELD_MESSAGE)
     return encryptVaultEntry(masterKey, plaintext)
   }, [masterKey])
 
@@ -150,8 +184,10 @@ export function EncryptionProvider({ children }: { children: ReactNode }) {
       lock,
       encrypt,
       decrypt,
+      holdWrites,
+      writesHeld,
     }),
-    [masterKey, idleLockMinutes, setIdleLockMinutes, unlock, lock, encrypt, decrypt]
+    [masterKey, idleLockMinutes, setIdleLockMinutes, unlock, lock, encrypt, decrypt, holdWrites, writesHeld]
   )
 
   return <EncryptionContext.Provider value={value}>{children}</EncryptionContext.Provider>
