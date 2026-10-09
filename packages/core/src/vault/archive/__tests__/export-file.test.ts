@@ -61,6 +61,21 @@ describe('readHealthExport', () => {
     await expect(reading).rejects.toMatchObject({ name: 'AbortError' })
   })
 
+  it('reads a Strava account archive, and the activities.csv inside it', async () => {
+    const fractions: number[] = []
+    const zipped = await readHealthExport(file('strava', 'strava-export.zip'), (fraction) => fractions.push(fraction))
+    expect(zipped).toMatchObject({ provider: 'strava', label: 'Strava' })
+    expect(zipped!.records.map((record) => record.sourceRecordId)).toEqual([
+      '9100000001',
+      '9100000002',
+      '9100000003',
+      '9100000004',
+    ])
+    expect(fractions.at(-1)).toBe(1)
+
+    expect(await readHealthExport(file('strava', 'activities.csv'))).toEqual(zipped)
+  })
+
   it('leaves any other file to the ordinary import', async () => {
     expect(await readHealthExport(blob('[{"label":"Not a health export"}]'))).toBeNull()
     expect(await readHealthExport(file('zip', 'basic.zip'))).not.toBeNull()

@@ -43,6 +43,38 @@ export const EXPORT_SOURCES = [
     ],
   },
   {
+    id: 'strava',
+    label: 'Strava',
+    adapterId: 'strava',
+    fileTypes: ['.zip'],
+    requestUrl: 'https://www.strava.com/account',
+    // The archive comes from a link Strava emails, so a zip from Strava's own
+    // site is the only thing taken for it.
+    urlPatterns: ['strava.com'],
+    filenamePatterns: [],
+    steps: [
+      'On strava.com, open Settings, then My Account.',
+      'Under Download your account, choose Get Started, then Request download.',
+      'Strava emails you a link when the archive is ready. That can take a few hours.',
+      'In your vault, choose Import file and pick the zip. You do not need to unzip it.',
+    ],
+  },
+  {
+    id: 'garmin',
+    label: 'Garmin',
+    adapterId: 'garmin',
+    fileTypes: ['.zip'],
+    requestUrl: 'https://www.garmin.com/account/datamanagement/',
+    urlPatterns: ['garmin.com'],
+    filenamePatterns: [],
+    steps: [
+      'Sign in at garmin.com and open Data Management in your account.',
+      'Choose Export Your Data, then Request Data Export.',
+      'Garmin emails you a link when the archive is ready. That usually takes a day or two, and can take up to 30 days.',
+      'In your vault, choose Import file and pick the zip. You do not need to unzip it.',
+    ],
+  },
+  {
     id: 'bank-csv',
     label: 'Bank statement export',
     adapterId: 'bank-csv',

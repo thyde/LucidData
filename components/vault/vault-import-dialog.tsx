@@ -368,8 +368,9 @@ export function VaultImportDialog() {
         <DialogHeader>
           <DialogTitle>Import from a file</DialogTitle>
           <DialogDescription>
-            Import an Apple Health export, or a .json or .csv file. Records are read and encrypted in
-            your browser, then saved as vault entries. The file never leaves your device unencrypted.
+            Import an export from Apple Health, Strava, or Garmin, or a .json or .csv file. Records are
+            read and encrypted in your browser, then saved as vault entries. The file never leaves your
+            device unencrypted.
           </DialogDescription>
         </DialogHeader>
 

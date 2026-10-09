@@ -12,6 +12,8 @@ import { clearSession, getUniqueEmail, signup, TEST_USER } from '../helpers/auth
 
 const FIXTURES = path.join(process.cwd(), 'packages/core/src/vault/__tests__/fixtures')
 const APPLE_EXPORT = path.join(FIXTURES, 'apple-health/apple-health-export.zip')
+const STRAVA_EXPORT = path.join(FIXTURES, 'strava/strava-export.zip')
+const GARMIN_EXPORT = path.join(FIXTURES, 'garmin/garmin-export.zip')
 
 const EXPECTED_TYPES: [string, number][] = [
   ['Daily activity', 3],
@@ -94,6 +96,37 @@ test.describe('Health export import', () => {
     await expect(page.getByText('Saved 1 entry.', { exact: true })).toBeVisible()
     await expect(page.getByRole('article')).toHaveCount(1)
     await expect(page.getByRole('heading', { name: 'Workout', exact: true })).toBeVisible()
+  })
+
+  test('imports Strava and Garmin archives, each under its own name', async ({ page }) => {
+    await clearSession(page)
+    await signup(page, getUniqueEmail('health-import-others'), TEST_USER.password, { healthConsent: true })
+    await openVault(page)
+
+    const strava = await chooseFile(page, STRAVA_EXPORT)
+    await expect(strava.getByText('Strava export', { exact: true })).toBeVisible({ timeout: 30000 })
+    await expect(strava.getByLabel('Workout (4)')).toBeChecked()
+    await strava.getByRole('button', { name: 'Import 4 entries' }).click()
+    await expect(strava).toBeHidden({ timeout: 60000 })
+    await expect(page.getByText('Saved 4 entries.', { exact: true })).toBeVisible()
+
+    const garmin = await chooseFile(page, GARMIN_EXPORT)
+    await expect(garmin.getByText('Garmin export', { exact: true })).toBeVisible({ timeout: 30000 })
+    // The export was made before its last day ended, so that day waits for a later export.
+    await expect(garmin.getByText(/is left out because the export was made before the day ended/)).toBeVisible()
+    for (const [type, count] of [['Workout', 3], ['Daily activity', 2], ['Daily vitals', 2], ['Sleep session', 2]] as const) {
+      await expect(garmin.getByLabel(`${type} (${count})`)).toBeChecked()
+    }
+    await garmin.getByRole('button', { name: 'Import 9 entries' }).click()
+    await expect(garmin).toBeHidden({ timeout: 60000 })
+    await expect(page.getByText('Saved 9 entries.', { exact: true })).toBeVisible()
+
+    const cards = page.getByRole('article')
+    await expect(cards).toHaveCount(13)
+    await cards.filter({ hasText: 'Riverside loop' }).click()
+    const details = page.getByRole('dialog', { name: 'Workout' })
+    await expect(details).toContainText('Imported from Strava')
+    await expect(details).toContainText('Riverside loop')
   })
 
   test('says why an archive cannot be read', async ({ page }) => {
