@@ -911,6 +911,66 @@ export type Database = {
         }
         Relationships: []
       }
+      health_shares: {
+        Row: {
+          ciphertext: string | null
+          consent_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_viewed_at: string | null
+          metrics: string[]
+          range_end: string
+          range_start: string
+          revoked_at: string | null
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          ciphertext?: string | null
+          consent_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_viewed_at?: string | null
+          metrics: string[]
+          range_end: string
+          range_start: string
+          revoked_at?: string | null
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          ciphertext?: string | null
+          consent_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_viewed_at?: string | null
+          metrics?: string[]
+          range_end?: string
+          range_start?: string
+          revoked_at?: string | null
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_shares_consent_fkey"
+            columns: ["consent_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "consents"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "health_shares_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issued_credentials: {
         Row: {
           claimed_at: string | null
@@ -2771,6 +2831,18 @@ export type Database = {
           user_agent: string
         }[]
       }
+      open_health_share: {
+        Args: { p_id: string }
+        Returns: {
+          ciphertext: string
+          consent_id: string
+          created_at: string
+          expires_at: string
+          previous_view_at: string
+          state: string
+          user_id: string
+        }[]
+      }
       pool_assurance_mix: {
         Args: { p_pool_id: string }
         Returns: {
@@ -3110,3 +3182,5 @@ export type BulkJobRow = Database['public']['Tables']['bulk_job_rows']['Row']
 export type DataSource = Database['public']['Tables']['data_sources']['Row']
 export type PendingIngest = Database['public']['Tables']['pending_ingest']['Row']
 export type LegalAcceptance = Database['public']['Tables']['legal_acceptances']['Row']
+export type HealthShare = Database['public']['Tables']['health_shares']['Row']
+export type InsertHealthShare = Database['public']['Tables']['health_shares']['Insert']

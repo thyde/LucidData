@@ -141,6 +141,15 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
       'A receipt states the terms the person agreed to and names the recipient. The recipient keeps their own copy; ours goes.',
   },
   {
+    table: 'health_shares',
+    personalData: true,
+    behaviour: 'cascade',
+    userColumn: 'user_id',
+    strippedColumns: [],
+    reason:
+      'A health summary shared by link, stored encrypted with a key only the link carries, and the terms of the share. Deleting it stops the link opening anything. Whatever a recipient saved stays with them.',
+  },
+  {
     table: 'audit_logs',
     personalData: true,
     behaviour: 'cascade',
