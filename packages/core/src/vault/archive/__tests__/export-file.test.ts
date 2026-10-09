@@ -64,7 +64,7 @@ describe('readHealthExport', () => {
   it('reads a Strava account archive, and the activities.csv inside it', async () => {
     const fractions: number[] = []
     const zipped = await readHealthExport(file('strava', 'strava-export.zip'), (fraction) => fractions.push(fraction))
-    expect(zipped).toMatchObject({ provider: 'strava', label: 'Strava' })
+    expect(zipped).toMatchObject({ provider: 'strava-archive', label: 'Strava' })
     expect(zipped!.records.map((record) => record.sourceRecordId)).toEqual([
       '9100000001',
       '9100000002',

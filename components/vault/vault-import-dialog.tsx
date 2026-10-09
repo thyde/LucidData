@@ -171,7 +171,7 @@ export function VaultImportDialog() {
       if (!current()) return
       if (health) {
         if (health.records.length === 0) {
-          setParseError(`This ${health.label} export holds no records LucidData reads.`)
+          setParseError(health.hint ?? `This ${health.label} export holds no records LucidData reads.`)
         } else {
           setHealthExport(health)
         }

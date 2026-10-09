@@ -32,6 +32,8 @@ export interface ExportReadResult {
    * now would block the full day a later export brings.
    */
   unfinishedDay?: string
+  /** What to do when nothing could be read, in a sentence for the person. */
+  hint?: string
 }
 
 export interface ReadOptions {

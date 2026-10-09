@@ -66,9 +66,10 @@ describe('reading a Garmin export', () => {
       { date: '2026-09-14', steps: 11234, distance_km: 8.45, calories_out: 612, active_minutes: 35, source: 'Garmin' },
       { date: '2026-09-15', steps: 9876, distance_km: 7.12, calories_out: 540, active_minutes: 30, source: 'Garmin' },
     ])
+    // The day's own resting heart rate, not the seven-day average beside it.
     expect(byType('vitals_daily').map((record) => record.data)).toEqual([
       { date: '2026-09-14', resting_heart_rate: 54, blood_oxygen_pct: 96, source: 'Garmin' },
-      { date: '2026-09-15', resting_heart_rate: 55, blood_oxygen_pct: 95, source: 'Garmin' },
+      { date: '2026-09-15', resting_heart_rate: 61, blood_oxygen_pct: 95, source: 'Garmin' },
     ])
 
     expect(byType('sleep_session').map((record) => [record.sourceRecordId, record.data])).toEqual([
@@ -129,6 +130,10 @@ describe('reading a Garmin export', () => {
   it('maps Garmin activity types onto the schema sports', () => {
     expect(['trail_running', 'treadmill_running', 'mountain_biking', 'indoor_cycling', 'lap_swimming', 'hiking', 'walking', 'yoga', 'golf'].map(garminSport)).toEqual(
       ['Run', 'Run', 'Ride', 'Ride', 'Swim', 'Hike', 'Walk', 'Yoga', 'Other']
+    )
+    // A motorcycle trip is not a bike ride.
+    expect(['motorcycling', 'motorcycling_v2', 'motocross', 'atv', 'snowmobiling'].map(garminSport)).toEqual(
+      ['Other', 'Other', 'Other', 'Other', 'Other']
     )
   })
 })

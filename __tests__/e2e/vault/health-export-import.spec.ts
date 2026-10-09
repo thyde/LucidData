@@ -125,7 +125,7 @@ test.describe('Health export import', () => {
     await expect(cards).toHaveCount(13)
     await cards.filter({ hasText: 'Riverside loop' }).click()
     const details = page.getByRole('dialog', { name: 'Workout' })
-    await expect(details).toContainText('Imported from Strava')
+    await expect(details).toContainText('Imported from your Strava archive')
     await expect(details).toContainText('Riverside loop')
   })
 

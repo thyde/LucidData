@@ -23,6 +23,7 @@ const rowsByTable = new Map<string, Record<string, unknown>[]>()
 const insertErrors: (Record<string, unknown> | null)[] = []
 const failingDeletes = new Set<string>()
 const failingSelects = new Set<string>()
+const filters: { table: string; column: string; value: unknown }[] = []
 const createAuditEntry = vi.fn()
 
 vi.mock('@/lib/services/audit.service', () => ({
@@ -44,8 +45,14 @@ function chain(table: string, op: string, patch?: Record<string, unknown>) {
         : null,
   })
   const api = {
-    eq: () => api,
-    in: () => api,
+    eq: (column: string, value: unknown) => {
+      filters.push({ table, column, value })
+      return api
+    },
+    in: (column: string, value: unknown) => {
+      filters.push({ table, column, value })
+      return api
+    },
     limit: () => api,
     order: () => api,
     select: () => api,
@@ -136,6 +143,7 @@ beforeEach(() => {
   insertErrors.length = 0
   failingDeletes.clear()
   failingSelects.clear()
+  filters.length = 0
   vi.clearAllMocks()
   createAuditEntry.mockResolvedValue(undefined)
 })
@@ -233,6 +241,9 @@ describe('a sync with an ingestion key', () => {
     expect(result).toEqual({ imported: 0, failed: 0 })
     expect(calls.some((call) => call.table === 'pending_ingest' && call.op === 'insert')).toBe(false)
     expect(createAuditEntry).not.toHaveBeenCalled()
+    // Only what the connector stored. An archive import is its own source,
+    // kept when the connector is disconnected, and the timeline matches the two.
+    expect(filters).toContainEqual({ table: 'vault_data', column: 'source_provider', value: 'strava' })
   })
 
   it('leaves the source connected when the vault check fails, so the next run retries', async () => {

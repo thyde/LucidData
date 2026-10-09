@@ -58,7 +58,10 @@ function formatDateTime(date: Date | string): string {
 
 // LD-202 provenance holds a slug, not a display name, because it is
 // unencrypted metadata. Titling it here keeps the storage opaque.
+const SOURCE_NAMES: Record<string, string> = { 'strava-archive': 'your Strava archive' };
+
 function sourceLabel(provider: string): string {
+  if (SOURCE_NAMES[provider]) return SOURCE_NAMES[provider];
   return provider
     .split(/[-_]/)
     .filter(Boolean)
