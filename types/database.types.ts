@@ -580,6 +580,24 @@ export type Database = {
           },
         ]
       }
+      daily_counters: {
+        Row: {
+          count: number
+          counter: string
+          day: string
+        }
+        Insert: {
+          count?: number
+          counter: string
+          day: string
+        }
+        Update: {
+          count?: number
+          counter?: string
+          day?: string
+        }
+        Relationships: []
+      }
       data_order_records: {
         Row: {
           category: string
@@ -2609,6 +2627,10 @@ export type Database = {
       consume_rate_limit: {
         Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
+      }
+      increment_daily_counter: {
+        Args: { p_counter: string }
+        Returns: undefined
       }
       is_sale_restricted: {
         Args: { p_category: string; p_schema_type: string }
