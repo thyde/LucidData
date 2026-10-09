@@ -790,6 +790,115 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
         ],
         "type": "object",
       },
+      "VaultRewrapApply": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "ingest_key": {
+            "description": "The connector ingestion private key as the device read it (previous, null when the account had none) and its new wrap under the new master key (wrapped, null to leave it). The re-wrap is refused with code conflict if the stored key is no longer the one read. Send it whenever you read the key.",
+            "properties": {
+              "previous": {
+                "anyOf": [
+                  {
+                    "maxLength": 8000,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "wrapped": {
+                "anyOf": [
+                  {
+                    "maxLength": 8000,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "previous",
+              "wrapped",
+            ],
+            "type": "object",
+          },
+        },
+        "type": "object",
+      },
+      "VaultRewrapPart": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "entries": {
+            "description": "Up to 5000 envelopes. Sending an entry again replaces what was sent for it.",
+            "items": {
+              "properties": {
+                "dek_salt": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "encrypted_dek": {
+                  "maxLength": 4000,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+                "previous_encrypted_dek": {
+                  "description": "The wrapped key this replaces, exactly as read. If the entry changed since, the whole re-wrap is refused with code conflict.",
+                  "maxLength": 4000,
+                  "minLength": 1,
+                  "type": "string",
+                },
+              },
+              "required": [
+                "id",
+                "encrypted_dek",
+                "dek_salt",
+                "previous_encrypted_dek",
+              ],
+              "type": "object",
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "entries",
+        ],
+        "type": "object",
+      },
+      "VaultRewrapStart": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "reason": {
+            "enum": [
+              "password_change",
+              "recovery",
+            ],
+            "type": "string",
+          },
+          "step_up_token": {
+            "description": "A step-up grant for change_password.",
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "reason",
+          "step_up_token",
+        ],
+        "type": "object",
+      },
     },
     "securitySchemes": {
       "bearerAuth": {
@@ -3761,7 +3870,7 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
     },
     "/api/v1/vault/rewrap": {
       "post": {
-        "description": "After a password change or a recovery, the device re-wraps every data key under the new master key and sends all of them at once; the server stores them in one transaction. Needs a step-up grant for change_password. Every recovery factor wraps the old key, so all are retired; store a new recovery code straight after.",
+        "description": "After a password change or a recovery, the device re-wraps every data key under the new master key and sends all of them at once; the server stores them in one transaction. Needs a step-up grant for change_password. Every recovery factor wraps the old key, so all are retired; store a new recovery code straight after. A request body is limited to 4.5 MB, so a vault of more than about 13,000 entries sends its re-wrap in parts through /api/v1/vault/rewraps.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3821,6 +3930,240 @@ exports[`OpenAPI document > matches the published snapshot 1`] = `
           },
         },
         "summary": "Re-wrap every entry under a new master key",
+      },
+    },
+    "/api/v1/vault/rewraps": {
+      "post": {
+        "description": "For a vault whose envelopes do not fit in one request. Consumes a step-up grant for change_password. The re-wrap lasts 30 minutes, and starting another drops it.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultRewrapStart",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The re-wrap id, for the parts and the apply call.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Start a re-wrap sent in parts",
+      },
+    },
+    "/api/v1/vault/rewraps/{id}/apply": {
+      "post": {
+        "description": "Stores every envelope, and the connector key when sent, in one transaction. Refused with code conflict unless each entry the vault holds was sent once and re-wraps the key stored now; send the whole re-wrap again after reading the vault. Every recovery factor wraps the old key, so all are retired.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultRewrapApply",
+              },
+            },
+          },
+          "required": false,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "How many entries were re-wrapped, and how many recovery kits stopped working.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Apply a re-wrap sent in parts",
+      },
+    },
+    "/api/v1/vault/rewraps/{id}/entries": {
+      "post": {
+        "description": "Envelopes wait on the server until the apply call. An entry sent again replaces what was sent for it, so a part can be retried. An expired re-wrap is refused with code not_found.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultRewrapPart",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {},
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "How many envelopes the re-wrap holds so far.",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Invalid input, or a refusal written for the person.",
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Missing or invalid token, a revoked session, or a second factor still to complete.",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Nothing with this id belongs to the person.",
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error",
+                },
+              },
+            },
+            "description": "Too many requests. Try again shortly.",
+          },
+        },
+        "summary": "Send part of a re-wrap",
       },
     },
     "/api/v1/vault/{id}": {

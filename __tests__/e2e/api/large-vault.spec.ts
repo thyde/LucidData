@@ -168,4 +168,68 @@ test.describe('A vault past the first page of results', () => {
     expect(response.status()).toBe(200)
     expect((await response.json()).data.rewrapped).toBe(ENTRIES)
   })
+
+  test('re-wraps in parts, as a vault too large for one request does', async ({ request }) => {
+    const read = async () =>
+      (await (await request.get('/api/v1/vault', { headers: as(person), timeout: 120_000 })).json()).data as {
+        id: string
+        encrypted_dek: string
+      }[]
+    const start = async () => {
+      const grant = await request.post('/api/v1/step-up', {
+        headers: as(person),
+        data: { action: 'change_password', proof: await signIn(person.email) },
+      })
+      const started = await request.post('/api/v1/vault/rewraps', {
+        headers: as(person),
+        data: { reason: 'password_change', step_up_token: (await grant.json()).data.token },
+      })
+      expect(started.status()).toBe(201)
+      return (await started.json()).data.id as string
+    }
+    const send = async (rewrap: string, entries: object[]) => {
+      let staged = 0
+      for (let at = 0; at < entries.length; at += 400) {
+        const part = await request.post(`/api/v1/vault/rewraps/${rewrap}/entries`, {
+          headers: as(person),
+          data: { entries: entries.slice(at, at + 400) },
+          timeout: 120_000,
+        })
+        expect(part.status()).toBe(200)
+        staged = (await part.json()).data.staged
+      }
+      return staged
+    }
+    const apply = (rewrap: string) =>
+      request.post(`/api/v1/vault/rewraps/${rewrap}/apply`, { headers: as(person), data: {}, timeout: 120_000 })
+
+    const vault = await read()
+    const envelopes = vault.map(({ id, encrypted_dek }) => ({
+      id,
+      encrypted_dek: 'c2VudC1pbi1wYXJ0cw',
+      dek_salt: 'cGFydC1zYWx0',
+      previous_encrypted_dek: encrypted_dek,
+    }))
+
+    // One entry that changed since it was read stops the whole re-wrap.
+    const stale = await start()
+    await send(stale, [{ ...envelopes[0], previous_encrypted_dek: 'c3RhbGU' }, ...envelopes.slice(1)])
+    const refused = await apply(stale)
+    expect(refused.status()).toBe(409)
+    expect((await refused.json()).code).toBe('conflict')
+    expect((await read()).every((entry) => entry.encrypted_dek !== 'c2VudC1pbi1wYXJ0cw')).toBe(true)
+
+    const rewrap = await start()
+    expect(await send(rewrap, envelopes)).toBe(ENTRIES)
+    // A part sent again replaces what was sent, rather than counting twice.
+    expect(await send(rewrap, envelopes.slice(0, 400))).toBe(ENTRIES)
+
+    const applied = await apply(rewrap)
+    expect(applied.status()).toBe(200)
+    expect((await applied.json()).data.rewrapped).toBe(ENTRIES)
+    expect((await read()).every((entry) => entry.encrypted_dek === 'c2VudC1pbi1wYXJ0cw')).toBe(true)
+
+    // A re-wrap applies once.
+    expect((await apply(rewrap)).status()).toBe(404)
+  })
 })

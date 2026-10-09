@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { VAULT_SCHEMA_TYPES } from '../schemas/vault-schemas'
-import { claimKeySaltSchema, setRecoveryEscrowSchema } from './account'
+import { REWRAP_PART_SIZE, claimKeySaltSchema, setRecoveryEscrowSchema } from './account'
 import { publishIngestionKeySchema, clearPendingIngestSchema } from './connector'
 import { dataCategorySchema } from './marketplace'
 import { sourceCapturedAtSchema, sourceProviderSchema, sourceRecordIdSchema } from './provenance'
@@ -97,31 +97,72 @@ export const vaultEntryUpdateSchema = z
     { message: 'client_ciphertext, encrypted_dek, and dek_salt must be sent together' }
   )
 
+const rewrapReason = z.enum(['password_change', 'recovery'])
+
+const distinctIds = (entries: { id: string }[]) => new Set(entries.map((entry) => entry.id)).size === entries.length
+
+const rewrapEnvelopes = z.array(
+  z.object({
+    id: z.string().uuid(),
+    encrypted_dek: wrappedKey,
+    dek_salt: dekSalt,
+    previous_encrypted_dek: wrappedKey.describe(
+      'The wrapped key this replaces, exactly as read. If the entry changed since, the whole re-wrap is refused with code conflict.'
+    ),
+  })
+)
+
+const rewrapStepUp = z
+  .string()
+  .min(1, 'Confirm your password to continue')
+  .describe('A step-up grant for change_password.')
+
+const ingestKeyMove = z
+  .object({ previous: z.string().min(1).max(8000), wrapped: z.string().min(1).max(8000) })
+  .describe(
+    'The connector ingestion private key re-wrapped under the new master key, with the wrap it replaces. Send it whenever the account has one, or synced records stop opening.'
+  )
+
 /**
  * Every entry's data key, re-wrapped on the device under a new master key after
  * a password change or a recovery. All entries at once: the server stores them
- * in one transaction, so a vault is never left half under each key.
+ * in one transaction, so a vault is never left half under each key. A vault too
+ * large for one request uses the re-wrap in parts below.
  */
 export const vaultRewrapSchema = z.object({
-  reason: z.enum(['password_change', 'recovery']),
-  entries: z.array(
-    z.object({
-      id: z.string().uuid(),
-      encrypted_dek: wrappedKey,
-      dek_salt: dekSalt,
-      previous_encrypted_dek: wrappedKey.describe(
-        'The wrapped key this replaces, exactly as read. If the entry changed since, the whole re-wrap is refused with code conflict.'
-      ),
-    })
-  ),
-  step_up_token: z
-    .string()
-    .min(1, 'Confirm your password to continue')
-    .describe('A step-up grant for change_password.'),
+  reason: rewrapReason,
+  entries: rewrapEnvelopes.refine(distinctIds, 'Each entry can be sent once'),
+  step_up_token: rewrapStepUp,
+  ingest_key: ingestKeyMove.optional(),
+})
+
+/**
+ * LD-210: a re-wrap in parts. Starting one consumes the step-up grant, and it
+ * then lasts 30 minutes. The parts wait on the server until the apply call,
+ * which stores them all in one transaction.
+ */
+export const vaultRewrapStartSchema = z.object({
+  reason: rewrapReason,
+  step_up_token: rewrapStepUp,
+})
+
+export const vaultRewrapPartSchema = z.object({
+  entries: rewrapEnvelopes
+    .min(1)
+    .max(REWRAP_PART_SIZE)
+    .refine(distinctIds, 'Each entry can be sent once')
+    .describe(`Up to ${REWRAP_PART_SIZE} envelopes. Sending an entry again replaces what was sent for it.`),
+})
+
+export const vaultRewrapApplySchema = z.object({
   ingest_key: z
-    .object({ previous: z.string().min(1).max(8000), wrapped: z.string().min(1).max(8000) })
+    .object({
+      previous: z.string().min(1).max(8000).nullable(),
+      wrapped: z.string().min(1).max(8000).nullable(),
+    })
+    .refine((key) => key.wrapped === null || key.previous !== null, 'A new wrap needs the wrap it replaces')
     .describe(
-      'The connector ingestion private key re-wrapped under the new master key, with the wrap it replaces. Send it whenever the account has one, or synced records stop opening.'
+      'The connector ingestion private key as the device read it (previous, null when the account had none) and its new wrap under the new master key (wrapped, null to leave it). The re-wrap is refused with code conflict if the stored key is no longer the one read. Send it whenever you read the key.'
     )
     .optional(),
 })

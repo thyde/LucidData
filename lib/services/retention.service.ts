@@ -14,6 +14,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/service'
+import { purgeExpiredRewraps } from '@/lib/repositories/vault-rewrap.repository'
 import {
   CONSENT_REQUEST_RETENTION_DAYS,
   CREDENTIAL_REQUEST_RETENTION_DAYS,
@@ -179,12 +180,21 @@ export async function enforceExportRetention(
   return { category: 'data_order_records', deleted: (deleted ?? []).length }
 }
 
+/**
+ * Re-wraps nobody applied. A password change or a recovery that stopped part
+ * way leaves wrapped data keys waiting, and they are no use once it expires.
+ */
+export async function purgeAbandonedRewraps(now: Date = new Date()): Promise<RetentionCategoryResult> {
+  return { category: 'vault_rewraps', deleted: await purgeExpiredRewraps(now) }
+}
+
 export const RETENTION_PURGES = [
   purgeExpiredConsentRequests,
   purgeExpiredCredentialRequests,
   purgeExpiredShares,
   purgeOldNotifications,
   enforceExportRetention,
+  purgeAbandonedRewraps,
 ] as const
 
 /**

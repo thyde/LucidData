@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 import * as account from '@/lib/services/account.service'
 import {
   setRecoveryEscrowSchema,
-  rewrapEntriesSchema,
+  beginRewrapSchema,
+  stageRewrapSchema,
+  applyRewrapSchema,
   exportVaultSchema,
   deleteAccountSchema,
   emailNotificationPreferenceSchema,
@@ -36,19 +38,44 @@ export async function setRecoveryEscrowAction(input: unknown): Promise<void | Ac
   })
 }
 
-export async function rewrapVaultEntriesAction(
-  input: unknown
-): Promise<account.RewrapOutcome | ActionFailure> {
+/** Each entry's wrapped data key, for a re-wrap. Smaller than reading every entry whole. */
+export async function getVaultKeyEnvelopesAction(): Promise<
+  { id: string; encrypted_dek: string; dek_salt: string }[] | ActionFailure
+> {
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
-    const payload = rewrapEntriesSchema.parse(input)
-    return account.rewrapVaultEntries(
-      userId,
-      payload.reason,
-      payload.entries,
-      payload.stepUpToken,
-      payload.ingestKey
-    )
+    return account.getVaultKeyEnvelopes(userId)
+  })
+}
+
+/**
+ * LD-210: a password change or a recovery sends its re-wrapped envelopes in
+ * parts. Starting consumes the step-up grant; the parts and the apply name the
+ * re-wrap it started, which only its owner can use.
+ */
+export async function beginVaultRewrapAction(input: unknown): Promise<{ rewrapId: string } | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { reason, stepUpToken } = beginRewrapSchema.parse(input)
+    return account.beginVaultRewrap(userId, reason, stepUpToken)
+  })
+}
+
+export async function stageVaultRewrapAction(input: unknown): Promise<{ staged: number } | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { rewrapId, entries } = stageRewrapSchema.parse(input)
+    return account.stageVaultRewrap(userId, rewrapId, entries)
+  })
+}
+
+export async function applyVaultRewrapAction(
+  input: unknown
+): Promise<(account.RewrapOutcome & { rewrapped: number }) | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { rewrapId, ingestKey } = applyRewrapSchema.parse(input)
+    return account.applyVaultRewrap(userId, rewrapId, ingestKey)
   })
 }
 

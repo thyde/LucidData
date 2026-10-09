@@ -23,7 +23,10 @@ import {
   vaultEntryBatchCreateSchema,
   vaultEntryCreateSchema,
   vaultEntryUpdateSchema,
+  vaultRewrapApplySchema,
+  vaultRewrapPartSchema,
   vaultRewrapSchema,
+  vaultRewrapStartSchema,
 } from '@luciddata/core/validations/client-api'
 
 /**
@@ -45,6 +48,9 @@ export const REQUEST_SCHEMAS = {
   VaultEntryBatchCreate: vaultEntryBatchCreateSchema,
   VaultEntryUpdate: vaultEntryUpdateSchema,
   VaultRewrap: vaultRewrapSchema,
+  VaultRewrapStart: vaultRewrapStartSchema,
+  VaultRewrapPart: vaultRewrapPartSchema,
+  VaultRewrapApply: vaultRewrapApplySchema,
   ConsentCreate: consentCreateSchema,
   ConsentRevoke: consentRevokeSchema,
   ConsentExtend: consentExtendSchema,
@@ -96,7 +102,10 @@ export const ROUTES: RouteDoc[] = [
   { path: '/api/v1/vault', method: 'get', summary: 'List vault entries', returns: 'Every entry, encrypted. Labels, categories, tags, and dates are readable; the contents are not.' },
   { path: '/api/v1/vault', method: 'post', summary: 'Store an encrypted entry', description: 'The device encrypts the entry with a fresh data key and wraps that key with the master key. Health entries need consent to store health data first. A record the vault already holds from the same source is refused with code already_stored.', body: 'VaultEntryCreate', status: 201, returns: 'The stored entry.' },
   { path: '/api/v1/vault/batch', method: 'post', summary: 'Store up to 100 encrypted entries', description: 'For imports. Each entry succeeds or fails on its own, and a record the vault already holds from the same source fails with code already_stored, so an import can be run again safely.', body: 'VaultEntryBatchCreate', returns: 'How many were stored, and a result for each entry by index.' },
-  { path: '/api/v1/vault/rewrap', method: 'post', summary: 'Re-wrap every entry under a new master key', description: 'After a password change or a recovery, the device re-wraps every data key under the new master key and sends all of them at once; the server stores them in one transaction. Needs a step-up grant for change_password. Every recovery factor wraps the old key, so all are retired; store a new recovery code straight after.', body: 'VaultRewrap', returns: 'How many entries were re-wrapped, and how many recovery kits stopped working.' },
+  { path: '/api/v1/vault/rewrap', method: 'post', summary: 'Re-wrap every entry under a new master key', description: 'After a password change or a recovery, the device re-wraps every data key under the new master key and sends all of them at once; the server stores them in one transaction. Needs a step-up grant for change_password. Every recovery factor wraps the old key, so all are retired; store a new recovery code straight after. A request body is limited to 4.5 MB, so a vault of more than about 13,000 entries sends its re-wrap in parts through /api/v1/vault/rewraps.', body: 'VaultRewrap', returns: 'How many entries were re-wrapped, and how many recovery kits stopped working.' },
+  { path: '/api/v1/vault/rewraps', method: 'post', summary: 'Start a re-wrap sent in parts', description: 'For a vault whose envelopes do not fit in one request. Consumes a step-up grant for change_password. The re-wrap lasts 30 minutes, and starting another drops it.', body: 'VaultRewrapStart', status: 201, returns: 'The re-wrap id, for the parts and the apply call.' },
+  { path: '/api/v1/vault/rewraps/{id}/entries', method: 'post', summary: 'Send part of a re-wrap', description: 'Envelopes wait on the server until the apply call. An entry sent again replaces what was sent for it, so a part can be retried. An expired re-wrap is refused with code not_found.', body: 'VaultRewrapPart', returns: 'How many envelopes the re-wrap holds so far.' },
+  { path: '/api/v1/vault/rewraps/{id}/apply', method: 'post', summary: 'Apply a re-wrap sent in parts', description: 'Stores every envelope, and the connector key when sent, in one transaction. Refused with code conflict unless each entry the vault holds was sent once and re-wraps the key stored now; send the whole re-wrap again after reading the vault. Every recovery factor wraps the old key, so all are retired.', body: 'VaultRewrapApply', optionalBody: true, returns: 'How many entries were re-wrapped, and how many recovery kits stopped working.' },
   { path: '/api/v1/vault/{id}', method: 'get', summary: 'Read one vault entry', returns: 'The entry, encrypted.' },
   { path: '/api/v1/vault/{id}', method: 'patch', summary: 'Change a vault entry', description: 'To change the contents, send client_ciphertext, encrypted_dek, and dek_salt together.', body: 'VaultEntryUpdate', returns: 'The updated entry.' },
   { path: '/api/v1/vault/{id}', method: 'delete', summary: 'Delete a vault entry', returns: 'Confirmation of the deletion.' },

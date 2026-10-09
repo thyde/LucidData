@@ -6,19 +6,21 @@ if (!globalThis.crypto?.subtle) {
   globalThis.crypto = webcrypto
 }
 
-const getVaultEntriesAction = vi.fn()
-const rewrapVaultEntriesAction = vi.fn()
+const getVaultKeyEnvelopesAction = vi.fn()
+const beginVaultRewrapAction = vi.fn()
+const stageVaultRewrapAction = vi.fn()
+const applyVaultRewrapAction = vi.fn()
 const getIngestionKeyAction = vi.fn()
 
 vi.mock('@/lib/actions/account.actions', () => ({
   claimKeySaltAction: vi.fn(),
   setRecoveryEscrowAction: vi.fn(),
-  rewrapVaultEntriesAction: (...args: unknown[]) => rewrapVaultEntriesAction(...args),
+  getVaultKeyEnvelopesAction: (...args: unknown[]) => getVaultKeyEnvelopesAction(...args),
+  beginVaultRewrapAction: (...args: unknown[]) => beginVaultRewrapAction(...args),
+  stageVaultRewrapAction: (...args: unknown[]) => stageVaultRewrapAction(...args),
+  applyVaultRewrapAction: (...args: unknown[]) => applyVaultRewrapAction(...args),
 }))
 vi.mock('@/lib/actions/recovery.actions', () => ({ addRecoveryFactorAction: vi.fn() }))
-vi.mock('@/lib/actions/vault.actions', () => ({
-  getVaultEntriesAction: (...args: unknown[]) => getVaultEntriesAction(...args),
-}))
 vi.mock('@/lib/actions/legal.actions', () => ({ recordRegistrationChoicesAction: vi.fn() }))
 vi.mock('@/lib/actions/connector.actions', () => ({
   getIngestionKeyAction: (...args: unknown[]) => getIngestionKeyAction(...args),
@@ -29,10 +31,12 @@ const {
   openVaultWithRecoverySecret,
   prepareRewrap,
   rewrapAllEntries,
+  storeRewrap,
   vaultHasContent,
   vaultOpensWith,
 } = await import('@/lib/account/account-crypto')
 const { importMasterKey } = await import('@luciddata/core/crypto/key-derivation')
+const { actionFailure } = await import('@/lib/actions/action-result')
 const { decryptVaultEntry, decryptWithKey, encryptVaultEntry, encryptWithKey } = await import(
   '@luciddata/core/crypto/client-crypto'
 )
@@ -54,9 +58,26 @@ async function opensWith(key: CryptoKey, entry: { encrypted_dek: string; dek_sal
   return recovery.opensDataKey(key, entry)
 }
 
+type Envelope = { id: string; encrypted_dek: string; dek_salt: string; previous_encrypted_dek: string }
+
+/** Everything the re-wrap sent: its start, every part in order, and the apply. */
+function sentRewrap() {
+  return {
+    begin: beginVaultRewrapAction.mock.calls[0]?.[0] as { reason: string; stepUpToken: string },
+    parts: stageVaultRewrapAction.mock.calls.map(([input]) => input as { rewrapId: string; entries: Envelope[] }),
+    apply: applyVaultRewrapAction.mock.calls[0]?.[0] as {
+      rewrapId: string
+      ingestKey?: { previous: string; wrapped: string }
+    },
+    entries: stageVaultRewrapAction.mock.calls.flatMap(([input]) => (input as { entries: Envelope[] }).entries),
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  rewrapVaultEntriesAction.mockResolvedValue({ retiredKits: 1 })
+  beginVaultRewrapAction.mockResolvedValue({ rewrapId: 'rewrap-1' })
+  stageVaultRewrapAction.mockImplementation(async (input: { entries: unknown[] }) => ({ staged: input.entries.length }))
+  applyVaultRewrapAction.mockResolvedValue({ rewrapped: 0, retiredKits: 1 })
   getIngestionKeyAction.mockResolvedValue({ publicKey: null, wrappedPrivateKey: null, salt: null })
 })
 
@@ -104,7 +125,7 @@ describe('rewrapAllEntries', () => {
     const newKey = await vaultKey()
     const underOld = await encryptVaultEntry(oldKey.key, 'from before the reset')
     const underNew = await encryptVaultEntry(newKey.key, 'stored after the reset')
-    getVaultEntriesAction.mockResolvedValue([
+    getVaultKeyEnvelopesAction.mockResolvedValue([
       { id: 'old', ...underOld },
       { id: 'new', ...underNew },
     ])
@@ -112,12 +133,13 @@ describe('rewrapAllEntries', () => {
     const result = await rewrapAllEntries(oldKey.key, newKey.key, 'recovery', 'grant')
 
     expect(result).toEqual({ count: 2, retiredKits: 1 })
-    const sent = rewrapVaultEntriesAction.mock.calls[0][0] as {
-      reason: string
-      stepUpToken: string
-      entries: { id: string; encrypted_dek: string; dek_salt: string }[]
-    }
-    expect(sent).toMatchObject({ reason: 'recovery', stepUpToken: 'grant' })
+    const sent = sentRewrap()
+    expect(sent.begin).toEqual({ reason: 'recovery', stepUpToken: 'grant' })
+    // No connector key was read, and the server is told so: one published
+    // meanwhile under the old key must stop the re-wrap rather than strand.
+    expect(sent.apply).toEqual({ rewrapId: 'rewrap-1', ingestKey: { previous: null, wrapped: null } })
+    expect(sent.parts.every((part) => part.rewrapId === 'rewrap-1')).toBe(true)
+    expect(sent.entries).toHaveLength(2)
     for (const entry of sent.entries) expect(await opensWith(newKey.key, entry)).toBe(true)
     // The entry already under the new key goes back exactly as it was.
     expect(sent.entries.find((entry) => entry.id === 'new')).toEqual({
@@ -136,7 +158,7 @@ describe('rewrapAllEntries', () => {
     const oldKey = await vaultKey()
     const newKey = await vaultKey()
     const between = await vaultKey()
-    getVaultEntriesAction.mockResolvedValue([
+    getVaultKeyEnvelopesAction.mockResolvedValue([
       { id: 'old', ...(await encryptVaultEntry(oldKey.key, 'movable')) },
       { id: 'between-1', ...(await encryptVaultEntry(between.key, 'saved under another password')) },
       { id: 'between-2', ...(await encryptVaultEntry(between.key, 'saved under another password')) },
@@ -148,13 +170,14 @@ describe('rewrapAllEntries', () => {
 
     expect(failure).toBeInstanceOf(EntriesUnderAnotherKeyError)
     expect((failure as InstanceType<typeof EntriesUnderAnotherKeyError>).count).toBe(2)
-    expect(rewrapVaultEntriesAction).not.toHaveBeenCalled()
+    expect(beginVaultRewrapAction).not.toHaveBeenCalled()
+    expect(stageVaultRewrapAction).not.toHaveBeenCalled()
   })
 
   it('prepares the envelopes without sending them', async () => {
     const oldKey = await vaultKey()
     const newKey = await vaultKey()
-    getVaultEntriesAction.mockResolvedValue([
+    getVaultKeyEnvelopesAction.mockResolvedValue([
       { id: 'one', ...(await encryptVaultEntry(oldKey.key, 'payload')) },
     ])
 
@@ -163,37 +186,81 @@ describe('rewrapAllEntries', () => {
     expect(prepared.entries).toHaveLength(1)
     expect(await opensWith(newKey.key, prepared.entries[0])).toBe(true)
     expect(prepared.ingestKey).toBeNull()
-    expect(rewrapVaultEntriesAction).not.toHaveBeenCalled()
+    expect(beginVaultRewrapAction).not.toHaveBeenCalled()
+  })
+
+  it('sends a large vault in parts, then applies them once', async () => {
+    const prepared = {
+      entries: Array.from({ length: 5 }, (_, n) => ({
+        id: `entry-${n}`,
+        encrypted_dek: `new-${n}`,
+        dek_salt: `salt-${n}`,
+        previous_encrypted_dek: `old-${n}`,
+      })),
+      ingestKey: { previous: 'old-ingest', wrapped: 'new-ingest' },
+    }
+
+    expect(await storeRewrap(prepared, 'password_change', 'grant', 2)).toEqual({ count: 5, retiredKits: 1 })
+
+    const sent = sentRewrap()
+    expect(sent.parts.map((part) => part.entries.length)).toEqual([2, 2, 1])
+    expect(sent.entries).toEqual(prepared.entries)
+    expect(applyVaultRewrapAction).toHaveBeenCalledTimes(1)
+    expect(sent.apply).toEqual({ rewrapId: 'rewrap-1', ingestKey: prepared.ingestKey })
+    // Nothing is applied until every part is in.
+    expect(applyVaultRewrapAction.mock.invocationCallOrder[0]).toBeGreaterThan(
+      Math.max(...stageVaultRewrapAction.mock.invocationCallOrder)
+    )
+  })
+
+  it('applies nothing when a part is refused', async () => {
+    stageVaultRewrapAction
+      .mockResolvedValueOnce({ staged: 2 })
+      .mockResolvedValueOnce(actionFailure('The re-encryption took too long and was stopped. Try again.', 'not_found'))
+    const prepared = {
+      entries: Array.from({ length: 4 }, (_, n) => ({
+        id: `entry-${n}`,
+        encrypted_dek: `new-${n}`,
+        dek_salt: `salt-${n}`,
+        previous_encrypted_dek: `old-${n}`,
+      })),
+      ingestKey: null,
+    }
+
+    await expect(storeRewrap(prepared, 'recovery', 'grant', 2)).rejects.toThrow(/took too long/)
+    expect(applyVaultRewrapAction).not.toHaveBeenCalled()
   })
 
   it('moves the connector ingestion key with the entries, so synced records still open', async () => {
     const oldKey = await vaultKey()
     const newKey = await vaultKey()
     const wrapped = await encryptWithKey(oldKey.key, 'ingestion-private-key')
-    getVaultEntriesAction.mockResolvedValue([])
+    getVaultKeyEnvelopesAction.mockResolvedValue([])
     getIngestionKeyAction.mockResolvedValue({ publicKey: 'pub', wrappedPrivateKey: wrapped, salt: 'master-key' })
 
     await rewrapAllEntries(oldKey.key, newKey.key, 'password_change', 'grant')
 
-    const sent = rewrapVaultEntriesAction.mock.calls[0][0] as {
-      ingestKey: { previous: string; wrapped: string }
-    }
-    expect(sent.ingestKey.previous).toBe(wrapped)
-    expect(await decryptWithKey(newKey.key, sent.ingestKey.wrapped)).toBe('ingestion-private-key')
+    const { apply, parts } = sentRewrap()
+    // An empty vault sends no parts, and the key still moves in the apply.
+    expect(parts).toEqual([])
+    expect(apply.ingestKey!.previous).toBe(wrapped)
+    expect(await decryptWithKey(newKey.key, apply.ingestKey!.wrapped)).toBe('ingestion-private-key')
   })
 
   it('sends no ingestion key it cannot open, and keeps one already under the new key', async () => {
     const oldKey = await vaultKey()
     const newKey = await vaultKey()
     const lost = await vaultKey()
-    getVaultEntriesAction.mockResolvedValue([])
+    getVaultKeyEnvelopesAction.mockResolvedValue([])
 
-    getIngestionKeyAction.mockResolvedValue({
-      publicKey: 'pub',
-      wrappedPrivateKey: await encryptWithKey(lost.key, 'stranded'),
-      salt: 'master-key',
-    })
-    expect((await prepareRewrap(oldKey.key, newKey.key)).ingestKey).toBeNull()
+    const stranded = await encryptWithKey(lost.key, 'stranded')
+    getIngestionKeyAction.mockResolvedValue({ publicKey: 'pub', wrappedPrivateKey: stranded, salt: 'master-key' })
+    const prepared = await prepareRewrap(oldKey.key, newKey.key)
+    expect(prepared.ingestKey).toBeNull()
+
+    // The key stays where it is, and the server checks it is still the one read.
+    await storeRewrap(prepared, 'password_change', 'grant')
+    expect(sentRewrap().apply).toEqual({ rewrapId: 'rewrap-1', ingestKey: { previous: stranded, wrapped: null } })
 
     getIngestionKeyAction.mockResolvedValue({
       publicKey: 'pub',

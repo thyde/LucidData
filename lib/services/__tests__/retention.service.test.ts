@@ -63,6 +63,7 @@ const {
   purgeExpiredShares,
   purgeOldNotifications,
   enforceExportRetention,
+  purgeAbandonedRewraps,
   runRetentionPurges,
 } = await import('@/lib/services/retention.service')
 
@@ -198,6 +199,17 @@ describe('enforceExportRetention', () => {
   })
 })
 
+describe('purgeAbandonedRewraps', () => {
+  it('drops re-wraps whose half hour has passed', async () => {
+    results.set('vault_rewraps:delete', [{ id: 'r1' }, { id: 'r2' }])
+
+    const result = await purgeAbandonedRewraps(NOW)
+
+    expect(result).toEqual({ category: 'vault_rewraps', deleted: 2 })
+    expect(filtersFor('vault_rewraps')).toEqual([[['lt', 'expires_at', NOW.toISOString()]]])
+  })
+})
+
 describe('runRetentionPurges', () => {
   it('runs every category and totals them', async () => {
     results.set('data_orders:select', [])
@@ -208,6 +220,7 @@ describe('runRetentionPurges', () => {
       'credential_shares',
       'notifications',
       'data_order_records',
+      'vault_rewraps',
     ])
     expect(failed).toBe(0)
   })

@@ -13,8 +13,15 @@ import {
   opensDataKey,
   recoverySecretKind,
 } from '@luciddata/core/crypto/recovery'
-import { getVaultEntriesAction } from '@/lib/actions/vault.actions'
-import { setRecoveryEscrowAction, rewrapVaultEntriesAction, claimKeySaltAction } from '@/lib/actions/account.actions'
+import {
+  applyVaultRewrapAction,
+  beginVaultRewrapAction,
+  claimKeySaltAction,
+  getVaultKeyEnvelopesAction,
+  setRecoveryEscrowAction,
+  stageVaultRewrapAction,
+} from '@/lib/actions/account.actions'
+import { REWRAP_PART_SIZE } from '@luciddata/core/validations/account'
 import { addRecoveryFactorAction } from '@/lib/actions/recovery.actions'
 import { getIngestionKeyAction } from '@/lib/actions/connector.actions'
 import type { RecoveryMaterial } from '@/lib/services/recovery-factor.service'
@@ -145,6 +152,12 @@ export interface PreparedRewrap {
   entries: RewrapEnvelope[]
   /** The connector ingestion private key under the new key, when there is one to move. */
   ingestKey: { previous: string; wrapped: string } | null
+  /**
+   * The wrapped ingestion key as read, null when there was none. The server
+   * refuses the re-wrap if it changed since, so a key published meanwhile
+   * under the old master key is not left behind. Unset skips that check.
+   */
+  ingestRead?: string | null
 }
 
 /**
@@ -163,7 +176,7 @@ export async function prepareRewrap(
   newMasterKey: CryptoKey
 ): Promise<PreparedRewrap> {
   const [entries, ingestion] = await Promise.all([
-    unwrap(getVaultEntriesAction()),
+    unwrap(getVaultKeyEnvelopesAction()),
     unwrap(getIngestionKeyAction()),
   ])
   const rewrapped = await Promise.all(
@@ -188,6 +201,7 @@ export async function prepareRewrap(
   return {
     entries: rewrapped as RewrapEnvelope[],
     ingestKey: await rewrapIngestionKey(oldMasterKey, newMasterKey, ingestion.wrappedPrivateKey),
+    ingestRead: ingestion.wrappedPrivateKey ?? null,
   }
 }
 
@@ -211,21 +225,27 @@ async function rewrapIngestionKey(
   }
 }
 
-// Store a prepared re-wrap with a step-up grant for change_password. The server
-// then retires every recovery factor, since each one wraps the old key.
+/**
+ * Store a prepared re-wrap with a step-up grant for change_password. The
+ * envelopes go in parts, because a large vault's do not fit in one request,
+ * and the server applies them all in one transaction. It then retires every
+ * recovery factor, since each one wraps the old key.
+ */
 export async function storeRewrap(
   prepared: PreparedRewrap,
   reason: 'password_change' | 'recovery',
-  stepUpToken: string
+  stepUpToken: string,
+  partSize: number = REWRAP_PART_SIZE
 ): Promise<RewrapResult> {
-  const { retiredKits } = await unwrap(
-    rewrapVaultEntriesAction({
-      reason,
-      entries: prepared.entries,
-      stepUpToken,
-      ...(prepared.ingestKey ? { ingestKey: prepared.ingestKey } : {}),
-    })
-  )
+  const { rewrapId } = await unwrap(beginVaultRewrapAction({ reason, stepUpToken }))
+  for (let start = 0; start < prepared.entries.length; start += partSize) {
+    await unwrap(stageVaultRewrapAction({ rewrapId, entries: prepared.entries.slice(start, start + partSize) }))
+  }
+  const ingestKey =
+    prepared.ingestRead !== undefined
+      ? { previous: prepared.ingestRead, wrapped: prepared.ingestKey?.wrapped ?? null }
+      : prepared.ingestKey ?? undefined
+  const { retiredKits } = await unwrap(applyVaultRewrapAction({ rewrapId, ...(ingestKey ? { ingestKey } : {}) }))
   return { count: prepared.entries.length, retiredKits }
 }
 
