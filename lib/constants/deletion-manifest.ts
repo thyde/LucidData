@@ -339,6 +339,14 @@ export const DELETION_MANIFEST: DeletionManifestEntry[] = [
       'Proof the erasure happened. Holds a pseudonymous subject id and a hash of the email, never the address, and has no foreign key so it survives the account it describes.',
   },
   {
+    table: 'daily_counters',
+    personalData: false,
+    behaviour: 'no_personal_data',
+    userColumn: null,
+    strippedColumns: [],
+    reason: 'A count a day, such as how many people opened the health timeline. No row names a person.',
+  },
+  {
     table: 'organizations',
     personalData: false,
     behaviour: 'no_personal_data',
