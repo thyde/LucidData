@@ -2030,6 +2030,7 @@ export type Database = {
           id: string
           label: string
           last_confirmed_at: string | null
+          passkey_id: string | null
           salt: string
           type: string
           user_id: string
@@ -2040,6 +2041,7 @@ export type Database = {
           id?: string
           label: string
           last_confirmed_at?: string | null
+          passkey_id?: string | null
           salt: string
           type: string
           user_id: string
@@ -2050,12 +2052,20 @@ export type Database = {
           id?: string
           label?: string
           last_confirmed_at?: string | null
+          passkey_id?: string | null
           salt?: string
           type?: string
           user_id?: string
           wrapped_master_key?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "recovery_factors_passkey_id_fkey"
+            columns: ["passkey_id"]
+            isOneToOne: false
+            referencedRelation: "passkeys"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recovery_factors_user_id_fkey"
             columns: ["user_id"]
