@@ -82,6 +82,25 @@ export async function updatePayout(id: string, patch: UpdatePayout): Promise<Pay
   return data
 }
 
+/**
+ * Update a payout only while it is still pending with the attempts this run
+ * read. A run that lost a race to another, which paid the payout meanwhile,
+ * changes nothing rather than putting a paid payout back in the queue.
+ * Returns whether the row changed.
+ */
+export async function updatePendingPayout(id: string, attempts: number, patch: UpdatePayout): Promise<boolean> {
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('payouts')
+    .update(patch)
+    .eq('id', id)
+    .eq('status', 'pending')
+    .eq('attempts', attempts)
+    .select('id')
+  if (error) throw error
+  return (data ?? []).length > 0
+}
+
 export async function findPayoutsByOrder(orderId: string): Promise<Payout[]> {
   const service = createServiceClient()
   const { data, error } = await service
