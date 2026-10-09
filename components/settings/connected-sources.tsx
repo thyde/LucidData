@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/lib/hooks/use-toast'
 import { usePendingIngest } from '@/lib/hooks/usePendingIngest'
@@ -68,6 +69,24 @@ export function ConnectedSources() {
 
   if (!loaded) return null
 
+  // Nothing can be connected and nothing is, so point to the imports instead
+  // of promising a connection.
+  if (available.length === 0 && connected.length === 0) {
+    return (
+      <section className="space-y-2 rounded-md border p-4">
+        <h2 className="text-lg font-medium">Connected sources</h2>
+        <p className="text-sm text-muted-foreground">
+          No service can be connected yet. To bring in your history, import an export from Apple
+          Health, Strava, or Garmin on the{' '}
+          <Link href="/vault" className="text-primary underline">
+            vault page
+          </Link>
+          .
+        </p>
+      </section>
+    )
+  }
+
   const connectedProviders = new Set(connected.map((source) => source.provider))
   const connectable = available.filter((entry) => !connectedProviders.has(entry.id))
 
@@ -105,7 +124,7 @@ export function ConnectedSources() {
         </ul>
       )}
 
-      {connectable.length > 0 ? (
+      {connectable.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {connectable.map((entry) => (
             <Button key={entry.id} size="sm" variant="outline" asChild>
@@ -113,12 +132,6 @@ export function ConnectedSources() {
             </Button>
           ))}
         </div>
-      ) : (
-        available.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            No providers are configured in this environment yet.
-          </p>
-        )
       )}
     </section>
   )

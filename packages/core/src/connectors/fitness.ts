@@ -36,6 +36,16 @@ export const FITNESS_CONNECTORS: Record<FitnessProvider, ConnectorDef> = {
     clientIdEnv: 'STRAVA_CLIENT_ID',
     clientSecretEnv: 'STRAVA_CLIENT_SECRET',
     schemaType: 'fitness_activity',
+    // Strava's API Policy, read on 2026-10-09, lets an app keep Strava data
+    // for seven days at most (section 6.2) and forbids accumulating it into an
+    // archive (5.4). A vault keeps data until its owner deletes it, so this
+    // connector cannot comply. Section 6.6 keeps each person's right to their
+    // own bulk export, which the archive import reads as strava-archive.
+    retired: {
+      on: '2026-10-09',
+      reason:
+        "Strava's API terms let an app keep Strava data for seven days at most, so LucidData no longer connects to Strava. To keep your Strava history in your vault, import your Strava archive on the vault page.",
+    },
   },
   fitbit: {
     id: 'fitbit',

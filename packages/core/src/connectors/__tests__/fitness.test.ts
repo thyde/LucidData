@@ -14,7 +14,12 @@ describe('FITNESS_CONNECTORS', () => {
 
   it('retires Fitbit, whose Web API Google turns off on 30 October 2026', () => {
     expect(FITNESS_CONNECTORS.fitbit.retired?.on).toBe('2026-10-30')
-    expect(FITNESS_CONNECTORS.strava.retired).toBeUndefined()
+  })
+
+  it("retires Strava, whose API terms forbid keeping its data past seven days, and points to the archive", () => {
+    expect(FITNESS_CONNECTORS.strava.retired?.on).toBe('2026-10-09')
+    expect(FITNESS_CONNECTORS.strava.retired?.reason).toContain('seven days')
+    expect(FITNESS_CONNECTORS.strava.retired?.reason).toContain('import your Strava archive')
   })
 })
 

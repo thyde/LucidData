@@ -94,7 +94,7 @@ export default function HealthPrivacyPolicyPage() {
       <LegalSection title="Where it comes from">
         <LegalList>
           <li>From you, when you add records or import files such as an Apple Health export.</li>
-          <li>From services you connect, such as Strava.</li>
+          <li>From services you connect.</li>
           <li>From the LucidData browser extension, when you ask it to hand over an export you downloaded.</li>
           <li>From organizations that issue you a credential containing health information.</li>
         </LegalList>

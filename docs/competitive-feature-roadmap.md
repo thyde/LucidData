@@ -1220,6 +1220,14 @@ only to that person and shared only with their explicit consent, and Google rest
 health data. Fitbit was retired on 2026-10-05 because Google is turning its Web API off. Providers can
 disappear, and the framework needs a clean way to say so.
 
+Update, 2026-10-09. Strava's [API Policy](https://www.strava.com/legal/api_policy), read that day, lets
+an app keep Strava data for seven days at most (section 6.2), forbids accumulating it through the API
+into an archive or database (5.4), and requires a deletion on Strava to show within 48 hours (6.3). A vault
+keeps data until its owner deletes it, so the Strava connector is retired, as Fitbit's was. Section 6.6
+keeps each person's right to their own bulk export, which LD-210 already imports. With both retired, no
+provider is live. The framework waits for a provider whose terms allow a vault to keep its data, and that
+check comes first for every candidate, with the clause recorded in the provider's module.
+
 Scope. A provider module interface and registry. PKCE where the provider supports it. Cursors and a
 backfill range. Signed webhook ingestion. Per-source scheduling. A terms policy per provider that the
 consent and contribution paths enforce. Retirement as a first-class state.
@@ -1238,7 +1246,7 @@ Security.
 - A provider whose terms forbid onward transfer can never reach a marketplace pool or an organization grant. Assert this in code, not configuration.
 
 Acceptance criteria.
-- [ ] Strava runs through the new interface with no change in behaviour, proven by the existing tests.
+- [ ] The first live provider runs through the new interface, and its module cites the terms that let a vault keep its data. This was Strava until its connector was retired on 2026-10-09.
 - [ ] A first sync backfills to `backfill_from`, and later syncs fetch only new records.
 - [ ] A rate-limit response defers the source rather than marking it broken.
 - [ ] A webhook with a bad signature is refused and stores nothing.
@@ -2892,7 +2900,7 @@ None of these block Phase 3. They are recorded so they are not lost.
 
 | Item | State | Why it matters |
 | --- | --- | --- |
-| Strava OAuth app | Not created | LD-201 and LD-208 cannot complete an authorization round trip without it. Fitbit was dropped on 2026-10-05 when Google retired its Web API; see section 6.14 |
+| Strava OAuth app | Not needed | The Strava connector was retired on 2026-10-09: Strava's API Policy lets an app keep its data for seven days at most, and a vault keeps it for good. People bring Strava history in with the archive import. Fitbit was dropped on 2026-10-05 when Google retired its Web API; see section 6.14 |
 | Extension store listings | Not started | Chrome, Edge, Firefox, and Safari each need their own submission, now tracked as LD-212. Firefox needs `browser_specific_settings` and a script background, Safari needs a container app, and Chrome needs a paid developer account |
 | DMARC enforcement | At `p=none` | Monitoring only. Tightening to `quarantine` should wait for a few weeks of reports, so a legitimate sender is not silently dropped |
 
@@ -2915,7 +2923,7 @@ Re-sequenced on 2026-10-05 for the health and fitness focus; see
 - LD-608 versioned client API (delivered 2026-10-08)
 - LD-209 health schema expansion (delivered 2026-10-08)
 - LD-204 mobile application, stages A and B together (portable crypto core delivered)
-- LD-208 connector framework v2
+- LD-208 connector framework v2 (no provider is live: Strava was retired on 2026-10-09 because its API terms forbid keeping its data, so this waits for a provider whose terms allow it)
 - LD-210 archive import and health export adapters (started 2026-10-08: Apple Health, Strava, and Garmin)
 - LD-212 cross-browser extension builds and store release
 - LD-214 health timeline and insights (delivered 2026-10-09)
@@ -3155,8 +3163,8 @@ Setup that only an account owner can do, and that the specs above wait on:
 | Chrome Web Store, Microsoft Partner Center, and Firefox add-on developer accounts | LD-212 |
 | Vercel Pro and Supabase Pro (both done 2026-10-05) | LD-610 |
 | Custom SMTP for Supabase Auth, and Turnstile keys (both done 2026-10-05) | LD-610 |
-| A Strava API app, and Strava's approval for production use | LD-208 |
-| Oura, Whoop, Withings, and Polar developer apps, and the Garmin Connect Developer Program | LD-208 |
+| A Strava API app (no longer needed: the connector is retired, because Strava's API terms forbid keeping its data past seven days) | LD-208 |
+| Oura, Whoop, Withings, and Polar developer apps, and the Garmin Connect Developer Program, each only after its API terms are checked to allow a vault to keep the data | LD-208 |
 | A place on the Google Health API waitlist | LD-208 |
 | Counsel's review of the LD-110 documents | LD-110, and every store submission |
 
@@ -3515,6 +3523,7 @@ These were live defects in the codebase rather than missing features. Status upd
 | A copied passkey sign-in request could be sent again | The challenge lived only in a cookie, so the server could not tell whether it had issued one or whether it had been used. Anyone holding a copy of one sign-in request could set the cookie by hand and get a new sign-in link each time. Synced passkeys keep their signature counter at zero, so the counter never caught it | LD-106 | **Fixed** 2026-10-09. Challenges are held in `passkey_challenges`, each for one account and one ceremony, deleted as it is used and refused after five minutes. The cookie only names one. An end-to-end test sends a real sign-in request a second time and gets a 400, where the old route returned a new link |
 | A page could send the person back to the one they had just left | Next.js 16.2 started a queued server action against the page being left when a discarded one settled ([vercel/next.js#88343](https://github.com/vercel/next.js/issues/88343)). If it finished after the navigation, the next refresh rendered the old page. Leaving the vault while it was still loading, then saving something on Settings, went back to the vault about half the time | LD-610 | **Fixed** 2026-10-09 by moving to Next.js 16.3.8, where only the action at the head of the queue can advance it. The LD-112 end-to-end journey failed 2 of 4 runs on 16.2.10 and passed 6 of 6 on 16.3.8, and it keeps the soft navigation that caught it |
 | The web framework was inside the range of 17 published advisories | `npm audit` listed 17 advisories against Next.js 16.2.10, three of them critical. Most need something this app does not use: `next/og`, `next/image` with AVIF or remote images, rewrites, a custom or Windows-hosted server, Turbopack, or self-hosted caching. Two apply to any App Router app with server actions: a denial of service through server actions (GHSA-m99w-x7hq-7vfj) and disclosure of internal server function endpoints (GHSA-955p-x3mx-jcvp) | LD-610 | **Fixed** 2026-10-09 by moving to Next.js 16.3.8, outside every affected range, which also cleared the PostCSS and sharp advisories that came with it. Other dependencies still fail `npm run security:audit` |
+| The Strava connector would have kept Strava data longer than Strava allows | Strava's [API Policy](https://www.strava.com/legal/api_policy) lets an app keep data from its API for seven days at most (6.2) and forbids accumulating it into an archive or database (5.4). The LD-201 connector stored every synced activity in the vault for good. It was never switched on in production, because no Strava API app exists, so no data was affected | LD-201 | **Retired** 2026-10-09, as Fitbit's connector was: Strava is never offered, a grant cannot start or finish, and an existing source stops syncing with the reason shown. The archive import, which reads the bulk export Strava's policy guarantees each person (6.6), covers Strava history |
 
 Every defect found during validation is fixed. The two GDPR Article 17 defects, where a deleted
 account kept credential claims and contributed record payloads, were closed by LD-607 on 2026-07-26.
@@ -3551,7 +3560,7 @@ auth logs show each magic-link sign-in, so the two together would show any use.
 
 The two framework rows were found on 2026-10-09: the first by LD-112's end-to-end test, which a stale
 server action sent back to the vault, and the second by the dependency audit run for the upgrade that
-fixed it.
+fixed it. The Strava row was found the same day, by reading Strava's API terms before starting LD-208.
 
 ### Before this spec is considered final
 
