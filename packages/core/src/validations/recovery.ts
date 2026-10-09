@@ -34,4 +34,9 @@ export const addPasskeyUnlockSchema = z.object({
   stepUpToken: z.string().min(1, 'Confirm your password to continue'),
 })
 
+/** LD-112: after a password reset that did not restore the vault, a grant for remove_recovery_factor. */
+export const retirePasskeyUnlocksSchema = z.object({
+  stepUpToken: z.string().min(1, 'Confirm your password to continue'),
+})
+
 export type AddRecoveryFactorInput = z.infer<typeof addRecoveryFactorSchema>

@@ -12,6 +12,6 @@ export const dynamic = 'force-dynamic'
  */
 export const POST = v1(async (req, { userId }) => {
   const { reason, entries, step_up_token, ingest_key } = vaultRewrapSchema.parse(await readJson(req))
-  const { retiredKits } = await rewrapVaultEntries(userId, reason, entries, step_up_token, ingest_key)
-  return { rewrapped: entries.length, retired_kits: retiredKits }
+  const { retiredKits, retiredPasskeys } = await rewrapVaultEntries(userId, reason, entries, step_up_token, ingest_key)
+  return { rewrapped: entries.length, retired_kits: retiredKits, retired_passkeys: retiredPasskeys }
 })

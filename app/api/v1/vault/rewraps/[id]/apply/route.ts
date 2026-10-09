@@ -12,6 +12,6 @@ type Params = { id: string }
  */
 export const POST = v1<Params>(async (req, { userId, params }) => {
   const { ingest_key } = vaultRewrapApplySchema.parse(await readJson(req).catch(() => ({})))
-  const { rewrapped, retiredKits } = await applyVaultRewrap(userId, params.id, ingest_key)
-  return { rewrapped, retired_kits: retiredKits }
+  const { rewrapped, retiredKits, retiredPasskeys } = await applyVaultRewrap(userId, params.id, ingest_key)
+  return { rewrapped, retired_kits: retiredKits, retired_passkeys: retiredPasskeys }
 })

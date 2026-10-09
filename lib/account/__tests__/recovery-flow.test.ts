@@ -77,7 +77,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   beginVaultRewrapAction.mockResolvedValue({ rewrapId: 'rewrap-1' })
   stageVaultRewrapAction.mockImplementation(async (input: { entries: unknown[] }) => ({ staged: input.entries.length }))
-  applyVaultRewrapAction.mockResolvedValue({ rewrapped: 0, retiredKits: 1 })
+  applyVaultRewrapAction.mockResolvedValue({ rewrapped: 0, retiredKits: 1, retiredPasskeys: 2 })
   getIngestionKeyAction.mockResolvedValue({ publicKey: null, wrappedPrivateKey: null, salt: null })
 })
 
@@ -132,7 +132,7 @@ describe('rewrapAllEntries', () => {
 
     const result = await rewrapAllEntries(oldKey.key, newKey.key, 'recovery', 'grant')
 
-    expect(result).toEqual({ count: 2, retiredKits: 1 })
+    expect(result).toEqual({ count: 2, retiredKits: 1, retiredPasskeys: 2 })
     const sent = sentRewrap()
     expect(sent.begin).toEqual({ reason: 'recovery', stepUpToken: 'grant' })
     // No connector key was read, and the server is told so: one published
@@ -200,7 +200,11 @@ describe('rewrapAllEntries', () => {
       ingestKey: { previous: 'old-ingest', wrapped: 'new-ingest' },
     }
 
-    expect(await storeRewrap(prepared, 'password_change', 'grant', 2)).toEqual({ count: 5, retiredKits: 1 })
+    expect(await storeRewrap(prepared, 'password_change', 'grant', 2)).toEqual({
+      count: 5,
+      retiredKits: 1,
+      retiredPasskeys: 2,
+    })
 
     const sent = sentRewrap()
     expect(sent.parts.map((part) => part.entries.length)).toEqual([2, 2, 1])

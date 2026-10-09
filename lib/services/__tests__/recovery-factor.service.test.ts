@@ -148,6 +148,7 @@ const {
   addPasskeyUnlock,
   getPasskeyUnlockMaterial,
   hasPasskeyUnlock,
+  retirePasskeyUnlocks,
   CONFIRMATION_INTERVAL_DAYS,
 } = await import('@/lib/services/recovery-factor.service')
 
@@ -613,6 +614,46 @@ describe('getPasskeyUnlockMaterial', () => {
       column: 'created_at',
       ascending: false,
     })
+  })
+})
+
+describe('retirePasskeyUnlocks', () => {
+  it('needs a grant for remove_recovery_factor, and changes nothing without one', async () => {
+    await expect(retirePasskeyUnlocks('user-1', '')).rejects.toMatchObject({ code: 'step_up_required' })
+    expect(writes()).toEqual([])
+
+    await retirePasskeyUnlocks('user-1', 'grant')
+    expect(consumeStepUp).toHaveBeenCalledWith('user-1', 'remove_recovery_factor', 'grant')
+  })
+
+  it('removes only the person\'s passkey copies, records which, and tells them', async () => {
+    db.retired = [{ id: 'pk-factor-1' }, { id: 'pk-factor-2' }]
+
+    expect(await retirePasskeyUnlocks('user-1', 'grant')).toEqual({ retired: 2 })
+
+    const [removed] = writes()
+    expect(removed).toMatchObject({
+      client: 'service',
+      table: 'recovery_factors',
+      op: 'delete',
+      filters: { user_id: 'user-1', type: 'passkey_prf' },
+    })
+    // Codes and kits stay: they can still restore the vault later.
+    expect(writes()).toHaveLength(1)
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'recovery_factor_removed',
+        action: 'Stopped 2 passkeys opening the vault after a password reset that did not restore it',
+        metadata: { reason: 'password_reset_without_restore', factor_ids: ['pk-factor-1', 'pk-factor-2'] },
+      })
+    )
+    expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'passkey_unlocks_retired')
+  })
+
+  it('records nothing when no passkey opened the vault', async () => {
+    expect(await retirePasskeyUnlocks('user-1', 'grant')).toEqual({ retired: 0 })
+    expect(createAuditEntry).not.toHaveBeenCalled()
+    expect(notifySecurityEvent).not.toHaveBeenCalled()
   })
 })
 

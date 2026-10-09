@@ -194,6 +194,16 @@ describe('unlockWithPasskey', () => {
     expect(Object.keys(optionsJSON.extensions.prf.evalByCredential)).toEqual(['cred-1'])
   })
 
+  it('opens the prompt without a request first when the material was read beforehand', async () => {
+    const { raw, key } = await vaultKey()
+    const output = bytes(32)
+    const material = { passkeys: [await copyFor('cred-1', raw, output)], probe: await entryUnder(key), ingest_key: null }
+    startAuthentication.mockResolvedValue(assertion('cred-1', { prf: { results: { first: output.buffer } } }))
+
+    expect(await unlockWithPasskey(material)).not.toBeNull()
+    expect(getPasskeyUnlockMaterialAction).not.toHaveBeenCalled()
+  })
+
   it('asks for nothing when no passkey can open the vault', async () => {
     getPasskeyUnlockMaterialAction.mockResolvedValue({ passkeys: [], probe: null, ingest_key: null })
 

@@ -72,7 +72,7 @@ beforeEach(() => {
   consumeStepUp.mockResolvedValue(undefined)
   createAuditEntry.mockResolvedValue(undefined)
   notifySecurityEvent.mockResolvedValue(undefined)
-  retireRecoveryFactors.mockResolvedValue({ kits: 0 })
+  retireRecoveryFactors.mockResolvedValue({ kits: 0, passkeys: 0 })
   rewraps.startRewrap.mockResolvedValue(REWRAP)
   rewraps.findActiveRewrap.mockResolvedValue({ id: REWRAP, reason: 'password_change' })
   rewraps.stageRewrapEntries.mockResolvedValue(undefined)
@@ -125,9 +125,9 @@ describe('applyVaultRewrap', () => {
   it('stores every staged envelope at once, then audits and retires the factors', async () => {
     rewraps.findActiveRewrap.mockResolvedValue({ id: REWRAP, reason: 'recovery' })
     rewraps.applyRewrap.mockResolvedValue(3)
-    retireRecoveryFactors.mockResolvedValue({ kits: 2 })
+    retireRecoveryFactors.mockResolvedValue({ kits: 2, passkeys: 1 })
 
-    expect(await applyVaultRewrap('user-1', REWRAP)).toEqual({ rewrapped: 3, retiredKits: 2 })
+    expect(await applyVaultRewrap('user-1', REWRAP)).toEqual({ rewrapped: 3, retiredKits: 2, retiredPasskeys: 1 })
 
     expect(rewraps.applyRewrap).toHaveBeenCalledWith('user-1', REWRAP, undefined)
     expect(rewraps.applyRewrap.mock.invocationCallOrder[0]).toBeLessThan(
@@ -139,6 +139,7 @@ describe('applyVaultRewrap', () => {
     )
     expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'vault_recovered')
     expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'recovery_kits_retired')
+    expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'passkey_unlocks_retired')
   })
 
   it('moves the connector key in the same transaction as the entries', async () => {
@@ -179,11 +180,12 @@ describe('applyVaultRewrap', () => {
     expect(retireRecoveryFactors).not.toHaveBeenCalled()
   })
 
-  it('says nothing about kits when none were retired', async () => {
+  it('says nothing about kits or passkeys when none were retired', async () => {
     await applyVaultRewrap('user-1', REWRAP)
 
     expect(notifySecurityEvent).toHaveBeenCalledWith('user-1', 'password_changed')
     expect(notifySecurityEvent).not.toHaveBeenCalledWith('user-1', 'recovery_kits_retired')
+    expect(notifySecurityEvent).not.toHaveBeenCalledWith('user-1', 'passkey_unlocks_retired')
   })
 
   it('never reports a failure once the new wrapping is stored', async () => {
@@ -192,7 +194,7 @@ describe('applyVaultRewrap', () => {
     createAuditEntry.mockRejectedValue(new Error('audit insert failed'))
     retireRecoveryFactors.mockRejectedValue(new Error('retire failed'))
 
-    await expect(applyVaultRewrap('user-1', REWRAP)).resolves.toEqual({ rewrapped: 1, retiredKits: 0 })
+    await expect(applyVaultRewrap('user-1', REWRAP)).resolves.toEqual({ rewrapped: 1, retiredKits: 0, retiredPasskeys: 0 })
     expect(logError).toHaveBeenCalledTimes(2)
   })
 })
@@ -212,7 +214,10 @@ describe('rewrapVaultEntries, the whole re-wrap in one call', () => {
     const entries = Array.from({ length: REWRAP_PART_SIZE + 1 }, (_, n) => envelope(n))
     rewraps.applyRewrap.mockResolvedValue(entries.length)
 
-    expect(await rewrapVaultEntries('user-1', 'password_change', entries, 'grant')).toEqual({ retiredKits: 0 })
+    expect(await rewrapVaultEntries('user-1', 'password_change', entries, 'grant')).toEqual({
+      retiredKits: 0,
+      retiredPasskeys: 0,
+    })
 
     expect(rewraps.stageRewrapEntries.mock.calls.map(([, part]) => (part as unknown[]).length)).toEqual([
       REWRAP_PART_SIZE,

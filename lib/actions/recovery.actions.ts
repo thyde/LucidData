@@ -11,6 +11,7 @@ import {
   getRecoveryMaterial,
   getRecoveryStatus,
   removeRecoveryFactor,
+  retirePasskeyUnlocks,
   type PasskeyUnlockMaterial,
   type RecoveryFactorSummary,
   type RecoveryMaterial,
@@ -21,6 +22,7 @@ import {
   addRecoveryFactorSchema,
   recoveryFactorIdSchema as factorIdSchema,
   removeRecoveryFactorSchema,
+  retirePasskeyUnlocksSchema,
 } from '@luciddata/core/validations/recovery'
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -78,6 +80,15 @@ export async function getPasskeyUnlockMaterialAction(): Promise<PasskeyUnlockMat
   return guarded(async () => {
     const userId = await getAuthenticatedUserId()
     return getPasskeyUnlockMaterial(userId)
+  })
+}
+
+/** LD-112: stop the person's passkeys opening the vault, after a reset that did not restore it. */
+export async function retirePasskeyUnlocksAction(input: unknown): Promise<{ retired: number } | ActionFailure> {
+  return guarded(async () => {
+    const userId = await getAuthenticatedUserId()
+    const { stepUpToken } = retirePasskeyUnlocksSchema.parse(input)
+    return retirePasskeyUnlocks(userId, stepUpToken)
   })
 }
 

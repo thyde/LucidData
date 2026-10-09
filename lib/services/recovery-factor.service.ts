@@ -24,9 +24,9 @@ import { UserFacingError } from '@/lib/actions/action-result'
 export type RecoveryFactorType = 'recovery_code' | 'recovery_kit' | 'passkey_prf'
 
 /**
- * The factors that bring a vault back after a password reset. LD-112's
- * passkey factor opens the vault at sign-in, but a reset cannot use it, so it
- * does not count as recovery being set up.
+ * The factors that count as recovery being set up. LD-112's passkey factor can
+ * also restore a vault at a password reset, but it goes with its device, so
+ * it does not count.
  */
 const RESETTING_TYPES: ReadonlySet<RecoveryFactorType> = new Set(['recovery_code', 'recovery_kit'])
 
@@ -96,7 +96,7 @@ export async function getRecoveryStatus(userId: string): Promise<RecoveryStatus>
     userRepo.findUserById(userId),
     hasExistingVaultData(userId),
   ])
-  // Passkeys are managed with the passkeys, and cannot reset a password.
+  // Passkeys are listed with the passkeys, and do not count as recovery.
   const factors = all.filter((factor) => RESETTING_TYPES.has(factor.type))
 
   const declinedAt = user?.recovery_setup_declined_at ?? null
@@ -447,6 +447,37 @@ export async function addPasskeyUnlock(
   return toSummary(data)
 }
 
+/**
+ * LD-112: stop every passkey opening the vault, after a password reset that
+ * did not restore it. The copies wrap the key the vault is still under, which
+ * the new password does not make, so passkey sessions would go on writing
+ * under one key while password sessions write under another. The reset page
+ * offers the passkey as a way to restore first, and asks before this runs.
+ */
+export async function retirePasskeyUnlocks(userId: string, stepUpToken: string): Promise<{ retired: number }> {
+  await requireStepUp(userId, 'remove_recovery_factor', stepUpToken)
+  const service = createServiceClient()
+  const { data, error } = await service
+    .from('recovery_factors')
+    .delete()
+    .eq('user_id', userId)
+    .eq('type', 'passkey_prf')
+    .select('id')
+  if (error) throw error
+
+  const retired = data ?? []
+  if (retired.length > 0) {
+    await createAuditEntry({
+      userId,
+      eventType: 'recovery_factor_removed',
+      action: `Stopped ${retired.length} ${retired.length === 1 ? 'passkey' : 'passkeys'} opening the vault after a password reset that did not restore it`,
+      metadata: { reason: 'password_reset_without_restore', factor_ids: retired.map((factor) => factor.id) },
+    })
+    await notifySecurityEvent(userId, 'passkey_unlocks_retired')
+  }
+  return { retired: retired.length }
+}
+
 /** One passkey's wrapped copy of the master key, keyed by the credential id the browser reports. */
 export interface PasskeyUnlock {
   credentialId: string
@@ -538,8 +569,8 @@ export async function getRecoveryMaterial(userId: string): Promise<RecoveryMater
   const supabase = await createClient()
   const [user, factors, probe] = await Promise.all([
     userRepo.findUserById(userId),
-    // Only factors a person can use without their password. A passkey that
-    // opens the vault is retired by the reset, so it cannot restore anything.
+    // Codes and kits. A passkey restores through its own copy instead, found
+    // by the credential the browser reports, from getPasskeyUnlockMaterial.
     supabase
       .from('recovery_factors')
       .select('id, type, wrapped_master_key, salt')

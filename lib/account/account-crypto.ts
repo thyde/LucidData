@@ -125,6 +125,8 @@ export interface RewrapResult {
   count: number
   /** Recovery kits that stopped working because the master key changed. */
   retiredKits: number
+  /** LD-112: passkeys that stopped opening the vault, for the same reason. */
+  retiredPasskeys: number
 }
 
 /** One entry's data key wrapped under the new master key, ready to store. */
@@ -245,8 +247,10 @@ export async function storeRewrap(
     prepared.ingestRead !== undefined
       ? { previous: prepared.ingestRead, wrapped: prepared.ingestKey?.wrapped ?? null }
       : prepared.ingestKey ?? undefined
-  const { retiredKits } = await unwrap(applyVaultRewrapAction({ rewrapId, ...(ingestKey ? { ingestKey } : {}) }))
-  return { count: prepared.entries.length, retiredKits }
+  const { retiredKits, retiredPasskeys } = await unwrap(
+    applyVaultRewrapAction({ rewrapId, ...(ingestKey ? { ingestKey } : {}) })
+  )
+  return { count: prepared.entries.length, retiredKits, retiredPasskeys }
 }
 
 export async function rewrapAllEntries(
